@@ -182,7 +182,6 @@ void TVTermApp::openMenu()
     }
 
     TObject::destroy(menuPopup);
-    delete menu;
 }
 
 static void onTermError(const char *reason)

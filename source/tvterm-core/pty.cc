@@ -65,7 +65,7 @@ bool createPty( PtyDescriptor &ptyDescriptor, TPoint size,
     }
     else if (clientPid == -1)
     {
-        char *str = fmtStr("forkpty failed: %s", strerror(errno));
+        char *str = formatStr("forkpty failed: %s", strerror(errno));
         onError(str);
         delete[] str;
         return false;
@@ -422,7 +422,7 @@ bool createPty( PtyDescriptor &ptyDescriptor,
     }
     else
     {
-        char *msg = fmtStr("%s failed with error code %d", failedAction, (int) GetLastError());
+        char *msg = formatStr("%s failed with error code %d", failedAction, (int) GetLastError());
         onError(msg);
         delete[] msg;
 
