@@ -7,6 +7,7 @@ enum : ushort
 {
     cmGrabInput = 100,
     cmReleaseInput,
+    cmTermPaste,
     cmTileCols,
     cmTileRows,
     // Commands that cannot be deactivated.

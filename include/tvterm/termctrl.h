@@ -25,6 +25,7 @@ public:
     void shutDown() noexcept;
 
     void sendEvent(const TerminalEvent &event) noexcept;
+    void sendPasteData(GrowArray data) noexcept;
 
     bool stateHasBeenUpdated() noexcept;
     bool clientIsDisconnected() noexcept;

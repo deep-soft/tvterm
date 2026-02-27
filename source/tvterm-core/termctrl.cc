@@ -53,6 +53,10 @@ struct TerminalController::TerminalEventLoop
     // threads. Has its own mutex to avoid blocking the main thread for long.
     Mutex<std::queue<TerminalEvent>> eventQueue;
 
+    // Owned storage for paste payloads. PasteData events in eventQueue act as
+    // triggers; the writer loop pops owned buffers from here synchronously.
+    Mutex<std::queue<GrowArray>> pasteQueue;
+
     // Used for waking up the WriterLoop a short time after data was received
     // by the ReaderLoop thread.
     TimePoint currentTimeout {};
@@ -142,6 +146,18 @@ void TerminalController::sendEvent(const TerminalEvent &event) noexcept
         eventQueue.push(event);
     });
     eventLoop.condVar.notify_one();
+}
+
+void TerminalController::sendPasteData(GrowArray data) noexcept
+{
+    if (data.size() == 0)
+        return;
+    eventLoop.pasteQueue.lock([&] (auto &pasteQueue) {
+        pasteQueue.push(std::move(data));
+    });
+    TerminalEvent event;
+    event.type = TerminalEventType::PasteData;
+    sendEvent(event);
 }
 
 void TerminalController::TerminalEventLoop::runWriterLoop() noexcept
@@ -251,6 +267,27 @@ void TerminalController::TerminalEventLoop::processEvents() noexcept
                 viewportSize = {event.viewportResize.x, event.viewportResize.y};
                 viewportResized = true;
                 break;
+
+            case TerminalEventType::PasteData:
+            {
+                // Pop owned buffer and build a local event with valid pointers.
+                GrowArray pasteBuffer;
+                pasteQueue.lock([&] (auto &pasteQueue) {
+                    if (!pasteQueue.empty())
+                    {
+                        pasteBuffer = std::move(pasteQueue.front());
+                        pasteQueue.pop();
+                    }
+                });
+                if (pasteBuffer.size() > 0)
+                {
+                    TerminalEvent pasteEvent;
+                    pasteEvent.type = TerminalEventType::PasteData;
+                    pasteEvent.pasteData = {pasteBuffer.data(), pasteBuffer.size()};
+                    ctrl.terminalEmulator.handleEvent(pasteEvent);
+                }
+                break;
+            }
 
             default:
                 ctrl.terminalEmulator.handleEvent(event);

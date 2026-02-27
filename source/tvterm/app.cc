@@ -160,6 +160,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Maximize/Restore", cmZoom, 'F', hcNoContext, "~F~") +
         newLine() +
+        *new TMenuItem("~P~aste", cmTermPaste, kbShiftIns, hcNoContext, "~Shift-Ins~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
             *new TMenuItem("~C~hange working dir...", cmChangeDir, kbNoKey) +
             newLine() +
