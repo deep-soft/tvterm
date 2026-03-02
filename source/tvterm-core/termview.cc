@@ -6,6 +6,8 @@
 #define Uses_TEvent
 #include <tvision/tv.h>
 
+#include <stdio.h>
+
 namespace tvterm
 {
 
@@ -60,6 +62,14 @@ void TerminalView::handleEvent(TEvent &ev)
 
     switch (ev.what)
     {
+        case evCommand:
+            if (ev.message.command == consts.cmTermPaste)
+            {
+                pasteFromClipboard();
+                clearEvent(ev);
+            }
+            break;
+
         case evBroadcast:
             if ( ev.message.command == consts.cmCheckTerminalUpdates &&
                  termCtrl.stateHasBeenUpdated() )
@@ -68,6 +78,13 @@ void TerminalView::handleEvent(TEvent &ev)
 
         case evKeyDown:
         {
+            if (ev.keyDown.keyCode == kbShiftIns)
+            {
+                pasteFromClipboard();
+                clearEvent(ev);
+                break;
+            }
+
             TerminalEvent termEvent;
             termEvent.type = TerminalEventType::KeyDown;
             termEvent.keyDown = ev.keyDown;
@@ -165,6 +182,51 @@ bool TerminalView::canReuseOwnerBuffer() noexcept
         return false;
     }
     return owner && owner->buffer;
+}
+
+bool TerminalView::readClipboard(GrowArray &out) noexcept
+{
+#if !defined(_WIN32)
+    FILE *pipe = popen(
+        "pbpaste 2>/dev/null || "
+        "xclip -selection clipboard -o 2>/dev/null || "
+        "xsel --clipboard --output 2>/dev/null",
+        "r"
+    );
+    if (!pipe)
+        return false;
+
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), pipe)) > 0)
+        out.push(buf, n);
+
+    int status = pclose(pipe);
+    return status == 0 && out.size() > 0;
+#else
+    // TODO: Windows clipboard via OpenClipboard/GetClipboardData
+    (void) out;
+    return false;
+#endif
+}
+
+void TerminalView::pasteFromClipboard() noexcept
+{
+    static constexpr size_t maxPasteBytes = 1 << 20; // 1 MiB safety cap
+
+    GrowArray data;
+    if (!readClipboard(data))
+        return;
+
+    // Truncate oversized payloads to avoid flooding the PTY.
+    if (data.size() > maxPasteBytes)
+    {
+        GrowArray truncated;
+        truncated.push(data.data(), maxPasteBytes);
+        data = std::move(truncated);
+    }
+
+    termCtrl.sendPasteData(std::move(data));
 }
 
 } // namespace tvterm

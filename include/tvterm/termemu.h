@@ -94,6 +94,7 @@ enum class TerminalEventType
     KeyDown,
     Mouse,
     ClientDataRead,
+    PasteData,
     ViewportResize,
     FocusChange,
 };
@@ -105,6 +106,12 @@ struct MouseEvent
 };
 
 struct ClientDataReadEvent
+{
+    const char *data;
+    size_t size;
+};
+
+struct PasteDataEvent
 {
     const char *data;
     size_t size;
@@ -128,6 +135,7 @@ struct TerminalEvent
         ::KeyDownEvent keyDown;
         MouseEvent mouse;
         ClientDataReadEvent clientDataRead;
+        PasteDataEvent pasteData;
         ViewportResizeEvent viewportResize;
         FocusChangeEvent focusChange;
     };

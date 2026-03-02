@@ -11,12 +11,13 @@ struct TVTermConstants
     // Focused commands
     ushort cmGrabInput;
     ushort cmReleaseInput;
+    ushort cmTermPaste;
     // Help contexts
     ushort hcInputGrabbed;
 
     TSpan<const ushort> focusedCmds() const
     {
-        return {&cmGrabInput, size_t(&cmReleaseInput + 1 - &cmGrabInput)};
+        return {&cmGrabInput, size_t(&cmTermPaste + 1 - &cmGrabInput)};
     }
 };
 

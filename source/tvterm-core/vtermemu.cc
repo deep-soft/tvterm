@@ -308,6 +308,18 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
             break;
         }
 
+        case TerminalEventType::PasteData:
+        {
+            auto &paste = event.pasteData;
+            vterm_keyboard_start_paste(vt);
+            // Write paste data as raw input through the output callback.
+            // vterm_keyboard_start_paste/end_paste emit bracketed paste
+            // markers only when mode 2004 is enabled by the child app.
+            writeOutput(paste.data, paste.size);
+            vterm_keyboard_end_paste(vt);
+            break;
+        }
+
         case TerminalEventType::ViewportResize:
         {
             TPoint size = {event.viewportResize.x, event.viewportResize.y};
