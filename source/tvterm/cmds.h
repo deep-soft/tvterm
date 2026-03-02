@@ -11,6 +11,10 @@ enum : ushort
     cmTileRows,
     // Commands that cannot be deactivated.
     cmNewTerm = 1000,
+//    cmEventViewCmd = 1112,
+//    cmFndEventView = 1114,
+    cmEventViewCmd,
+    cmFndEventView,
     cmCheckTerminalUpdates,
     cmTerminalUpdated,
     cmGetOpenTerms,

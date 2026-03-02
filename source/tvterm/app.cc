@@ -17,6 +17,7 @@
 #include "desk.h"
 #include "wnd.h"
 #include "apputil.h"
+#include "evntview.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -82,7 +83,7 @@ TDeskTop *TVTermApp::initDeskTop(TRect r)
 void TVTermApp::handleEvent(TEvent &event)
 {
     TApplication::handleEvent(event);
-    bool handled = true;
+//    bool handled = true;
     switch (event.what)
     {
         case evCommand:
@@ -90,19 +91,23 @@ void TVTermApp::handleEvent(TEvent &event)
             {
                 case cmMenu: openMenu(); break;
                 case cmNewTerm: newTerm(); break;
+                case cmEventViewCmd: eventViewer(); break;         //  Open Event Viewer
                 case cmChangeDir: changeDir(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
-                    handled = false;
-                    break;
+//                    handled = false;
+//                    break;
+                return;
+
             }
-            break;
+//            break;
         default:
-            handled = false;
-            break;
+//            handled = false;
+//            break;
+              return;
     }
-    if (handled)
+//    if (handled)
         clearEvent(event);
 }
 
@@ -112,6 +117,20 @@ size_t TVTermApp::getOpenTermCount()
     message(this, evBroadcast, cmGetOpenTerms, &count);
     return count;
 }
+
+void TVTermApp::getEvent(TEvent &event)
+{
+    TApplication::getEvent(event);
+    printEvent(event);
+    switch (event.what)
+        {
+        case evMouseDown:
+            if (event.mouse.buttons == mbRightButton)
+                event.what = evNothing;
+            break;
+        }
+
+}  
 
 Boolean TVTermApp::valid(ushort command)
 {
@@ -154,6 +173,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Close Term", cmClose, 'W', hcNoContext, "~W~") +
         newLine() +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
+        *new TMenuItem("Event Viewer", cmEventViewCmd, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
         *new TMenuItem("Tile (Columns First)", cmTileCols, 'V', hcNoContext, "~V~") +
         *new TMenuItem("Tile (Rows First)", cmTileRows, 'H', hcNoContext, "~H~") +
@@ -198,6 +218,23 @@ void TVTermApp::newTerm()
                                                  factory, onTermError );
     if (termCtrl)
         insertWindow(new TerminalWindow(r, *termCtrl));
+}
+
+
+void TVTermApp::eventViewer()
+{
+    TEventViewer *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFndEventView, 0);
+    if( viewer != 0 )
+        viewer->toggle();
+    else
+        deskTop->insert(new TEventViewer(deskTop->getExtent(), 0x0F00));
+}
+
+void TVTermApp::printEvent(const TEvent &event)
+{
+    TEventViewer *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFndEventView, 0);
+    if( viewer != 0 )
+        viewer->print(event);
 }
 
 void TVTermApp::changeDir()
