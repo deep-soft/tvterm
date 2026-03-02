@@ -267,6 +267,13 @@ VTermEmulator::VTermEmulator(TPoint size, Writer &aClientDataWriter) noexcept :
     vtState = vterm_obtain_state(vt);
     vterm_state_reset(vtState, true);
 
+    // Force pure black background (default may be dark grey on some platforms)
+    VTermColor blackBg;
+    vterm_color_rgb(&blackBg, 0, 0, 0);
+    VTermColor whiteFg;
+    vterm_color_rgb(&whiteFg, 255, 255, 255);
+    vterm_state_set_default_colors(vtState, &whiteFg, &blackBg);
+
     vtScreen = vterm_obtain_screen(vt);
     vterm_screen_enable_altscreen(vtScreen, true);
     vterm_screen_set_callbacks(vtScreen, &callbacks, this);
@@ -345,6 +352,7 @@ void VTermEmulator::updateState(TerminalState &state) noexcept
         state.titleChanged = true;
         state.title = std::move(localState.title);
     }
+    state.mouseEnabled = localState.mouseEnabled;
 }
 
 TPoint VTermEmulator::getSize() noexcept
