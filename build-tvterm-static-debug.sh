@@ -1,11 +1,11 @@
 #!/bin/bash
-# build-tvterm-static.sh
+# build-tvterm-static-debug.sh
 
 if [[ $1 != "" ]]; then
   build_log=$1;
 else
   crt_dir=$(pwd);
-  build_log=$crt_dir/build-log.txt;
+  build_log=$crt_dir/build-log-debug.txt;
 fi
 
 kernel_version=$(uname -v);
@@ -31,7 +31,7 @@ echo "usr_lib=["$usr_lib"]"  2>&1 | tee -a $build_log;
 if [[ "$usr_lib" != "" ]]; then
   echo ">> BUILD STATIC BEGIN:"  2>&1 | tee -a $build_log;
 
-  /usr/bin/c++ -v -Os -DNDEBUG \
+  /usr/bin/c++ -v -Os \
   -static \
   -Wl,--dependency-file,CMakeFiles/tvterm.dir/link.d \
   CMakeFiles/tvterm.dir/Unity/unity_0_cxx.cxx.o \

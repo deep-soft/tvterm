@@ -7,6 +7,7 @@
 #include <tvterm/vtermemu.h>
 #include <tvterm/debug.h>
 #include <unordered_map>
+#include <bitset>
 
 namespace tvterm
 {
@@ -164,6 +165,9 @@ namespace vtermemu
     static void processKey(VTerm *vt, KeyDownEvent keyDown, const VTermEmulator::LocalState &state)
     {
         TKey tvKey(keyDown);
+dout << " " << std::endl;
+dout << "KD_1(tvKey.code=" << tvKey.code << ", keyDown.text=" << keyDown.text << ", tvKey.mods=" << std::bitset<4>(tvKey.mods) << ")" << std::endl;
+
         if (state.win32InputEnabled)
         {
             uint vk = tvToWin32KeyCode(tvKey.code);
@@ -171,10 +175,13 @@ namespace vtermemu
             uint uc = (keyDown.textLength > 0) ? utf8To32(keyDown.getText()) : 0;
             vterm_keyboard_win32(vt, vk, 0, uc, 1, cs, 1);
             vterm_keyboard_win32(vt, vk, 0, uc, 0, cs, 1);
+dout << "KD_W32(tvKey.code=" << tvKey.code << ", keyDown.text=" << keyDown.text << ", keyDown.vk=" << vk << ", keyDown.cs=" << cs << ", keyDown.uc=" << uc << ")" << std::endl;
+
             return;
         }
 
         VTermModifier vtMod = convMod(tvKey.mods);
+dout << "KD_2(tvKey.code=" << tvKey.code << ", keyDown.text=" << keyDown.text << ", tvKey.mods=" << std::bitset<4>(tvKey.mods) << ", vtMod=" << std::bitset<4>(vtMod) << ")" << std::endl;
         // Pass control characters directly, with no modifiers.
         if ( tvKey.mods == kbCtrlShift
              && 'A' <= tvKey.code && tvKey.code <= 'Z' )
@@ -195,11 +202,15 @@ namespace vtermemu
                  && ('A' <= tvKey.code && tvKey.code <= 'Z') )
                 keyDown.text[0] += 'a' - 'A';
         }
+dout << "KD_3(tvKey.code=" << tvKey.code << ", keyDown.text=" << keyDown.text << ", tvKey.mods=" << std::bitset<4>(tvKey.mods) << ", vtMod=" << std::bitset<4>(vtMod) << ")" << std::endl;
 
         if (keyDown.textLength != 0)
             vterm_keyboard_unichar(vt, utf8To32(keyDown.getText()), vtMod);
         else if (VTermKey vtKey = convKey(tvKey.code))
+{
             vterm_keyboard_key(vt, vtKey, vtMod);
+dout << "KD_4(tvKey.code=" << tvKey.code << ", keyDown.text=" << keyDown.text << ", tvKey.mods=" << std::bitset<4>(tvKey.mods) << ", vtMod=" << std::bitset<4>(vtMod) << ", vtKey=" << vtKey << ")" << std::endl;
+}
     }
 
     static void processMouse(VTerm *vt, ushort what, const MouseEventType &mouse)
@@ -299,7 +310,7 @@ namespace vtermemu
                           int y, int begin, int end )
     // Pre: the area must be within bounds.
     {
-        dout << "drawLine(" << y << ", " << begin << ", " << end << ")" << std::endl;
+//!        dout << "drawLine(" << y << ", " << begin << ", " << end << ")" << std::endl;
         TSpan<TScreenCell> cells(&surface.at(y, 0), surface.size.x);
         for (int x = begin; x < end; ++x)
         {
@@ -481,7 +492,7 @@ int VTermEmulator::damage(VTermRect rect)
 
 int VTermEmulator::moverect(VTermRect dest, VTermRect src)
 {
-    dout << "moverect(" << dest << ", " << src << ")" << std::endl;
+//!    dout << "moverect(" << dest << ", " << src << ")" << std::endl;
     return false;
 }
 
@@ -494,6 +505,7 @@ int VTermEmulator::movecursor(VTermPos pos, VTermPos oldpos, int visible)
 
 int VTermEmulator::settermprop(VTermProp prop, VTermValue *val)
 {
+dout << " " << std::endl;
     dout << "settermprop(" << prop << ", " << val << ")" << std::endl;
     if (vterm_get_prop_type(prop) == VTERM_VALUETYPE_STRING)
     {

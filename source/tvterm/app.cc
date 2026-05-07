@@ -83,7 +83,7 @@ TDeskTop *TVTermApp::initDeskTop(TRect r)
 void TVTermApp::handleEvent(TEvent &event)
 {
     TApplication::handleEvent(event);
-//    bool handled = true;
+    bool handled = true;
     switch (event.what)
     {
         case evCommand:
@@ -96,18 +96,15 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
-//                    handled = false;
-//                    break;
-                return;
-
+                    handled = false;
+                    break;
             }
-//            break;
+            break;
         default:
-//            handled = false;
-//            break;
-              return;
+            handled = false;
+            break;
     }
-//    if (handled)
+    if (handled)
         clearEvent(event);
 }
 
@@ -173,8 +170,8 @@ void TVTermApp::openMenu()
         *new TMenuItem("Close Term", cmClose, 'W', hcNoContext, "~W~") +
         newLine() +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
-        *new TMenuItem("Event Viewer", cmEventViewCmd, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
+        *new TMenuItem("Event Viewer", cmEventViewCmd, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Tile (Columns First)", cmTileCols, 'V', hcNoContext, "~V~") +
         *new TMenuItem("Tile (Rows First)", cmTileRows, 'H', hcNoContext, "~H~") +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
@@ -227,7 +224,38 @@ void TVTermApp::eventViewer()
     if( viewer != 0 )
         viewer->toggle();
     else
-        deskTop->insert(new TEventViewer(deskTop->getExtent(), 0x0F00));
+    {
+    // Create the EventViewer window
+      TRect r = deskTop->getExtent();
+      // Try to make it between 22 and 30 columns wide, and try to leave
+      // at least 82 empty columns on screen (so that an editor view is
+      // at least ~80 columns by default).
+      r.a.x = r.b.x - 70;
+      deskTop->insert(new TEventViewer(r, 0x0F00));
+//    deskTop->insert(new TEventViewer(deskTop->getExtent(), 0x0F00));
+    }
+/* https://github.com/deep-soft/turbo/blob/master/source/turbo/app.cc
+    // Create the document tree view
+    {
+        TRect r = deskTop->getExtent();
+        // Try to make it between 22 and 30 columns wide, and try to leave
+        // at least 82 empty columns on screen (so that an editor view is
+        // at least ~80 columns by default).
+        if (r.b.x > 22)
+            r.a.x = r.b.x - min(max(r.b.x - 82, 22), 30);
+        docTree = new DocumentTreeWindow(r, &docTree);
+        docTree->flags &= ~wfZoom;
+        // The grow mode assumes it's placed on the right side of the screen.
+        // Greater flexibility would require some trick or a dedicated class
+        // for side views.
+        docTree->growMode = gfGrowLoX | gfGrowHiX | gfGrowHiY;
+        docTree->setState(sfShadow, False);
+        deskTop->insert(docTree);
+        // Show by default only on large terminals.
+        if (deskTop->size.x - docTree->size.x < 82)
+            docTree->hide();
+    }
+*/
 }
 
 void TVTermApp::printEvent(const TEvent &event)
