@@ -17,6 +17,8 @@ enum : ushort
     cmGetOpenTerms,
     cmCopySelection,
     cmCancelSelection,
+    cmNewEditor,
+    cmOpenEditor,
     cmEventViewer,
     cmFindEventViewer, // Broadcast: answered by an open Event Viewer.
 };
@@ -26,6 +28,7 @@ enum : ushort
     hcMenu = 1000,
     hcInputGrabbed,
     hcSelecting,
+    hcEditor,
 };
 
 #endif // TVTERM_CMDS_H

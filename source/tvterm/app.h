@@ -29,6 +29,8 @@ struct TVTermApp : public TApplication
     void openMenu();
     void newTerm();
     void changeDir();
+    void newEditor();
+    void openEditor();
     void toggleEventViewer();
 
 };

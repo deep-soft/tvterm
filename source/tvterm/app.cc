@@ -10,6 +10,7 @@
 #define Uses_TChDirDialog
 #define Uses_TDeskTop
 #define Uses_MsgBox
+#define Uses_TFileDialog
 #include <tvision/tv.h>
 
 #include "app.h"
@@ -17,6 +18,7 @@
 #include "desk.h"
 #include "wnd.h"
 #include "apputil.h"
+#include "editwnd.h"
 #include "evntview.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
@@ -51,6 +53,7 @@ TVTermApp::TVTermApp() :
     for (ushort cmd : TerminalWindow::appConsts.focusedCmds())
         disableCommand(cmd);
     disableCommand(cmPaste);
+    TVTermEditWindow::initEditorDialogs();
 
     newTerm();
 }
@@ -72,6 +75,12 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
+        *new TStatusDef(hcEditor, hcEditor) +
+            *new TStatusItem("~F2~ Save", kbF2, cmSave) +
+            *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
+            *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
+            *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +
+            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
@@ -99,6 +108,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmMenu: openMenu(); break;
                 case cmNewTerm: newTerm(); break;
                 case cmChangeDir: changeDir(); break;
+                case cmNewEditor: newEditor(); break;
+                case cmOpenEditor: openEditor(); break;
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
@@ -131,12 +142,13 @@ Boolean TVTermApp::valid(ushort command)
             auto *format = (count == 1)
                 ? "There is %zu open terminal window.\nDo you want to quit anyway?"
                 : "There are %zu open terminal windows.\nDo you want to quit anyway?";
-            return messageBox(
-                mfConfirmation | mfYesButton | mfNoButton,
-                format, count
-            ) == cmYes;
+            if (messageBox(
+                    mfConfirmation | mfYesButton | mfNoButton,
+                    format, count
+                ) != cmYes)
+                return False;
         }
-        return True;
+        // Let editor windows ask to save modified files.
     }
     return TApplication::valid(command);
 }
@@ -170,6 +182,8 @@ void TVTermApp::openMenu()
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
         *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
         newLine() +
+        *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
+        *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         newLine() +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
@@ -217,6 +231,36 @@ void TVTermApp::newTerm()
 void TVTermApp::changeDir()
 {
     execDialog(new TChDirDialog(cdNormal, 0));
+}
+
+static TRect editorBounds(const TRect &extent)
+{
+    // Prefer an 80-column editor on the right side, leaving room for
+    // the terminals; on narrow screens, just use the whole desktop.
+    TRect r = extent;
+    if (r.b.x - r.a.x > 100)
+        r.a.x = r.b.x - 82;
+    return r;
+}
+
+void TVTermApp::newEditor()
+{
+    insertWindow(new TVTermEditWindow(editorBounds(deskTop->getExtent()), ""));
+}
+
+void TVTermApp::openEditor()
+{
+    char fileName[MAXPATH] = "*";
+    TFileDialog *d = new TFileDialog("*", "Open file", "~N~ame", fdOpenButton, 100);
+    TView *p = validView(d);
+    if (!p)
+        return;
+    ushort result = deskTop->execView(p);
+    if (result != cmCancel)
+        p->getData(fileName);
+    TObject::destroy(p);
+    if (result != cmCancel)
+        insertWindow(new TVTermEditWindow(editorBounds(deskTop->getExtent()), fileName));
 }
 
 void TVTermApp::toggleEventViewer()
