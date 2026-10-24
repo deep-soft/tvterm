@@ -4,8 +4,16 @@ option(TVTERM_BUILD_APP "Build main application" ON)
 option(TVTERM_USE_SYSTEM_TVISION "Use system-wide Turbo Vision instead of the submodule" OFF)
 option(TVTERM_USE_SYSTEM_LIBVTERM "Use system-wide libvterm instead of the submodule" OFF)
 option(TVTERM_OPTIMIZE_BUILD "Enable build optimizations (Unity Build, Precompiled Headers)" ON)
+option(TVTERM_STATIC "Build a fully static executable (Linux only)" OFF)
 
 project(tvterm)
+
+if (TVTERM_STATIC)
+    # Make every find_library() call (here and in Turbo Vision) pick static
+    # archives (.a) instead of shared libraries.
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    message(STATUS "Building a static executable")
+endif()
 
 function(tvterm_set_warnings t)
     if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC"))
@@ -65,6 +73,9 @@ if (TVTERM_BUILD_APP)
     target_link_libraries(tvterm PRIVATE
         tvterm-core
     )
+    if (TVTERM_STATIC)
+        target_link_libraries(tvterm PRIVATE -static)
+    endif()
     install(TARGETS tvterm RUNTIME DESTINATION bin)
 endif()
 
