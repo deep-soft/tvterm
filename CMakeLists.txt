@@ -28,6 +28,11 @@ tvterm_set_warnings(tvterm-core)
 if (HAVE_VTERMSTRINGFRAGMENT)
     target_compile_definitions(tvterm-core PRIVATE HAVE_VTERMSTRINGFRAGMENT)
 endif()
+if (NOT TVTERM_USE_SYSTEM_LIBVTERM)
+    # The bundled libvterm is patched with win32-input-mode support
+    # (see deps/vterm/patches).
+    target_compile_definitions(tvterm-core PRIVATE HAVE_VTERM_WIN32INPUT)
+endif()
 target_include_directories(tvterm-core PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
     "$<INSTALL_INTERFACE:include>"

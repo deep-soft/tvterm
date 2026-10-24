@@ -78,6 +78,8 @@ private:
         int scrollOffset {0};
         int visibleScrollLines {0};
         bool scrollOverflowed {false};
+
+        bool win32InputEnabled {false};
     };
 
     struct VTerm *vt;

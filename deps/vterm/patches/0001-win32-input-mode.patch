@@ -1,0 +1,110 @@
+libvterm: add win32-input-mode (DEC private mode 9001)
+
+Used by far2l to receive complete key events (key down/up, modifiers,
+virtual key codes). Adds VTERM_PROP_WIN32INPUT and vterm_keyboard_win32().
+
+diff --git a/include/vterm.h b/include/vterm.h
+index 1ae2028..88c1e27 100644
+--- a/include/vterm.h
++++ b/include/vterm.h
+@@ -260,6 +260,7 @@ typedef enum {
+   VTERM_PROP_CURSORSHAPE,       // number
+   VTERM_PROP_MOUSE,             // number
+   VTERM_PROP_FOCUSREPORT,       // bool
++  VTERM_PROP_WIN32INPUT,        // bool
+ 
+   VTERM_N_PROPS
+ } VTermProp;
+@@ -370,6 +371,7 @@ void vterm_keyboard_key(VTerm *vt, VTermKey key, VTermModifier mod);
+ 
+ void vterm_keyboard_start_paste(VTerm *vt);
+ void vterm_keyboard_end_paste(VTerm *vt);
++void vterm_keyboard_win32(VTerm *vt, int vk, int sc, int uc, int kd, int cs, int rc);
+ 
+ void vterm_mouse_move(VTerm *vt, int row, int col, VTermModifier mod);
+ void vterm_mouse_button(VTerm *vt, int button, bool pressed, VTermModifier mod);
+diff --git a/src/keyboard.c b/src/keyboard.c
+index 19e0b7a..385ff98 100644
+--- a/src/keyboard.c
++++ b/src/keyboard.c
+@@ -227,3 +227,11 @@ void vterm_keyboard_end_paste(VTerm *vt)
+   if(vt->state->mode.bracketpaste)
+     vterm_push_output_sprintf_ctrl(vt, C1_CSI, "201~");
+ }
++
++void vterm_keyboard_win32(VTerm *vt, int vk, int sc, int uc, int kd, int cs, int rc)
++{
++  if(vt->state && !vt->state->mode.win32_input)
++    return;
++
++  vterm_push_output_sprintf_ctrl(vt, C1_CSI, "%d;%d;%d;%d;%d;%d_", vk, sc, uc, kd, cs, rc);
++}
+diff --git a/src/state.c b/src/state.c
+index 54618d5..c29bf2c 100644
+--- a/src/state.c
++++ b/src/state.c
+@@ -862,6 +862,11 @@ static void set_dec_mode(VTermState *state, int num, int val)
+     state->mode.bracketpaste = val;
+     break;
+ 
++  case 9001:
++    settermprop_bool(state, VTERM_PROP_WIN32INPUT, val);
++    state->mode.win32_input = val;
++    break;
++
+   default:
+     DEBUG_LOG("libvterm: Unknown DEC mode %d\n", num);
+     return;
+@@ -937,6 +942,10 @@ static void request_dec_mode(VTermState *state, int num)
+       reply = state->mode.bracketpaste;
+       break;
+ 
++    case 9001:
++      reply = state->mode.win32_input;
++      break;
++
+     default:
+       vterm_push_output_sprintf_ctrl(state->vt, C1_CSI, "?%d;%d$y", num, 0);
+       return;
+@@ -2114,6 +2123,7 @@ void vterm_state_reset(VTermState *state, int hard)
+   state->mode.leftrightmargin = 0;
+   state->mode.bracketpaste    = 0;
+   state->mode.report_focus    = 0;
++  state->mode.win32_input     = 0;
+ 
+   state->mouse_flags = 0;
+ 
+@@ -2261,6 +2271,9 @@ int vterm_state_set_termprop(VTermState *state, VTermProp prop, VTermValue *val)
+   case VTERM_PROP_FOCUSREPORT:
+     state->mode.report_focus = val->boolean;
+     return 1;
++  case VTERM_PROP_WIN32INPUT:
++    state->mode.win32_input = val->boolean;
++    return 1;
+ 
+   case VTERM_N_PROPS:
+     return 0;
+diff --git a/src/vterm.c b/src/vterm.c
+index e1f676f..909d1c2 100644
+--- a/src/vterm.c
++++ b/src/vterm.c
+@@ -296,6 +296,7 @@ VTermValueType vterm_get_prop_type(VTermProp prop)
+     case VTERM_PROP_CURSORSHAPE:   return VTERM_VALUETYPE_INT;
+     case VTERM_PROP_MOUSE:         return VTERM_VALUETYPE_INT;
+     case VTERM_PROP_FOCUSREPORT:   return VTERM_VALUETYPE_BOOL;
++    case VTERM_PROP_WIN32INPUT:    return VTERM_VALUETYPE_BOOL;
+ 
+     case VTERM_N_PROPS: return 0;
+   }
+diff --git a/src/vterm_internal.h b/src/vterm_internal.h
+index 4761063..cd8b941 100644
+--- a/src/vterm_internal.h
++++ b/src/vterm_internal.h
+@@ -121,6 +121,7 @@ struct VTermState
+     unsigned int leftrightmargin:1;
+     unsigned int bracketpaste:1;
+     unsigned int report_focus:1;
++    unsigned int win32_input:1;
+   } mode;
+ 
+   VTermEncodingInstance encoding[4], encoding_utf8;
