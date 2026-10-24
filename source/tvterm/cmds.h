@@ -17,6 +17,8 @@ enum : ushort
     cmGetOpenTerms,
     cmCopySelection,
     cmCancelSelection,
+    cmEventViewer,
+    cmFindEventViewer, // Broadcast: answered by an open Event Viewer.
 };
 
 enum : ushort

@@ -17,6 +17,7 @@
 #include "desk.h"
 #include "wnd.h"
 #include "apputil.h"
+#include "evntview.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -98,6 +99,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmMenu: openMenu(); break;
                 case cmNewTerm: newTerm(); break;
                 case cmChangeDir: changeDir(); break;
+                case cmEventViewer: toggleEventViewer(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -168,6 +170,8 @@ void TVTermApp::openMenu()
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
         *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
         newLine() +
+        *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
+        newLine() +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
             *new TMenuItem("Change working ~d~ir...", cmChangeDir, kbNoKey) +
             newLine() +
@@ -213,4 +217,28 @@ void TVTermApp::newTerm()
 void TVTermApp::changeDir()
 {
     execDialog(new TChDirDialog(cdNormal, 0));
+}
+
+void TVTermApp::toggleEventViewer()
+{
+    // If an Event Viewer is already open, pause/resume it.
+    auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr);
+    if (viewer)
+        viewer->toggle();
+    else
+    {
+        TRect r = deskTop->getExtent();
+        if (r.b.x - r.a.x > 100)
+            r.a.x = r.b.x - 70;
+        insertWindow(new TEventViewer(r, 0x0F00));
+    }
+}
+
+void TVTermApp::getEvent(TEvent &event)
+{
+    TApplication::getEvent(event);
+    // Show every event in the Event Viewer, if one is open.
+    if (event.what != evNothing)
+        if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
+            viewer->print(event);
 }

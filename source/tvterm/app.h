@@ -20,6 +20,7 @@ struct TVTermApp : public TApplication
     void handleEvent(TEvent &event) override;
     Boolean valid(ushort command) override;
     void idle() override;
+    void getEvent(TEvent &event) override;
 
     size_t getOpenTermCount();
 
@@ -28,6 +29,7 @@ struct TVTermApp : public TApplication
     void openMenu();
     void newTerm();
     void changeDir();
+    void toggleEventViewer();
 
 };
 
