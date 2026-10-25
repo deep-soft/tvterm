@@ -40,12 +40,15 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 17. `73c7216` Add docs/HISTORY.md
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
+20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 
 ### Commits on `far2l-extended`
 
-20. Add history mode (scroll, search, save), word/line selection and a settings file
-21. Add version information (--version) and an About dialog
-22. Add filters to the Event Viewer
+Numbered E1, E2, … so that new commits on `far2l-integration` do not change these numbers.
+
+E1. Add history mode (scroll, search, save), word/line selection and a settings file
+E2. Add version information (--version) and an About dialog
+E3. Add filters to the Event Viewer
 
 ---
 
@@ -161,6 +164,12 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
   `argv[0]`, so its name is taken from `/proc/<pid>/stat`.
 - Alt+Shift+Up/Down (far2l vertical selection) do not arrive even outside tvterm → an issue in putty4far2l/Windows, not in tvterm.
   Workaround: Alt+Shift+Left/Right + Alt+Shift+PgUp/PgDn.
+- **Ctrl+\ [ ] _ and the keypad operators**: through far2l's extensions they arrive as control characters (Ctrl+\ =
+  `0x1C`, often with the scan code: keyCode `0x2B1C`), which Turbo Vision does not turn into a key. tvterm finds the key by
+  scan code (or by the control character) and sends far2l (win32-input-mode) the right VK (VK_OEM_5/4/6, VK_OEM_MINUS)
+  with the control character, as Windows does, and other programs the control byte (`0x1C`, `0x1B`, `0x1D`, `0x1F`).
+  Keypad `* + - /` (scan codes 0x37, 0x4E, 0x4A, 0x35 + enhanced) get VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (they had `vk = 0`).
+  In far2l: Ctrl+\ goes to `/`, Ctrl+[ / Ctrl+] insert the path of the left/right panel.
 
 ---
 
@@ -216,6 +225,12 @@ examples/profiles/example.ini
 - **Delivery:** patches made with `git format-patch` on top of the state on GitHub;
   applied with `git am ../x.patch && scripts/build.sh static && git push`. If a patch is already applied: `git am --skip`.
 - Commit author: `deep-soft <deep-soft@users.noreply.github.com>`.
+- **Static builds and old systems**: the static executable contains the ncurses of the build machine, which reads the
+  terminal description (terminfo, e.g. `xterm-256color`) at startup. Alpine's (musl) ncurses rejects old terminfo files
+  (e.g. the 2011 one of Ubuntu 12, CentOS 7.9): the file is found and opened, then `newterm` fails ("Cannot initialize
+  Ncurses"). Two verified solutions: (1) build on Ubuntu 24 (glibc + ncurses 6.4), which works on Ubuntu 12 and CentOS 7.9;
+  (2) copy a new `xterm-256color` (e.g. from Alpine) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users).
+  The system's old programs (ncurses 5.9) skip the new-format file and keep using theirs (`top`, `mc` verified).
 
 ### Known pitfalls
 - Upstream's `.gitignore` ignores **everything** except explicitly allowed directories; files without an extension must be allowed too
@@ -251,18 +266,18 @@ examples/profiles/example.ini
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
-- History tests (feat 20): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
+- History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
   - tvision ignores the Shift bit of xterm mouse reports, so Shift+click cannot be sent from the harness: it was tested with
     a temporary build that accepts Alt instead (not committed). In the real setup it arrives through far2l's extensions.
   - `/bin/sh` (dash) has no line editing: keys sent to the shell by mistake stay in the command line → send Ctrl+C first.
   - Measured: search in 10000 lines of 85 characters: 0.1 s found nearby, 0.9 s not found; RSS ≈ 75 MB with a full history.
-- About tests (feat 21): `--version`/`-V`; Ctrl-B `m` `b` opens the dialog; its contents without settings/profile and with
+- About tests (feat E2): `--version`/`-V`; Ctrl-B `m` `b` opens the dialog; its contents without settings/profile and with
   a profile of 3 terminals (one disconnected); uptime after 1 minute; long path shortened on a 60-column screen;
   Enter/Esc close it; the first notes in the Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build without git → `unknown`;
   rebuild in the same minute compiles nothing, in the next minute only `buildinfo.cc`.
-- Event Viewer tests (feat 22): default title and status line; X; mouse movements hidden, then shown after M; own keys
+- Event Viewer tests (feat E3): default title and status line; X; mouse movements hidden, then shown after M; own keys
   not logged; K, C, T (new notes from an automatic settings reload); N (also with T off); ~120 key events (> 32000 bytes)
   keep the first notes, ~300 drop the oldest; pause title; profile keys, saving (comment + five keys) and reloading;
   invalid value and filter keys in [terminal] reported; letters typed in a terminal do not reach the viewer.
@@ -274,7 +289,7 @@ examples/profiles/example.ini
 
 - The vertical block marker does not survive a trip through Windows (only between far2l instances in the same tvterm).
 - `ClientOptions` and process information: not implemented on Windows.
-- win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, numpad) have `vk = 0`.
+- win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, keypad digits) have `vk = 0`.
 - The paused state of the Event Viewer is not saved in profiles. An Event Viewer opened with Ctrl-B V starts with the
   default filters (the last ones are not remembered; profiles keep them).
 - Case-insensitive regular expressions only fold ASCII letters (plain text search also folds Latin, Romanian, Greek, Cyrillic).
@@ -291,6 +306,7 @@ examples/profiles/example.ini
 | Profiles | 12–16 | ClientOptions + fixed title; INI profiles; process information; Window List, Rename, Save Profile; editors and Event Viewer in profiles |
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
-| History (`far2l-extended`) | 20 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
-| Version (`far2l-extended`) | 21 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
-| Event Viewer filters (`far2l-extended`) | 22 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |
+| Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
+| History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
+| Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
+| Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

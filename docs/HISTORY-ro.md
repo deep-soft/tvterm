@@ -41,12 +41,15 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 17. `73c7216` Add docs/HISTORY.md
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
+20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 
 ### Commit-uri pe `far2l-extended`
 
-20. Add history mode (scroll, search, save), word/line selection and a settings file
-21. Add version information (--version) and an About dialog
-22. Add filters to the Event Viewer
+Numerotate E1, E2, … ca să nu se schimbe când apar commit-uri noi pe `far2l-integration`.
+
+E1. Add history mode (scroll, search, save), word/line selection and a settings file
+E2. Add version information (--version) and an About dialog
+E3. Add filters to the Event Viewer
 
 ---
 
@@ -162,6 +165,13 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
   far2l își rescrie `argv[0]`, așa că numele lui se ia din `/proc/<pid>/stat`.
 - Alt+Shift+Sus/Jos (selecție verticală far2l) nu ajung nici în afara tvterm → problemă în putty4far2l/Windows, nu în tvterm.
   Ocolire: Alt+Shift+Stânga/Dreapta + Alt+Shift+PgUp/PgDn.
+- **Ctrl+\ [ ] _ și operatorii de pe tastatura numerică**: prin extensiile far2l ajung ca și caractere de control
+  (Ctrl+\ = `0x1C`, adesea cu codul de scanare: keyCode `0x2B1C`), pe care Turbo Vision nu le transformă în tastă. tvterm
+  găsește tasta după codul de scanare (sau după caracterul de control) și trimite către far2l (win32-input-mode) VK-ul corect
+  (VK_OEM_5/4/6, VK_OEM_MINUS) cu caracterul de control, ca Windows, iar către celelalte programe octetul de control
+  (`0x1C`, `0x1B`, `0x1D`, `0x1F`). `* + - /` de pe tastatura numerică (coduri de scanare 0x37, 0x4E, 0x4A, 0x35 + enhanced)
+  primesc VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (aveau `vk = 0`). În far2l: Ctrl+\ duce în `/`, Ctrl+[ / Ctrl+] inserează calea
+  panoului stâng/drept.
 
 ---
 
@@ -217,6 +227,12 @@ examples/profiles/example.ini
 - **Livrare:** Claude generează patch-uri cu `git format-patch` peste starea de pe GitHub;
   utilizatorul: `git am ../x.patch && scripts/build.sh static && git push`. Dacă un patch e deja aplicat: `git am --skip`.
 - Autor commit-uri: `deep-soft <deep-soft@users.noreply.github.com>`.
+- **Build static și sisteme vechi**: executabilul static conține ncurses-ul mașinii de build, care citește la pornire
+  descrierea terminalului (terminfo, ex. `xterm-256color`). ncurses de pe Alpine (musl) respinge fișierele terminfo vechi
+  (ex. cel din 2011 de pe Ubuntu 12, CentOS 7.9): fișierul e găsit și deschis, apoi `newterm` eșuează („Cannot initialize
+  Ncurses”). Două soluții verificate: (1) build pe Ubuntu 24 (glibc + ncurses 6.4), care merge pe Ubuntu 12 și CentOS 7.9;
+  (2) un `xterm-256color` nou (ex. de pe Alpine) copiat în `~/.terminfo/x/` (un utilizator) sau `/etc/terminfo/x/` (toți).
+  Programele vechi ale sistemului (ncurses 5.9) sar peste fișierul în format nou și îl folosesc pe al lor (verificat `top`, `mc`).
 
 ### Capcane cunoscute
 - `.gitignore` din upstream ignoră **tot** în afară de directoare permise explicit; fișierele fără extensie trebuie permise
@@ -252,18 +268,18 @@ examples/profiles/example.ini
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
   bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
   dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
-- Teste istoric (feat 20): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
+- Teste istoric (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse în format SGR `ESC[<b;x;yM/m` (dublu/triplu click = apăsare/eliberare
   repetată în 0,1 s; tragere = butonul 32). Potrivirea apare în pyte cu fundal `brightbrown`.
   - tvision ignoră bitul Shift din rapoartele de mouse xterm, deci Shift+click nu se poate trimite din test: s-a testat cu un
     build temporar care acceptă Alt în loc (necomis). În lanțul real ajunge prin extensiile far2l.
   - `/bin/sh` (dash) nu are editare de linie: tastele trimise greșit la shell rămân în linia de comandă → întâi Ctrl+C.
   - Măsurat: căutare în 10000 de linii de 85 de caractere: 0,1 s găsit aproape, 0,9 s negăsit; RSS ≈ 75 MB cu istoricul plin.
-- Teste About (feat 21): `--version`/`-V`; Ctrl-B `m` `b` deschide dialogul; conținutul fără setări/profil și cu un profil
+- Teste About (feat E2): `--version`/`-V`; Ctrl-B `m` `b` deschide dialogul; conținutul fără setări/profil și cu un profil
   de 3 terminale (unul deconectat); uptime după 1 minut; cale lungă scurtată pe un ecran de 60 de coloane; Enter/Esc îl închid;
   primele note din Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build fără git → `unknown`;
   recompilare în același minut nu compilează nimic, în minutul următor doar `buildinfo.cc`.
-- Teste Event Viewer (feat 22): titlul și bara de stare implicite; X; mișcările de mouse ascunse, apoi afișate după M; tastele
+- Teste Event Viewer (feat E3): titlul și bara de stare implicite; X; mișcările de mouse ascunse, apoi afișate după M; tastele
   proprii neînregistrate; K, C, T (note noi de la o reîncărcare automată a setărilor); N (și cu T oprit); ~120 de evenimente
   de taste (> 32000 de octeți) păstrează primele note, ~300 le elimină pe cele mai vechi; titlul la pauză; cheile din profil,
   salvarea (comentariu + cinci chei) și reîncărcarea; valoare greșită și chei de filtru în [terminal] raportate; literele tastate
@@ -276,7 +292,8 @@ examples/profiles/example.ini
 
 - Marcajul de bloc vertical nu trece prin Windows (doar între far2l-uri din același tvterm).
 - `ClientOptions` și info procese: neimplementate pe Windows.
-- Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, numpad) au `vk = 0`.
+- Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, cifrele de pe tastatura
+  numerică) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil. Un Event Viewer deschis cu Ctrl-B V pornește cu filtrele
   implicite (ultimele nu sunt reținute; profilurile le păstrează).
 - Expresiile regulate fără diferență între litere mari/mici tratează doar literele ASCII (căutarea de text simplu tratează și
@@ -294,6 +311,7 @@ examples/profiles/example.ini
 | Profiluri | 12–16 | ClientOptions + titlu fix; profiluri INI; info procese; Window List, Rename, Save Profile; editor și Event Viewer în profiluri |
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
-| Istoric (`far2l-extended`) | 20 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
-| Versiune (`far2l-extended`) | 21 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
-| Filtre Event Viewer (`far2l-extended`) | 22 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
+| Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
+| Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
+| Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
+| Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |

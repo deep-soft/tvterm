@@ -188,15 +188,71 @@ namespace vtermemu
     }
 #endif // HAVE_VTERM_WIN32INPUT
 
+    // Keys that Turbo Vision does not turn into a usable key code: Ctrl
+    // with \ [ ] - (they arrive as control characters, e.g. 0x1C for
+    // Ctrl+\, possibly with the scan code: 0x2B1C) and the keys of the
+    // numeric keypad (told apart from the main keyboard by the scan code).
+    struct SpecialKey
+    {
+        uchar scanCode;
+        char ctrlChar;   // Control character with Ctrl (0: none).
+        char ch;         // Character on the key.
+        ushort vk;       // Windows virtual key code.
+        bool enhanced;   // Scan code shared with another key, which this
+                         // one tells apart with kbEnhanced (keypad '/').
+    };
+
+    static constexpr SpecialKey specialKeys[] =
+    {
+        { 0x2B, '\x1C', '\\', 0xDC, false }, // VK_OEM_5
+        { 0x1A, '\x1B', '[',  0xDB, false }, // VK_OEM_4
+        { 0x1B, '\x1D', ']',  0xDD, false }, // VK_OEM_6
+        { 0x0C, '\x1F', '-',  0xBD, false }, // VK_OEM_MINUS (Ctrl+_ = Ctrl+Shift+-)
+        { 0x37, 0,      '*',  0x6A, false }, // VK_MULTIPLY (keypad)
+        { 0x4E, 0,      '+',  0x6B, false }, // VK_ADD (keypad)
+        { 0x4A, 0,      '-',  0x6D, false }, // VK_SUBTRACT (keypad)
+        { 0x35, 0,      '/',  0x6F, true  }, // VK_DIVIDE (keypad)
+    };
+
+    static const SpecialKey *findSpecialKey(const KeyDownEvent &keyDown)
+    {
+        uchar scan = keyDown.charScan.scanCode;
+        uchar ch = keyDown.charScan.charCode;
+        bool ctrl = (keyDown.controlKeyState & kbCtrlShift) != 0;
+        bool enhanced = (keyDown.controlKeyState & kbEnhanced) != 0;
+        for (const auto &k : specialKeys)
+        {
+            if (k.ctrlChar)
+            {
+                // With the scan code, the character may also be the one on
+                // the key (or '_'); without it, only the control character
+                // identifies the key. Escape has its own scan code (0x01).
+                if ( ctrl &&
+                     ( (scan == k.scanCode && (ch == (uchar) k.ctrlChar || ch == (uchar) k.ch ||
+                                               (k.ch == '-' && ch == '_'))) ||
+                       (scan == 0 && ch == (uchar) k.ctrlChar) ) )
+                    return &k;
+            }
+            else if (scan == k.scanCode && ch == (uchar) k.ch && enhanced == k.enhanced)
+                return &k;
+        }
+        return nullptr;
+    }
+
     static void processKey(VTerm *vt, KeyDownEvent keyDown, bool win32InputEnabled)
     {
         TKey tvKey(keyDown);
+        const SpecialKey *special = findSpecialKey(keyDown);
 #ifdef HAVE_VTERM_WIN32INPUT
         if (win32InputEnabled)
         {
-            uint vk = tvToWin32KeyCode(tvKey.code);
+            uint vk = special ? special->vk : tvToWin32KeyCode(tvKey.code);
             uint cs = tvToWin32ControlState(keyDown.controlKeyState);
             uint uc = (keyDown.textLength > 0) ? utf8To32(keyDown.getText()) : 0;
+            // Like Windows: Ctrl+\ gives the character 0x1C, etc.
+            if ( special && special->ctrlChar &&
+                 !(keyDown.controlKeyState & kbAltShift) )
+                uc = (uchar) special->ctrlChar;
             vterm_keyboard_win32(vt, vk, 0, uc, 1, cs, 1);
             vterm_keyboard_win32(vt, vk, 0, uc, 0, cs, 1);
             return;
@@ -205,8 +261,17 @@ namespace vtermemu
         (void) win32InputEnabled;
 #endif
         VTermModifier vtMod = convMod(tvKey.mods);
+        // Ctrl+\ [ ] _ that arrived as control characters: pass them
+        // directly, as a terminal does.
+        if ( special && special->ctrlChar
+             && (uchar) keyDown.charScan.charCode == (uchar) special->ctrlChar )
+        {
+            keyDown.text[0] = special->ctrlChar;
+            keyDown.textLength = 1;
+            vtMod = VTERM_MOD_NONE;
+        }
         // Pass control characters directly, with no modifiers.
-        if ( tvKey.mods == kbCtrlShift
+        else if ( tvKey.mods == kbCtrlShift
              && 'A' <= tvKey.code && tvKey.code <= 'Z' )
         {
             keyDown.text[0] = keyDown.charScan.charCode;
