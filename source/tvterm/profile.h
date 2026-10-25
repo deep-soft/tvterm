@@ -16,7 +16,7 @@ struct TerminalProfile
     bool keepOpen {true};
     // Position and size in percent of the desktop, if 'hasPos'.
     bool hasPos {false};
-    int x {0}, y {0}, w {100}, h {100};
+    double x {0}, y {0}, w {100}, h {100};
 };
 
 struct Profile
@@ -39,5 +39,11 @@ std::string profileDir();
 // (unknown keys, invalid values) are described in 'warnings', but do not
 // prevent the profile from loading.
 bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &warnings);
+
+// Writes 'profile' to 'path'. Returns false on error, with 'error' set.
+bool saveProfile(const std::string &path, const Profile &profile, std::string &error);
+
+// Creates 'dir' and its parents if they don't exist.
+bool makeDirs(const std::string &dir);
 
 #endif // TVTERM_PROFILE_H

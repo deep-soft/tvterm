@@ -1,9 +1,14 @@
 #include "profile.h"
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <fstream>
 #include <sstream>
+#include <locale>
 
 std::string profileDir()
 {
@@ -58,15 +63,16 @@ static bool parsePos(const std::string &value, TerminalProfile &term)
         if (c == ',' || c == '%')
             c = ' ';
     std::istringstream is(v);
-    int n[4];
-    for (int &i : n)
+    is.imbue(std::locale::classic());
+    double n[4];
+    for (double &i : n)
         if (!(is >> i))
             return false;
     std::string rest;
     if (is >> rest)
         return false;
     if ( n[0] < 0 || n[1] < 0 || n[2] <= 0 || n[3] <= 0 ||
-         n[0] + n[2] > 100 || n[1] + n[3] > 100 )
+         n[0] + n[2] > 100.05 || n[1] + n[3] > 100.05 )
         return false;
     term.x = n[0]; term.y = n[1]; term.w = n[2]; term.h = n[3];
     term.hasPos = true;
@@ -177,6 +183,75 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
         }
         else
             warn("key '" + key + "' outside of [profile] or [terminal]");
+    }
+    return true;
+}
+
+bool makeDirs(const std::string &dir)
+{
+    std::string path;
+    size_t pos = 0;
+    while (pos != std::string::npos)
+    {
+        pos = dir.find('/', pos + 1);
+        path = dir.substr(0, pos);
+        if (!path.empty() && mkdir(path.c_str(), 0755) != 0 && errno != EEXIST)
+            return false;
+    }
+    return true;
+}
+
+static std::string formatPercent(double v)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.1f", v);
+    // Use '.' whatever the locale, and drop a useless ".0".
+    for (char *p = buf; *p; ++p)
+        if (*p == ',')
+            *p = '.';
+    size_t len = strlen(buf);
+    if (len > 2 && !strcmp(buf + len - 2, ".0"))
+        buf[len - 2] = '\0';
+    return buf;
+}
+
+bool saveProfile(const std::string &path, const Profile &profile, std::string &error)
+{
+    std::ofstream file(path);
+    if (!file)
+    {
+        error = strerror(errno);
+        return false;
+    }
+    file << "# tvterm profile, saved by tvterm.\n"
+            "# Format: see examples/profiles/example.ini in the tvterm sources.\n"
+            "\n"
+            "[profile]\n"
+            "layout = manual\n";
+    if (profile.focus > 0)
+        file << "focus = " << profile.focus << "\n";
+    for (const auto &term : profile.terminals)
+    {
+        file << "\n[terminal]\n";
+        if (!term.title.empty())
+            file << "title = " << term.title << "\n";
+        if (!term.dir.empty())
+            file << "dir = " << term.dir << "\n";
+        if (!term.command.empty())
+        {
+            file << "command = " << term.command << "\n";
+            if (!term.keepOpen)
+                file << "keep-open = no\n";
+        }
+        if (term.hasPos)
+            file << "pos = " << formatPercent(term.x) << " " << formatPercent(term.y)
+                 << " " << formatPercent(term.w) << " " << formatPercent(term.h) << "\n";
+    }
+    file.close();
+    if (!file)
+    {
+        error = "write error";
+        return false;
     }
     return true;
 }

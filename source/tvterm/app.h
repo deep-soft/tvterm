@@ -37,6 +37,9 @@ struct TVTermApp : public TApplication
     void openEditor();
     void toggleEventViewer();
     void loadProfile();
+    void saveProfile();
+    void windowList();
+    void renameTerm();
 
     bool openProfile(const std::string &nameOrPath);
     void openProfile(const Profile &profile);

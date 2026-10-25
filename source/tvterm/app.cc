@@ -21,6 +21,7 @@
 #include "editwnd.h"
 #include "evntview.h"
 #include "profile.h"
+#include "winlist.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -29,6 +30,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
+#include <sys/stat.h>
+#include <fstream>
 #include <vector>
 
 TCommandSet TVTermApp::tileCmds = []()
@@ -157,6 +161,9 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmOpenEditor: openEditor(); break;
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmLoadProfile: loadProfile(); break;
+                case cmSaveProfile: saveProfile(); break;
+                case cmWindowList: windowList(); break;
+                case cmRenameTerm: renameTerm(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -229,6 +236,8 @@ void TVTermApp::openMenu()
         newLine() +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
+        *new TMenuItem("Window List...", cmWindowList, 'J', hcNoContext, "~J~") +
+        *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Maximize/Restore", cmZoom, 'F', hcNoContext, "~F~") +
         newLine() +
@@ -239,6 +248,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         *new TMenuItem("Load Profile...", cmLoadProfile, 'L', hcNoContext, "~L~") +
+        *new TMenuItem("Save Profile As...", cmSaveProfile, 'A', hcNoContext, "~A~") +
         newLine() +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
             *new TMenuItem("Change working ~d~ir...", cmChangeDir, kbNoKey) +
@@ -393,10 +403,10 @@ void TVTermApp::openProfile(const Profile &profile)
         {
             anyPos = true;
             // Computed from the edges, so that adjacent terminals touch.
-            r = TRect( ext.a.x + width * term.x / 100,
-                       ext.a.y + height * term.y / 100,
-                       ext.a.x + width * (term.x + term.w) / 100,
-                       ext.a.y + height * (term.y + term.h) / 100 );
+            r = TRect( ext.a.x + (int) lround(width * term.x / 100),
+                       ext.a.y + (int) lround(height * term.y / 100),
+                       ext.a.x + (int) lround(width * (term.x + term.w) / 100),
+                       ext.a.y + (int) lround(height * (term.y + term.h) / 100) );
         }
         ClientOptions options;
         options.command = term.command.c_str();
@@ -409,6 +419,9 @@ void TVTermApp::openProfile(const Profile &profile)
         auto *window = new TerminalWindow(r, *termCtrl);
         if (!term.title.empty())
             window->setCustomTitle(term.title);
+        window->launchCommand = term.command;
+        window->launchDir = term.dir;
+        window->launchKeepOpen = term.keepOpen;
         if (TWindow *inserted = insertWindow(window))
             windows.push_back(inserted);
     }
@@ -453,4 +466,174 @@ void TVTermApp::loadProfile()
     TObject::destroy(p);
     if (result != cmCancel && !openProfile(std::string(fileName)) && pendingMessage.empty())
         pendingMessage = "No terminal was opened.";
+}
+
+void TVTermApp::windowList()
+{
+    execWindowList(*deskTop);
+}
+
+void TVTermApp::renameTerm()
+{
+    auto *w = dynamic_cast<TWindow *>(deskTop->current);
+    if (!w || !renameTerminal(w))
+        messageBox("The current window is not a terminal.", mfInformation | mfOKButton);
+}
+
+// Reading the state of the processes in a terminal (Linux /proc).
+
+static std::string readLink(const std::string &path)
+{
+    char buf[4096];
+    ssize_t len = readlink(path.c_str(), buf, sizeof(buf) - 1);
+    if (len <= 0)
+        return {};
+    buf[len] = '\0';
+    return buf;
+}
+
+static std::string shellQuote(const std::string &arg)
+{
+    if (!arg.empty() && arg.find_first_not_of(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-./=:,+@%") == std::string::npos)
+        return arg;
+    std::string out = "'";
+    for (char c : arg)
+        out += c == '\'' ? std::string("'\\''") : std::string(1, c);
+    return out + "'";
+}
+
+static std::string readCommandLine(long pid)
+{
+    std::ifstream f("/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary);
+    std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    std::string out;
+    size_t start = 0;
+    while (start < data.size())
+    {
+        size_t end = data.find('\0', start);
+        if (end == std::string::npos)
+            end = data.size();
+        if (!out.empty())
+            out += ' ';
+        out += shellQuote(data.substr(start, end - start));
+        start = end + 1;
+    }
+    return out;
+}
+
+static std::string homeRelative(const std::string &path)
+{
+    const char *home = getenv("HOME");
+    if (home && *home)
+    {
+        size_t len = strlen(home);
+        if (path.compare(0, len, home) == 0 && (path.size() == len || path[len] == '/'))
+            return "~" + path.substr(len);
+    }
+    return path;
+}
+
+static TerminalProfile describeTerminal(TerminalWindow &w, const TRect &ext)
+{
+    TerminalProfile term;
+    TStringView title = w.getCustomTitle();
+    term.title.assign(title.data(), title.size());
+
+    // Command: the one from the profile, if any; otherwise a command
+    // running in the foreground of an interactive shell (e.g. 'tail -f').
+    term.command = w.launchCommand;
+    term.keepOpen = w.launchKeepOpen;
+    term.dir = w.launchDir;
+    tvterm::ClientProcessInfo info;
+    auto *view = w.getTerminalView();
+    if (view && view->termCtrl.getClientProcessInfo(info))
+    {
+        long pid = info.foregroundPgid ? info.foregroundPgid : info.clientPid;
+        if (term.command.empty() && info.foregroundPgid && info.foregroundPgid != info.clientPid)
+        {
+            term.command = readCommandLine(info.foregroundPgid);
+            term.keepOpen = true;
+        }
+        std::string cwd = readLink("/proc/" + std::to_string(pid) + "/cwd");
+        if (!cwd.empty())
+            term.dir = homeRelative(cwd);
+    }
+
+    int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
+    if (width > 0 && height > 0)
+    {
+        TRect r = w.getBounds();
+        term.hasPos = true;
+        term.x = 100.0 * (r.a.x - ext.a.x) / width;
+        term.y = 100.0 * (r.a.y - ext.a.y) / height;
+        term.w = 100.0 * (r.b.x - r.a.x) / width;
+        term.h = 100.0 * (r.b.y - r.a.y) / height;
+    }
+    return term;
+}
+
+void TVTermApp::saveProfile()
+{
+    // Terminals, from back to front, so that the stacking order is the
+    // same when the profile is loaded again.
+    std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
+    Profile profile;
+    TRect ext = deskTop->getExtent();
+    int skipped = 0;
+    for (auto it = windows.rbegin(); it != windows.rend(); ++it)
+    {
+        if (auto *term = dynamic_cast<TerminalWindow *>(*it))
+        {
+            profile.terminals.push_back(describeTerminal(*term, ext));
+            if (*it == deskTop->current)
+                profile.focus = (int) profile.terminals.size();
+        }
+        else
+            ++skipped;
+    }
+    if (profile.terminals.empty())
+    {
+        messageBox("There are no terminals to save.", mfInformation | mfOKButton);
+        return;
+    }
+
+    std::string dir = profileDir();
+    makeDirs(dir);
+    char fileName[MAXPATH];
+    snprintf(fileName, sizeof(fileName), "%s/*.ini", dir.c_str());
+    TFileDialog *d = new TFileDialog(fileName, "Save profile as", "~N~ame", fdOKButton, 101);
+    if (access(dir.c_str(), F_OK) == 0)
+    {
+        delete[] (char *) d->directory;
+        d->directory = newStr((dir + "/").c_str());
+    }
+    TView *p = validView(d);
+    if (!p)
+        return;
+    ushort result = deskTop->execView(p);
+    if (result != cmCancel)
+        p->getData(fileName);
+    TObject::destroy(p);
+    if (result == cmCancel)
+        return;
+
+    std::string path = fileName;
+    if (path.empty() || path.back() == '/' || path.find('*') != std::string::npos)
+        return;
+    size_t slash = path.rfind('/');
+    if (path.find('.', slash == std::string::npos ? 0 : slash) == std::string::npos)
+        path += ".ini";
+    if ( access(path.c_str(), F_OK) == 0 &&
+         messageBox(mfConfirmation | mfYesButton | mfNoButton,
+                    "%s already exists. Overwrite?", path.c_str()) != cmYes )
+        return;
+
+    std::string error;
+    if (!::saveProfile(path, profile, error))
+        messageBox(mfError | mfOKButton, "Cannot save %s: %s", path.c_str(), error.c_str());
+    else
+        messageBox( mfInformation | mfOKButton,
+                    "Saved %zu terminal(s) to\n%s%s", profile.terminals.size(), path.c_str(),
+                    skipped ? "\n(Editors and other windows are not saved.)" : "" );
 }
