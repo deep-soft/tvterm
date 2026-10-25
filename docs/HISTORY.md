@@ -39,6 +39,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 17. `73c7216` Add docs/HISTORY.md
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
+20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 
 ---
 
@@ -88,6 +89,12 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   `argv[0]`, so its name is taken from `/proc/<pid>/stat`.
 - Alt+Shift+Up/Down (far2l vertical selection) do not arrive even outside tvterm → an issue in putty4far2l/Windows, not in tvterm.
   Workaround: Alt+Shift+Left/Right + Alt+Shift+PgUp/PgDn.
+- **Ctrl+\ [ ] _ and the keypad operators**: through far2l's extensions they arrive as control characters (Ctrl+\ =
+  `0x1C`, often with the scan code: keyCode `0x2B1C`), which Turbo Vision does not turn into a key. tvterm finds the key by
+  scan code (or by the control character) and sends far2l (win32-input-mode) the right VK (VK_OEM_5/4/6, VK_OEM_MINUS)
+  with the control character, as Windows does, and other programs the control byte (`0x1C`, `0x1B`, `0x1D`, `0x1F`).
+  Keypad `* + - /` (scan codes 0x37, 0x4E, 0x4A, 0x35 + enhanced) get VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (they had `vk = 0`).
+  In far2l: Ctrl+\ goes to `/`, Ctrl+[ / Ctrl+] insert the path of the left/right panel.
 
 ---
 
@@ -132,6 +139,12 @@ examples/profiles/example.ini
 - **Delivery:** patches made with `git format-patch` on top of the state on GitHub;
   applied with `git am ../x.patch && scripts/build.sh static && git push`. If a patch is already applied: `git am --skip`.
 - Commit author: `deep-soft <deep-soft@users.noreply.github.com>`.
+- **Static builds and old systems**: the static executable contains the ncurses of the build machine, which reads the
+  terminal description (terminfo, e.g. `xterm-256color`) at startup. Alpine's (musl) ncurses rejects old terminfo files
+  (e.g. the 2011 one of Ubuntu 12, CentOS 7.9): the file is found and opened, then `newterm` fails ("Cannot initialize
+  Ncurses"). Two verified solutions: (1) build on Ubuntu 24 (glibc + ncurses 6.4), which works on Ubuntu 12 and CentOS 7.9;
+  (2) copy a new `xterm-256color` (e.g. from Alpine) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users).
+  The system's old programs (ncurses 5.9) skip the new-format file and keep using theirs (`top`, `mc` verified).
 
 ### Known pitfalls
 - Upstream's `.gitignore` ignores **everything** except explicitly allowed directories; files without an extension must be allowed too
@@ -166,7 +179,7 @@ examples/profiles/example.ini
 
 - The vertical block marker does not survive a trip through Windows (only between far2l instances in the same tvterm).
 - `ClientOptions` and process information: not implemented on Windows.
-- win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, numpad) have `vk = 0`.
+- win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, keypad digits) have `vk = 0`.
 - The paused state of the Event Viewer is not saved in profiles.
 
 ---
@@ -180,3 +193,4 @@ examples/profiles/example.ini
 | Profiles | 12–16 | ClientOptions + fixed title; INI profiles; process information; Window List, Rename, Save Profile; editors and Event Viewer in profiles |
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
+| Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |

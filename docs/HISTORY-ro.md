@@ -40,6 +40,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 17. `73c7216` Add docs/HISTORY.md
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
+20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 
 ---
 
@@ -89,6 +90,13 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
   far2l își rescrie `argv[0]`, așa că numele lui se ia din `/proc/<pid>/stat`.
 - Alt+Shift+Sus/Jos (selecție verticală far2l) nu ajung nici în afara tvterm → problemă în putty4far2l/Windows, nu în tvterm.
   Ocolire: Alt+Shift+Stânga/Dreapta + Alt+Shift+PgUp/PgDn.
+- **Ctrl+\ [ ] _ și operatorii de pe tastatura numerică**: prin extensiile far2l ajung ca și caractere de control
+  (Ctrl+\ = `0x1C`, adesea cu codul de scanare: keyCode `0x2B1C`), pe care Turbo Vision nu le transformă în tastă. tvterm
+  găsește tasta după codul de scanare (sau după caracterul de control) și trimite către far2l (win32-input-mode) VK-ul corect
+  (VK_OEM_5/4/6, VK_OEM_MINUS) cu caracterul de control, ca Windows, iar către celelalte programe octetul de control
+  (`0x1C`, `0x1B`, `0x1D`, `0x1F`). `* + - /` de pe tastatura numerică (coduri de scanare 0x37, 0x4E, 0x4A, 0x35 + enhanced)
+  primesc VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (aveau `vk = 0`). În far2l: Ctrl+\ duce în `/`, Ctrl+[ / Ctrl+] inserează calea
+  panoului stâng/drept.
 
 ---
 
@@ -133,6 +141,12 @@ examples/profiles/example.ini
 - **Livrare:** Claude generează patch-uri cu `git format-patch` peste starea de pe GitHub;
   utilizatorul: `git am ../x.patch && scripts/build.sh static && git push`. Dacă un patch e deja aplicat: `git am --skip`.
 - Autor commit-uri: `deep-soft <deep-soft@users.noreply.github.com>`.
+- **Build static și sisteme vechi**: executabilul static conține ncurses-ul mașinii de build, care citește la pornire
+  descrierea terminalului (terminfo, ex. `xterm-256color`). ncurses de pe Alpine (musl) respinge fișierele terminfo vechi
+  (ex. cel din 2011 de pe Ubuntu 12, CentOS 7.9): fișierul e găsit și deschis, apoi `newterm` eșuează („Cannot initialize
+  Ncurses”). Două soluții verificate: (1) build pe Ubuntu 24 (glibc + ncurses 6.4), care merge pe Ubuntu 12 și CentOS 7.9;
+  (2) un `xterm-256color` nou (ex. de pe Alpine) copiat în `~/.terminfo/x/` (un utilizator) sau `/etc/terminfo/x/` (toți).
+  Programele vechi ale sistemului (ncurses 5.9) sar peste fișierul în format nou și îl folosesc pe al lor (verificat `top`, `mc`).
 
 ### Capcane cunoscute
 - `.gitignore` din upstream ignoră **tot** în afară de directoare permise explicit; fișierele fără extensie trebuie permise
@@ -167,7 +181,8 @@ examples/profiles/example.ini
 
 - Marcajul de bloc vertical nu trece prin Windows (doar între far2l-uri din același tvterm).
 - `ClientOptions` și info procese: neimplementate pe Windows.
-- Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, numpad) au `vk = 0`.
+- Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, cifrele de pe tastatura
+  numerică) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil.
 
 ---
@@ -181,3 +196,4 @@ examples/profiles/example.ini
 | Profiluri | 12–16 | ClientOptions + titlu fix; profiluri INI; info procese; Window List, Rename, Save Profile; editor și Event Viewer în profiluri |
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
+| Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
