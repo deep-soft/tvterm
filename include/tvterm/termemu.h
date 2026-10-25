@@ -5,6 +5,7 @@
 #include <tvterm/array.h>
 #include <tvterm/mutex.h>
 #include <vector>
+#include <stdint.h>
 
 #define Uses_TDrawSurface
 #define Uses_TEvent
@@ -168,6 +169,13 @@ inline void TerminalSurface::addDamageAtRow(size_t y, int begin, int end)
 // Struct that allows the terminal state to be reported from the TerminalEmulator
 // to the TerminalController (and from there to the TerminalView, etc.)
 
+// A request from the client application (far2l) to read the clipboard.
+struct Far2lClipboardRequest
+{
+    uint8_t requestId;
+    uint32_t format;
+};
+
 struct TerminalState
 {
     TerminalSurface surface;
@@ -191,6 +199,14 @@ struct TerminalState
     // (e.g. via OSC 52). Must be handled from the main thread.
     bool clipboardChanged {false};
     GrowArray clipboardText;
+
+    // Clipboard read requests from far2l (see far2lext.h). Must be handled
+    // from the main thread, and answered with a Far2lClipboardData event.
+    std::vector<Far2lClipboardRequest> far2lClipboardRequests;
+
+    // Whether the client application uses far2l's terminal extensions,
+    // and therefore has its own access to the clipboard.
+    bool far2lExtensionsEnabled {false};
 };
 
 enum class TerminalEventType
@@ -202,6 +218,7 @@ enum class TerminalEventType
     FocusChange,
     ScrollBackOffsetChange,
     CopySelection,
+    Far2lClipboardData,
 };
 
 struct MouseEvent
@@ -236,6 +253,15 @@ struct CopySelectionEvent
     SelectionRange selection;
 };
 
+struct Far2lClipboardDataEvent
+{
+    uint8_t requestId;
+    uint32_t format;
+    // UTF-8 text allocated with 'new char[]'. The receiver must delete it.
+    char *data;
+    size_t size;
+};
+
 struct TerminalEvent
 {
     TerminalEventType type;
@@ -248,6 +274,7 @@ struct TerminalEvent
         FocusChangeEvent focusChange;
         ScrollBackOffsetChangeEvent scrollBackOffsetChange;
         CopySelectionEvent copySelection;
+        Far2lClipboardDataEvent far2lClipboardData;
     };
 };
 

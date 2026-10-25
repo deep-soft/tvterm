@@ -7,18 +7,23 @@
 #define Uses_TEvent
 #define Uses_TScrollBar
 #define Uses_TClipboard
+#define Uses_THardwareInfo
 #include <tvision/tv.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
+#include <chrono>
+#include <string>
+#include <vector>
 
 namespace tvterm
 {
 
-// Debug log for clipboard requests from client applications (OSC 52).
-// Enabled by setting TVTERM_CLIPBOARD_LOG to a file path.
-static void logClipboardRequest(const char *text, size_t size) noexcept
+// Debug log for clipboard requests from client applications (OSC 52 and
+// far2l extensions). Enabled by setting TVTERM_CLIPBOARD_LOG to a file path.
+static void logClipboard(const char *what, const char *text, size_t size) noexcept
 {
     static const char *path = getenv("TVTERM_CLIPBOARD_LOG");
     if (!path || !*path)
@@ -29,19 +34,103 @@ static void logClipboardRequest(const char *text, size_t size) noexcept
         time_t now = time(nullptr);
         if (struct tm *tm = localtime(&now))
             strftime(timeBuf, sizeof(timeBuf), "%H:%M:%S", tm);
-        fprintf(f, "%s OSC 52 from application: %zu bytes: \"", timeBuf, size);
-        for (size_t i = 0; i < size && i < 60; ++i)
+        fprintf(f, "%s %s", timeBuf, what);
+        if (text)
         {
-            unsigned char c = (unsigned char) text[i];
-            if (c < 0x20 || c == 0x7F)
-                fputc('.', f);
-            else
-                fputc(c, f);
+            fprintf(f, ": %zu bytes: \"", size);
+            for (size_t i = 0; i < size && i < 60; ++i)
+            {
+                unsigned char c = (unsigned char) text[i];
+                fputc(c < 0x20 || c == 0x7F ? '.' : c, f);
+            }
+            fprintf(f, "%s\"", size > 60 ? "..." : "");
         }
-        fprintf(f, "%s\" -> TClipboard::setText\n", size > 60 ? "..." : "");
+        fputc('\n', f);
         fclose(f);
     }
 }
+
+// Reading the system clipboard for far2l (see far2lext.h).
+//
+// Reading is asynchronous: the request goes to the terminal tvterm runs in
+// (e.g. far2l via its extensions), and the text arrives later through
+// 'acceptClipboardText'. Since that callback has no context, pending
+// requests are kept here. Everything runs in the main thread.
+namespace far2lclip
+{
+
+struct PendingRead
+{
+    TerminalView *view;
+    uint8_t requestId;
+    uint32_t format;
+};
+
+static std::vector<PendingRead> pendingReads;
+static bool readInProgress = false;
+static std::chrono::steady_clock::time_point readDeadline;
+// Last text put in the clipboard by tvterm, used when the system clipboard
+// cannot be read (no far2l extensions or OSC 52 in the outer terminal).
+static std::string lastSetText;
+
+enum { readTimeoutMs = 3000 };
+
+static void deliver(TStringView text) noexcept
+{
+    logClipboard("far2l clipboard read: answered", text.data(), text.size());
+    auto reads = std::move(pendingReads);
+    pendingReads.clear();
+    readInProgress = false;
+    for (auto &read : reads)
+    {
+        char *data = new char[text.size() ? text.size() : 1];
+        memcpy(data, text.data(), text.size());
+        TerminalEvent termEvent;
+        termEvent.type = TerminalEventType::Far2lClipboardData;
+        termEvent.far2lClipboardData = {read.requestId, read.format, data, text.size()};
+        read.view->termCtrl.sendEvent(termEvent);
+    }
+}
+
+static void acceptClipboardText(TStringView text) noexcept
+{
+    if (readInProgress)
+        deliver(text);
+}
+
+static void request(TerminalView *view, const Far2lClipboardRequest &req) noexcept
+{
+    logClipboard("far2l clipboard read: requested", nullptr, 0);
+    pendingReads.push_back({view, req.requestId, req.format});
+    if (!readInProgress)
+    {
+        readInProgress = true;
+        readDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(readTimeoutMs);
+        if (!THardwareInfo::requestClipboardText(acceptClipboardText))
+            deliver(lastSetText);
+    }
+}
+
+static void checkTimeout() noexcept
+{
+    // far2l waits forever for an answer, so never leave it without one.
+    if (readInProgress && std::chrono::steady_clock::now() > readDeadline)
+    {
+        logClipboard("far2l clipboard read: timed out", nullptr, 0);
+        deliver({});
+    }
+}
+
+static void forget(TerminalView *view) noexcept
+{
+    for (size_t i = 0; i < pendingReads.size();)
+        if (pendingReads[i].view == view)
+            pendingReads.erase(pendingReads.begin() + i);
+        else
+            ++i;
+}
+
+} // namespace far2lclip
 
 TerminalView::TerminalView( const TRect &bounds, TerminalController &aTermCtrl,
                             const TVTermConstants &aConsts, TScrollBar *aScrollBar ) noexcept :
@@ -58,6 +147,7 @@ TerminalView::TerminalView( const TRect &bounds, TerminalController &aTermCtrl,
 
 TerminalView::~TerminalView()
 {
+    far2lclip::forget(this);
     termCtrl.shutDown();
 }
 
@@ -126,6 +216,8 @@ void TerminalView::handleEvent(TEvent &ev)
             break;
 
         case evBroadcast:
+            if (ev.message.command == consts.cmCheckTerminalUpdates)
+                far2lclip::checkTimeout();
             if ( ev.message.command == consts.cmCheckTerminalUpdates &&
                  termCtrl.stateHasBeenUpdated() )
             {
@@ -147,6 +239,14 @@ void TerminalView::handleEvent(TEvent &ev)
 
         case evKeyDown:
         {
+            if (ev.keyDown.keyCode == kbShiftIns && pasteOnShiftIns())
+            {
+                // Paste from the system clipboard (e.g. the Windows
+                // clipboard when running in far2l/putty4far2l over SSH).
+                TClipboard::requestText();
+                clearEvent(ev);
+                break;
+            }
             TerminalEvent termEvent;
             termEvent.type = TerminalEventType::KeyDown;
             termEvent.keyDown = ev.keyDown;
@@ -174,6 +274,22 @@ void TerminalView::handleEvent(TEvent &ev)
             clearEvent(ev);
             break;
     }
+}
+
+bool TerminalView::pasteOnShiftIns() noexcept
+// Shift-Ins pastes from the system clipboard, except:
+// - in 'Grab Input' mode, where all keys go to the application;
+// - when the application uses far2l's terminal extensions, because it can
+//   then access the clipboard by itself (and paste better, e.g. without
+//   triggering auto-indentation).
+{
+    if (owner && owner->helpCtx == consts.hcInputGrabbed)
+        return false;
+    bool far2lEnabled = false;
+    termCtrl.lockState([&] (auto &state) {
+        far2lEnabled = state.far2lExtensionsEnabled;
+    });
+    return !far2lEnabled;
 }
 
 void TerminalView::handleMouse(ushort what, MouseEventType mouse) noexcept
@@ -215,10 +331,16 @@ void TerminalView::updateClipboard() noexcept
         if (state.clipboardChanged)
         {
             state.clipboardChanged = false;
-            logClipboardRequest(state.clipboardText.data(), state.clipboardText.size());
-            TClipboard::setText({state.clipboardText.data(), state.clipboardText.size()});
+            logClipboard( "Application sets clipboard -> TClipboard::setText",
+                          state.clipboardText.data(), state.clipboardText.size() );
+            TStringView text {state.clipboardText.data(), state.clipboardText.size()};
+            far2lclip::lastSetText.assign(text.data(), text.size());
+            TClipboard::setText(text);
             state.clipboardText.clear();
         }
+        for (auto &req : state.far2lClipboardRequests)
+            far2lclip::request(this, req);
+        state.far2lClipboardRequests.clear();
     });
 }
 

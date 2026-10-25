@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include <tvterm/vtermemu.h>
+#include "far2lext.h"
 #include <tvterm/debug.h>
 #include <unordered_map>
 
@@ -30,6 +31,17 @@ const VTermSelectionCallbacks VTermEmulator::selectionCallbacks =
 {
     _static_wrap(&VTermEmulator::selection_set),
     _static_wrap(&VTermEmulator::selection_query),
+};
+
+const VTermStateFallbacks VTermEmulator::stateFallbacks =
+{
+    /* control */ nullptr,
+    /* csi */ nullptr,
+    /* osc */ nullptr,
+    /* dcs */ nullptr,
+    _static_wrap(&VTermEmulator::apc),
+    /* pm */ nullptr,
+    /* sos */ nullptr,
 };
 
 namespace vtermemu
@@ -374,6 +386,25 @@ VTermEmulator::VTermEmulator(TPoint size, Writer &aClientDataWriter) noexcept :
     vterm_state_set_selection_callbacks( vtState, &selectionCallbacks, this,
                                          selectionDecodeBuf, sizeof(selectionDecodeBuf) );
 
+    // far2l terminal extensions (clipboard).
+    vterm_state_set_unrecognised_fallbacks(vtState, &stateFallbacks, this);
+    Far2lExtensions::Callbacks far2lCallbacks;
+    far2lCallbacks.write = [this] (const char *data, size_t size) {
+        writeOutput(data, size);
+    };
+    far2lCallbacks.setClipboard = [this] (std::string text) {
+        localState.clipboardChanged = true;
+        localState.clipboardText.clear();
+        localState.clipboardText.push(text.data(), text.size());
+    };
+    far2lCallbacks.requestClipboard = [this] (uint8_t requestId, uint32_t format) {
+        localState.far2lClipboardRequests.push_back({requestId, format});
+    };
+    far2lCallbacks.getSize = [this] () {
+        return getSize();
+    };
+    far2l.reset(new Far2lExtensions(std::move(far2lCallbacks)));
+
     // VTerm's cursor blinks by default, but it shouldn't.
     VTermValue val {0};
     vterm_state_set_termprop(vtState, VTERM_PROP_CURSORBLINK, &val);
@@ -432,6 +463,14 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
             copySelection(event.copySelection.selection);
             break;
 
+        case TerminalEventType::Far2lClipboardData:
+        {
+            auto &data = event.far2lClipboardData;
+            far2l->sendClipboardData(data.requestId, data.format, {data.data, data.size});
+            delete[] data.data;
+            break;
+        }
+
         default:
             break;
     }
@@ -477,6 +516,15 @@ void VTermEmulator::updateState(TerminalState &state) noexcept
         localState.clipboardChanged = false;
         state.clipboardChanged = true;
         state.clipboardText = std::move(localState.clipboardText);
+    }
+
+    state.far2lExtensionsEnabled = far2l->isEnabled();
+
+    if (!localState.far2lClipboardRequests.empty())
+    {
+        for (auto &req : localState.far2lClipboardRequests)
+            state.far2lClipboardRequests.push_back(req);
+        localState.far2lClipboardRequests.clear();
     }
 }
 
@@ -685,6 +733,35 @@ int VTermEmulator::selection_query(VTermSelectionMask)
 // Not supported on purpose: any program could read what the user copied
 // (passwords, for example). This is also the default in most terminals.
 {
+    return 1;
+}
+
+int VTermEmulator::apc(VTermStringFragment frag)
+// Invoked by libvterm for APC strings ('ESC _ ... ST'), possibly split in
+// several fragments. Used by far2l's terminal extensions.
+{
+    if (frag.initial)
+    {
+        apcBuf.clear();
+        apcTooLarge = false;
+    }
+    if (!apcTooLarge)
+    {
+        if (apcBuf.size() + frag.len <= maxApcSize)
+            apcBuf.push(frag.str, frag.len);
+        else
+        {
+            apcBuf.clear();
+            apcTooLarge = true;
+        }
+    }
+    if (frag.final)
+    {
+        if (!apcTooLarge)
+            far2l->handleApc(apcBuf.data(), apcBuf.size());
+        apcBuf.clear();
+        apcTooLarge = false;
+    }
     return 1;
 }
 

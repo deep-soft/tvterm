@@ -11,6 +11,8 @@
 namespace tvterm
 {
 
+class Far2lExtensions;
+
 class VTermEmulatorFactory final : public TerminalEmulatorFactory
 {
 public:
@@ -83,7 +85,12 @@ private:
 
         bool clipboardChanged {false};
         GrowArray clipboardText;
+
+        std::vector<Far2lClipboardRequest> far2lClipboardRequests;
     };
+
+    // Maximum size of an APC string (far2l extensions requests).
+    enum { maxApcSize = 32 * 1024 * 1024 };
 
     // Maximum amount of text accepted via OSC 52, to protect against
     // misbehaving applications.
@@ -99,11 +106,15 @@ private:
     GrowArray selectionBuf; // OSC 52 text being received.
     bool selectionTooLarge {false};
     char selectionDecodeBuf[4096]; // Used by libvterm to decode base64.
+    GrowArray apcBuf; // APC string being received.
+    bool apcTooLarge {false};
+    std::unique_ptr<Far2lExtensions> far2l;
     LocalState localState;
     Scrollback scrollback;
 
     static const VTermScreenCallbacks callbacks;
     static const VTermSelectionCallbacks selectionCallbacks;
+    static const VTermStateFallbacks stateFallbacks;
 
     TPoint getSize() noexcept;
     void setSize(TPoint size) noexcept;
@@ -121,6 +132,7 @@ private:
     int sb_pushline4(int cols, const VTermScreenCell *cells, bool continuation);
     int selection_set(VTermSelectionMask mask, VTermStringFragment frag);
     int selection_query(VTermSelectionMask mask);
+    int apc(VTermStringFragment frag);
 
     VTermScreenCell getDefaultCell() const;
     void copySelection(SelectionRange selection) noexcept;
