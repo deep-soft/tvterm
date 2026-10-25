@@ -9,6 +9,16 @@
 #include <string>
 #include <vector>
 
+// What the Event Viewer shows (see evntview.h).
+struct EventFilter
+{
+    bool mouseMove {false};   // M: mouse movements (many, hidden by default)
+    bool mouseClicks {true};  // C: mouse buttons, wheel, auto-repeat
+    bool keys {true};         // K: key presses
+    bool other {true};        // O: other events (commands, ...)
+    bool messages {true};     // T: tvterm's own messages
+};
+
 struct WindowProfile
 {
     enum Kind { Terminal, Editor, EventViewer };
@@ -21,6 +31,8 @@ struct WindowProfile
     bool keepOpen {true};
     // Editor: file name (empty: untitled).
     std::string file;
+    // Event Viewer.
+    EventFilter filter;
     // All windows: position and size in percent of the desktop, if 'hasPos'.
     bool hasPos {false};
     double x {0}, y {0}, w {100}, h {100};

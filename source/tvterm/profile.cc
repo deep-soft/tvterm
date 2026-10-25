@@ -54,6 +54,27 @@ static bool parseBool(const std::string &value, bool &out)
     return false;
 }
 
+// Keys of [eventviewer] that choose what it shows.
+static const char * const filterKeys[] =
+    { "mouse-move", "mouse-clicks", "keys", "other", "tvterm-messages" };
+
+static bool isFilterKey(const std::string &key)
+{
+    for (const char *k : filterKeys)
+        if (key == k)
+            return true;
+    return false;
+}
+
+static bool &filterField(EventFilter &filter, const std::string &key)
+{
+    if (key == "mouse-move") return filter.mouseMove;
+    if (key == "mouse-clicks") return filter.mouseClicks;
+    if (key == "keys") return filter.keys;
+    if (key == "other") return filter.other;
+    return filter.messages;
+}
+
 static bool parsePos(const std::string &value, WindowProfile &term)
 // Format: 'x y width height', in percent of the desktop. Commas, spaces
 // and '%' signs are all accepted as separators.
@@ -186,6 +207,11 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (isEditor && key == "file")
                 win.file = expandHome(value);
+            else if (!isTerm && !isEditor && isFilterKey(key))
+            {
+                if (!parseBool(value, filterField(win.filter, key)))
+                    warn("invalid " + key + " '" + value + "' (use yes or no)");
+            }
             else
                 warn("unknown key '" + key + "' in " + sectionName);
         }
@@ -261,8 +287,20 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     file << "file = " << win.file << "\n";
                 break;
             case WindowProfile::EventViewer:
-                file << "\n[eventviewer]\n";
+            {
+                const EventFilter &f = win.filter;
+                auto yesNo = [] (bool b) { return b ? "yes" : "no"; };
+                file << "\n[eventviewer]\n"
+                        "# Events shown (yes/no). In the Event Viewer window, the keys\n"
+                        "# M C K O T toggle them: M = mouse-move, C = mouse-clicks (and wheel),\n"
+                        "# K = keys, O = other, T = tvterm-messages.\n"
+                     << "mouse-move = " << yesNo(f.mouseMove) << "\n"
+                     << "mouse-clicks = " << yesNo(f.mouseClicks) << "\n"
+                     << "keys = " << yesNo(f.keys) << "\n"
+                     << "other = " << yesNo(f.other) << "\n"
+                     << "tvterm-messages = " << yesNo(f.messages) << "\n";
                 break;
+            }
         }
         if (win.hasPos)
             file << "pos = " << formatPercent(win.x) << " " << formatPercent(win.y)

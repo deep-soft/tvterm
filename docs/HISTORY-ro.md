@@ -46,6 +46,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 
 20. Add history mode (scroll, search, save), word/line selection and a settings file
 21. Add version information (--version) and an About dialog
+22. Add filters to the Event Viewer
 
 ---
 
@@ -96,6 +97,20 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
   numărul de ferestre terminal (care rulează sau deconectate) și link-urile (fork deep-soft, originalul magiblot).
   Valorile se citesc la deschiderea dialogului. Căile lungi se scurtează la început (`...`) pe ecrane înguste.
 
+### Filtre în Event Viewer — `far2l-extended`
+- Taste, când fereastra Event Viewer are focus (nu apar ca evenimente): **M** mișcări de mouse, **C** butoane de mouse,
+  rotiță și auto-repetare, **K** taste, **O** alte evenimente (comenzi etc.), **T** mesajele tvterm — fiecare afișează/ascunde
+  acel tip; **N** golește fereastra și reafișează mesajele reținute de tvterm (ultimele 200, cu cele două linii de versiune
+  în frunte), chiar dacă T e oprit; **X** golește fereastra. Bara de stare le afișează.
+- Titlul arată starea: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` înaintea parantezelor când e pe pauză).
+  Implicit: mișcările de mouse ascunse, restul afișate. Filtrul se aplică doar evenimentelor noi.
+- Evenimentele ascunse se numără în continuare: golurile din `Received event #N` le arată.
+- Buffer: 64000 de octeți (aproximativ 220 de evenimente cu toate liniile lor), în loc de 3840; `TTerminal` din Turbo Vision
+  îl limitează la 32000, așa că `EventTerminal` din tvterm înlocuiește bufferul după construcție (poziții pe 16 biți, până la 65535).
+- Profiluri: `[eventviewer]` acceptă `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
+  le scrie pe toate cinci, cu un comentariu care explică literele. Cheile lipsă primesc valorile implicite; valorile greșite
+  sunt raportate ca celelalte probleme din profil. Documentat în `examples/profiles/example.ini`.
+
 ### Fișierul de setări (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (sau `$XDG_CONFIG_HOME/tvterm/`), secțiuni `[general]` (`profile`, `auto-reload`),
   `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
@@ -124,7 +139,7 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 ### Profiluri
 - `tvterm -p NUME` → `~/.config/tvterm/profiles/NUME.ini` (sau `$XDG_CONFIG_HOME/...`); `tvterm -p /cale/fisier.ini`; `tvterm --help`.
 - Secțiuni: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = index 1-based),
-  `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`).
+  `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`, filtre: `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages`).
 - `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale.
 - `keep-open = yes` (implicit): după terminarea comenzii sau Ctrl+C, pornește shell-ul; `no`: rămâne „(Disconnected)” cu output vizibil.
 - Comenzi care rulează continuu (`watch`, `tail -f`) trebuie oprite cu Ctrl+C ca să apară shell-ul.
@@ -136,7 +151,7 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 
 ### Altele
 - **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
-- **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză.
+- **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză. Filtre: vezi mai sus.
 - **Ieșire** (Ctrl-B Q): confirmarea listează fiecare terminal deschis și ce rulează în el, întâi cele care rulează un program:
   comanda din prim-plan (ex. `tail -f /var/log/mail.log`, pipeline-uri ca `a | b`, `bash script.sh`), `bash, idle` pentru un shell liber,
   `[stays in background]` pentru far2l. Butoane: **Quit** (Enter sau Q), **Go to** (G, Space sau dublu click: trece la terminalul
@@ -169,7 +184,7 @@ source/tvterm/             aplicația
   quitdlg.cc/.h            dialogul de confirmare a ieșirii (confirmQuit)
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
-  evntview.cc/.h           Event Viewer
+  evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, nume de taste, șablon, FileStamp
   histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric
@@ -212,6 +227,9 @@ examples/profiles/example.ini
 - Cod win32-input protejat cu `HAVE_VTERM_WIN32INPUT` (doar cu libvterm-ul inclus, patch-uit).
 - `TDialog` se închide singur doar la comenzile standard (cmOK, cmCancel, cmYes, cmNo): butoanele proprii trebuie să le folosească.
 - `TGroup::current` ascunde variabilele globale numite `current` în metodele lui `TVTermApp`.
+- `TTerminal` își limitează fără avertisment bufferul la 32000 de octeți (vezi Filtre în Event Viewer).
+- Event Viewer-ul înregistrează evenimentele în `TVTermApp::getEvent`, înainte să fie tratate: tastele proprii sunt sărite
+  acolo (doar cât timp are focus), altfel fiecare comutare ar apărea în listă.
 - Informațiile de build: generate de o țintă CMake rulată la fiecare build; fișierul se rescrie doar când conținutul se schimbă
   (`configure_file(COPYONLY)`) și e scos din unity build și din headerele precompilate, deci la recompilare se compilează
   doar acel fișier mic. Directoarele noi de pe primul nivel sunt ignorate de `.gitignore`, de aceea scriptul stă în `scripts/`.
@@ -245,6 +263,12 @@ examples/profiles/example.ini
   de 3 terminale (unul deconectat); uptime după 1 minut; cale lungă scurtată pe un ecran de 60 de coloane; Enter/Esc îl închid;
   primele note din Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build fără git → `unknown`;
   recompilare în același minut nu compilează nimic, în minutul următor doar `buildinfo.cc`.
+- Teste Event Viewer (feat 22): titlul și bara de stare implicite; X; mișcările de mouse ascunse, apoi afișate după M; tastele
+  proprii neînregistrate; K, C, T (note noi de la o reîncărcare automată a setărilor); N (și cu T oprit); ~120 de evenimente
+  de taste (> 32000 de octeți) păstrează primele note, ~300 le elimină pe cele mai vechi; titlul la pauză; cheile din profil,
+  salvarea (comentariu + cinci chei) și reîncărcarea; valoare greșită și chei de filtru în [terminal] raportate; literele tastate
+  într-un terminal nu ajung la Event Viewer. Testul trebuie să dea click în Event Viewer: un click în altă parte mută focusul
+  (iar un terminal maximizat îl acoperă).
 
 ---
 
@@ -253,7 +277,8 @@ examples/profiles/example.ini
 - Marcajul de bloc vertical nu trece prin Windows (doar între far2l-uri din același tvterm).
 - `ClientOptions` și info procese: neimplementate pe Windows.
 - Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, numpad) au `vk = 0`.
-- Starea „pauză” a Event Viewer-ului nu se salvează în profil.
+- Starea „pauză” a Event Viewer-ului nu se salvează în profil. Un Event Viewer deschis cu Ctrl-B V pornește cu filtrele
+  implicite (ultimele nu sunt reținute; profilurile le păstrează).
 - Expresiile regulate fără diferență între litere mari/mici tratează doar literele ASCII (căutarea de text simplu tratează și
   literele latine, românești, grecești, chirilice).
 - Căutarea citește tot istoricul la fiecare pas (merge până la limita de 100000 de linii, dar nu instantaneu).
@@ -271,3 +296,4 @@ examples/profiles/example.ini
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
 | Istoric (`far2l-extended`) | 20 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | 21 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
+| Filtre Event Viewer (`far2l-extended`) | 22 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |

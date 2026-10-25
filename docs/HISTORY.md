@@ -45,6 +45,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 
 20. Add history mode (scroll, search, save), word/line selection and a settings file
 21. Add version information (--version) and an About dialog
+22. Add filters to the Event Viewer
 
 ---
 
@@ -95,6 +96,20 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
   the number of terminal windows (running or disconnected) and the links (deep-soft fork, magiblot original).
   The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
 
+### Event Viewer filters — `far2l-extended`
+- Keys, when the Event Viewer window is focused (they are not shown as events): **M** mouse movements, **C** mouse buttons,
+  wheel and auto-repeat, **K** keys, **O** other events (commands etc.), **T** tvterm's messages — each one shows/hides
+  that kind; **N** clears the window and shows again the messages kept by tvterm (the last 200, the two version lines
+  first), even if T is off; **X** clears the window. The status line shows them.
+- The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
+  Default: mouse movements hidden, everything else shown. Only new events are affected.
+- Hidden events are still counted: gaps in `Received event #N` show them.
+- Buffer: 64000 bytes (about 220 events with all their lines), instead of 3840; Turbo Vision's `TTerminal` limits it to
+  32000, so tvterm's `EventTerminal` replaces the buffer after construction (positions are 16-bit, up to 65535).
+- Profiles: `[eventviewer]` accepts `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
+  writes all five, with a comment explaining the letters. Missing keys get the defaults; invalid values are reported like
+  other profile problems. Documented in `examples/profiles/example.ini`.
+
 ### Settings file (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
   `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
@@ -123,7 +138,7 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 ### Profiles
 - `tvterm -p NAME` → `~/.config/tvterm/profiles/NAME.ini` (or `$XDG_CONFIG_HOME/...`); `tvterm -p /path/file.ini`; `tvterm --help`.
 - Sections: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = 1-based index),
-  `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`).
+  `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`, filters: `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages`).
 - `pos = x y width height` in **percent** of the desktop, decimals allowed.
 - `keep-open = yes` (default): when the command ends or is stopped with Ctrl+C, a shell starts; `no`: the terminal stays "(Disconnected)" with its output visible.
 - Commands that run forever (`watch`, `tail -f`) must be stopped with Ctrl+C for the shell to appear.
@@ -135,7 +150,7 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 
 ### Other
 - **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
-- **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it.
+- **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
 - **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
   the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
   `[stays in background]` for far2l. Buttons: **Quit** (Enter or Q), **Go to** (G, Space or double click: goes to the chosen
@@ -168,7 +183,7 @@ source/tvterm/             the application
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
-  evntview.cc/.h           Event Viewer
+  evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
   histdlg.cc/.h            search and save dialogs of history mode
@@ -211,6 +226,9 @@ examples/profiles/example.ini
 - win32-input code is guarded by `HAVE_VTERM_WIN32INPUT` (only with the bundled, patched libvterm).
 - `TDialog` only closes itself on standard commands (cmOK, cmCancel, cmYes, cmNo): custom buttons must use them.
 - `TGroup::current` hides globals named `current` inside `TVTermApp` methods.
+- `TTerminal` silently limits its buffer to 32000 bytes (see Event Viewer filters).
+- The Event Viewer logs events in `TVTermApp::getEvent`, before they are handled: its own keys are skipped there
+  (only while it is focused), otherwise every toggle would appear in the list.
 - Build information: generated by a custom target that runs at every build; the file is rewritten only when its contents
   change (`configure_file(COPYONLY)`), and it is kept out of the unity build and the precompiled headers, so a rebuild
   compiles only that small file. New top-level directories are ignored by `.gitignore`, so the script lives in `scripts/`.
@@ -244,6 +262,11 @@ examples/profiles/example.ini
   a profile of 3 terminals (one disconnected); uptime after 1 minute; long path shortened on a 60-column screen;
   Enter/Esc close it; the first notes in the Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build without git → `unknown`;
   rebuild in the same minute compiles nothing, in the next minute only `buildinfo.cc`.
+- Event Viewer tests (feat 22): default title and status line; X; mouse movements hidden, then shown after M; own keys
+  not logged; K, C, T (new notes from an automatic settings reload); N (also with T off); ~120 key events (> 32000 bytes)
+  keep the first notes, ~300 drop the oldest; pause title; profile keys, saving (comment + five keys) and reloading;
+  invalid value and filter keys in [terminal] reported; letters typed in a terminal do not reach the viewer.
+  The test must click inside the viewer: a click elsewhere moves the focus (and a maximized terminal covers it).
 
 ---
 
@@ -252,7 +275,8 @@ examples/profiles/example.ini
 - The vertical block marker does not survive a trip through Windows (only between far2l instances in the same tvterm).
 - `ClientOptions` and process information: not implemented on Windows.
 - win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, numpad) have `vk = 0`.
-- The paused state of the Event Viewer is not saved in profiles.
+- The paused state of the Event Viewer is not saved in profiles. An Event Viewer opened with Ctrl-B V starts with the
+  default filters (the last ones are not remembered; profiles keep them).
 - Case-insensitive regular expressions only fold ASCII letters (plain text search also folds Latin, Romanian, Greek, Cyrillic).
 - History search reads the whole history on every step (fine up to the 100000 lines limit, but not instant).
 
@@ -269,3 +293,4 @@ examples/profiles/example.ini
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
 | History (`far2l-extended`) | 20 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | 21 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
+| Event Viewer filters (`far2l-extended`) | 22 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

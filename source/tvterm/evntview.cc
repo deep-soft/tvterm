@@ -3,6 +3,8 @@
 #define Uses_TFrame
 #define Uses_TTerminal
 #define Uses_TScrollBar
+#define Uses_TProgram
+#define Uses_TApplication
 #include <tvision/tv.h>
 
 #include "cmds.h"
@@ -12,28 +14,47 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <string.h>
+#include <utility>
 
-const char * const TEventViewer::titles[2] =
+// A TTerminal whose buffer can be larger than the 32000 bytes Turbo Vision
+// allows (its positions are 16-bit, so up to 65535), and can be cleared.
+class EventTerminal : public TTerminal
 {
-    "Event Viewer",
-    "Event Viewer (Stopped)",
+public:
+
+    EventTerminal(const TRect &bounds, TScrollBar *vScrollBar, ushort aBufSize) noexcept :
+        TTerminal(bounds, nullptr, vScrollBar, 1024)
+    {
+        if (aBufSize > bufSize)
+        {
+            delete[] buffer;
+            bufSize = aBufSize;
+            buffer = new char[bufSize];
+        }
+    }
+
+    void clear()
+    {
+        queFront = queBack = 0;
+        setLimit(0, 1);
+        scrollTo(0, 0);
+        drawView();
+    }
 };
 
-TEventViewer::TEventViewer(const TRect &bounds, ushort aBufSize) noexcept :
+TEventViewer::TEventViewer(const TRect &bounds, ushort aBufSize, const EventFilter &aFilter) noexcept :
     TWindowInit(&initFrame),
-    TWindow(bounds, nullptr, wnNoNumber)
+    TWindow(bounds, nullptr, wnNoNumber),
+    filter(aFilter)
 {
     eventMask |= evBroadcast;
-    title = titles[stopped];
+    helpCtx = hcEventViewer;
+    updateTitle();
     TScrollBar *scrollBar = standardScrollBar(sbVertical | sbHandleKeyboard);
-    interior = new TTerminal(getExtent().grow(-1, -1), nullptr, scrollBar, aBufSize);
+    interior = new EventTerminal(getExtent().grow(-1, -1), scrollBar, aBufSize);
     insert(interior);
     out = new std::ostream(interior);
-}
-
-TEventViewer::~TEventViewer()
-{
-    title = nullptr; // 'title' points to a static string; don't let TWindow delete it.
 }
 
 void TEventViewer::shutDown()
@@ -44,29 +65,85 @@ void TEventViewer::shutDown()
     TWindow::shutDown();
 }
 
-void TEventViewer::toggle()
+void TEventViewer::updateTitle()
+// "Event Viewer (Stopped) [M- C+ K+ O+ T+]"
 {
-    stopped = Boolean(!stopped);
-    title = titles[stopped];
+    std::string text = stopped ? "Event Viewer (Stopped) [" : "Event Viewer [";
+    const std::pair<char, bool> flags[] = {
+        {'M', filter.mouseMove}, {'C', filter.mouseClicks}, {'K', filter.keys},
+        {'O', filter.other}, {'T', filter.messages},
+    };
+    for (auto &f : flags)
+    {
+        if (text.back() != '[')
+            text += ' ';
+        text += f.first;
+        text += f.second ? '+' : '-';
+    }
+    text += ']';
+    delete[] (char *) title;
+    title = newStr(text.c_str());
     if (frame)
         frame->drawView();
 }
 
-void TEventViewer::print(const TEvent &ev)
+void TEventViewer::toggle()
 {
-    if (ev.what != evNothing && !stopped && out)
-    {
-        lock();
-        *out << "Received event #" << ++eventCount << '\n';
-        printEvent(*out, ev);
-        *out << std::flush;
-        unlock();
-    }
+    stopped = Boolean(!stopped);
+    updateTitle();
 }
 
-void TEventViewer::printNote(const std::string &text)
+namespace evntview
 {
-    if (out)
+
+static bool shown(const EventFilter &filter, const TEvent &ev)
+{
+    if (ev.what == evMouseMove)
+        return filter.mouseMove;
+    if (ev.what & evMouse)
+        return filter.mouseClicks;
+    if (ev.what & evKeyboard)
+        return filter.keys;
+    return filter.other;
+}
+
+static char ownKey(const TEvent &ev)
+// The letter of a filter key (lowercase), or 0.
+{
+    if ( ev.what != evKeyDown ||
+         (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift)) )
+        return 0;
+    char c = ev.keyDown.charScan.charCode;
+    if (c >= 'A' && c <= 'Z')
+        c += 'a' - 'A';
+    return strchr("mckotnx", c) && c ? c : 0;
+}
+
+} // namespace evntview
+
+bool TEventViewer::isOwnKey(const TEvent &ev)
+{
+    return (state & sfFocused) && evntview::ownKey(ev);
+}
+
+void TEventViewer::print(const TEvent &ev)
+{
+    if (ev.what == evNothing || stopped || !out)
+        return;
+    // Counted even when hidden, so that gaps in the numbers show them.
+    ++eventCount;
+    if (!evntview::shown(filter, ev) || isOwnKey(ev))
+        return;
+    lock();
+    *out << "Received event #" << eventCount << '\n';
+    printEvent(*out, ev);
+    *out << std::flush;
+    unlock();
+}
+
+void TEventViewer::printNote(const std::string &text, bool always)
+{
+    if (out && (always || filter.messages))
     {
         lock();
         *out << "tvterm: " << text;
@@ -77,8 +154,34 @@ void TEventViewer::printNote(const std::string &text)
     }
 }
 
+void TEventViewer::clear()
+{
+    if (interior)
+        interior->clear();
+}
+
 void TEventViewer::handleEvent(TEvent &ev)
 {
+    if (char c = (state & sfFocused) ? evntview::ownKey(ev) : 0)
+    {
+        switch (c)
+        {
+            case 'm': filter.mouseMove = !filter.mouseMove; break;
+            case 'c': filter.mouseClicks = !filter.mouseClicks; break;
+            case 'k': filter.keys = !filter.keys; break;
+            case 'o': filter.other = !filter.other; break;
+            case 't': filter.messages = !filter.messages; break;
+            case 'x': clear(); break;
+            case 'n':
+                // The application keeps the messages (see TVTermApp::note).
+                clear();
+                message(TProgram::application, evCommand, cmShowNotes, this);
+                break;
+        }
+        updateTitle();
+        clearEvent(ev);
+        return;
+    }
     TWindow::handleEvent(ev);
     // Answer to "is there an Event Viewer?" broadcasts (see TVTermApp).
     if (ev.what == evBroadcast && ev.message.command == cmFindEventViewer)

@@ -90,12 +90,18 @@ void TVTermApp::note(const std::string &text)
             viewer->printNote(line);
 }
 
-static TEventViewer *newEventViewer(const TRect &bounds)
-// An Event Viewer, with the notes received so far.
+static void showNotes(TEventViewer &viewer, bool always)
+// The notes received so far (the last 'maxNotes').
 {
-    auto *viewer = new TEventViewer(bounds, 0x0F00);
     for (auto &line : appsettings::notes)
-        viewer->printNote(line);
+        viewer.printNote(line, always);
+}
+
+static TEventViewer *newEventViewer(const TRect &bounds, const EventFilter &filter = EventFilter())
+{
+    // About 64 KB of text: several hundred events.
+    auto *viewer = new TEventViewer(bounds, 64000, filter);
+    showNotes(*viewer, false);
     return viewer;
 }
 
@@ -304,6 +310,12 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, 0) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
+        // Event Viewer: its keys are handled by the window.
+        *new TStatusDef(hcEventViewer, hcEventViewer) +
+            *new TStatusItem("~M C K O T~ Filter", kbNoKey, 0) +
+            *new TStatusItem("~N~ Notes", kbNoKey, 0) +
+            *new TStatusItem("~X~ Clear", kbNoKey, 0) +
+            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
@@ -351,6 +363,10 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmEditSettings: editSettings(); break;
                 case cmReloadSettings: reloadSettings(true); break;
                 case cmAbout: about(); break;
+                case cmShowNotes:
+                    if (event.message.infoPtr)
+                        showNotes(*(TEventViewer *) event.message.infoPtr, true);
+                    break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -643,7 +659,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 if (message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
                     break;
                 TRect r = win.hasPos ? profileBounds(win, ext) : eventViewerBounds(ext);
-                window = newEventViewer(r);
+                window = newEventViewer(r, win.filter);
                 break;
             }
         }
@@ -794,10 +810,11 @@ void TVTermApp::saveProfile()
             setProfilePos(win, *w, ext);
             profile.windows.push_back(std::move(win));
         }
-        else if (dynamic_cast<TEventViewer *>(w))
+        else if (auto *viewer = dynamic_cast<TEventViewer *>(w))
         {
             WindowProfile win;
             win.kind = WindowProfile::EventViewer;
+            win.filter = viewer->getFilter();
             setProfilePos(win, *w, ext);
             profile.windows.push_back(std::move(win));
         }
