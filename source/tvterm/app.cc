@@ -23,6 +23,8 @@
 #include "evntview.h"
 #include "profile.h"
 #include "winlist.h"
+#include "procinfo.h"
+#include "quitdlg.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -33,7 +35,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <sys/stat.h>
-#include <fstream>
 #include <vector>
 
 TCommandSet TVTermApp::tileCmds = []()
@@ -191,17 +192,10 @@ Boolean TVTermApp::valid(ushort command)
 {
     if (command == cmQuit)
     {
-        if (size_t count = getOpenTermCount())
-        {
-            auto *format = (count == 1)
-                ? "There is %zu open terminal window.\nDo you want to quit anyway?"
-                : "There are %zu open terminal windows.\nDo you want to quit anyway?";
-            if (messageBox(
-                    mfConfirmation | mfYesButton | mfNoButton,
-                    format, count
-                ) != cmYes)
-                return False;
-        }
+        // Lists what runs in each terminal; the user may also go to one
+        // of them instead of quitting.
+        if (getOpenTermCount() && !confirmQuit(*deskTop))
+            return False;
         // Let editor windows ask to save modified files.
     }
     return TApplication::valid(command);
@@ -518,47 +512,7 @@ void TVTermApp::renameTerm()
         messageBox("The current window is not a terminal.", mfInformation | mfOKButton);
 }
 
-// Reading the state of the processes in a terminal (Linux /proc).
-
-static std::string readLink(const std::string &path)
-{
-    char buf[4096];
-    ssize_t len = readlink(path.c_str(), buf, sizeof(buf) - 1);
-    if (len <= 0)
-        return {};
-    buf[len] = '\0';
-    return buf;
-}
-
-static std::string shellQuote(const std::string &arg)
-{
-    if (!arg.empty() && arg.find_first_not_of(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-./=:,+@%") == std::string::npos)
-        return arg;
-    std::string out = "'";
-    for (char c : arg)
-        out += c == '\'' ? std::string("'\\''") : std::string(1, c);
-    return out + "'";
-}
-
-static std::string readCommandLine(long pid)
-{
-    std::ifstream f("/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary);
-    std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    std::string out;
-    size_t start = 0;
-    while (start < data.size())
-    {
-        size_t end = data.find('\0', start);
-        if (end == std::string::npos)
-            end = data.size();
-        if (!out.empty())
-            out += ' ';
-        out += shellQuote(data.substr(start, end - start));
-        start = end + 1;
-    }
-    return out;
-}
+// Describing the current windows as a profile.
 
 static std::string homeRelative(const std::string &path)
 {
@@ -592,10 +546,10 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
         long pid = info.foregroundPgid ? info.foregroundPgid : info.clientPid;
         if (term.command.empty() && info.foregroundPgid && info.foregroundPgid != info.clientPid)
         {
-            term.command = readCommandLine(info.foregroundPgid);
+            term.command = procinfo::readCommandLine(info.foregroundPgid);
             term.keepOpen = true;
         }
-        std::string cwd = readLink("/proc/" + std::to_string(pid) + "/cwd");
+        std::string cwd = procinfo::readLink("/proc/" + std::to_string(pid) + "/cwd");
         if (!cwd.empty())
             term.dir = homeRelative(cwd);
     }

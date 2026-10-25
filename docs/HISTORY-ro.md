@@ -39,6 +39,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 16. `77ad928` Save and restore editors and the event viewer in profiles
 17. `73c7216` Add docs/HISTORY.md
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
+19. Show what runs in each terminal when quitting
 
 ---
 
@@ -78,7 +79,14 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
 ### Altele
 - **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
 - **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză.
-- **Ieșire** (verificat): confirmare; programele primesc SIGHUP și se opresc; **far2l rămâne în fundal** și poate fi reconectat.
+- **Ieșire** (Ctrl-B Q): confirmarea listează fiecare terminal deschis și ce rulează în el, întâi cele care rulează un program:
+  comanda din prim-plan (ex. `tail -f /var/log/mail.log`, pipeline-uri ca `a | b`, `bash script.sh`), `bash, idle` pentru un shell liber,
+  `[stays in background]` pentru far2l. Butoane: **Quit** (Enter sau Q), **Go to** (G, Space sau dublu click: trece la terminalul
+  ales și nu iese), Cancel (Esc). Editoarele cu modificări nesalvate întreabă în continuare, după aceea.
+  Programele primesc SIGHUP și se opresc; **far2l rămâne în fundal** și poate fi reconectat (verificat).
+  Cum se află comanda: procesele din grupul de procese din prim-plan al terminalului (`tcgetpgrp`) se citesc din `/proc/<pid>/stat`;
+  shell-urile care doar rulează o linie de comandă (`sh -c ...`, ex. wrapper-ul folosit pentru comenzile din profil) sunt sărite;
+  far2l își rescrie `argv[0]`, așa că numele lui se ia din `/proc/<pid>/stat`.
 - Alt+Shift+Sus/Jos (selecție verticală far2l) nu ajung nici în afara tvterm → problemă în putty4far2l/Windows, nu în tvterm.
   Ocolire: Alt+Shift+Stânga/Dreapta + Alt+Shift+PgUp/PgDn.
 
@@ -99,6 +107,8 @@ source/tvterm/             aplicația
   app.cc/.h                meniu, status line, comenzi, profiluri (open/save), main() cu -p/--help
   profile.cc/.h            parser/writer INI (WindowProfile, Profile)
   winlist.cc/.h            dialogul Window List, renameTerminal, getDeskTopWindows
+  quitdlg.cc/.h            dialogul de confirmare a ieșirii (confirmQuit)
+  procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
@@ -148,7 +158,8 @@ examples/profiles/example.ini
   - far2l lasă sesiuni în fundal (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` între teste.
   - far2l 2.6 în modul extensii: titlul conține `TTY|F`.
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
-  bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat.
+  bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
+  dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
 
 ---
 
@@ -169,3 +180,4 @@ examples/profiles/example.ini
 | Clipboard | 6–11 | OSC 52; Shift-Ins; jurnal depanare; extensii far2l (clipboard); bracketed paste; blocuri verticale far2l |
 | Profiluri | 12–16 | ClientOptions + titlu fix; profiluri INI; info procese; Window List, Rename, Save Profile; editor și Event Viewer în profiluri |
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
+| Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |

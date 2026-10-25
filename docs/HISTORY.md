@@ -38,6 +38,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 16. `77ad928` Save and restore editors and the event viewer in profiles
 17. `73c7216` Add docs/HISTORY.md
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
+19. Show what runs in each terminal when quitting
 
 ---
 
@@ -77,7 +78,14 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
 ### Other
 - **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it.
-- **Quitting** (verified): confirmation; programs get SIGHUP and stop; **far2l stays in the background** and can be reattached.
+- **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
+  the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
+  `[stays in background]` for far2l. Buttons: **Quit** (Enter or Q), **Go to** (G, Space or double click: goes to the chosen
+  terminal and does not quit), Cancel (Esc). Editors with unsaved changes still ask afterwards.
+  Programs get SIGHUP and stop; **far2l stays in the background** and can be reattached (verified).
+  How the command is found: the processes of the terminal's foreground process group (`tcgetpgrp`) are read from `/proc/<pid>/stat`;
+  shells that only run a command line (`sh -c ...`, e.g. the wrapper used for profile commands) are skipped; far2l rewrites its
+  `argv[0]`, so its name is taken from `/proc/<pid>/stat`.
 - Alt+Shift+Up/Down (far2l vertical selection) do not arrive even outside tvterm → an issue in putty4far2l/Windows, not in tvterm.
   Workaround: Alt+Shift+Left/Right + Alt+Shift+PgUp/PgDn.
 
@@ -98,6 +106,8 @@ source/tvterm/             the application
   app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows
+  quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
+  procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
@@ -147,7 +157,8 @@ examples/profiles/example.ini
   - far2l leaves sessions in the background (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` between tests.
   - far2l 2.6 in extensions mode: its title contains `TTY|F`.
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
-  far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor.
+  far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
+  quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
 
 ---
 
@@ -168,3 +179,4 @@ examples/profiles/example.ini
 | Clipboard | 6–11 | OSC 52; Shift-Ins; debug log; far2l extensions (clipboard); bracketed paste; far2l vertical blocks |
 | Profiles | 12–16 | ClientOptions + fixed title; INI profiles; process information; Window List, Rename, Save Profile; editors and Event Viewer in profiles |
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
+| Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
