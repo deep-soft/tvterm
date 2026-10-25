@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdexcept>
 #include <utility>
+#include <mutex>
+#include <map>
 
 namespace tvterm
 {
@@ -204,6 +206,90 @@ static std::string utf8ToUtf32(TStringView in)
     return out;
 }
 
+// Clipboard formats other than text (e.g. far2l's 'FAR_VerticalBlock_Unicode'
+// marker, which tells that the text is a vertical block) cannot be stored in
+// the system clipboard, so they are kept here, together with the text they
+// were copied with. They are reported as available only while the clipboard
+// still contains that same text (e.g. not after copying something else in
+// Windows). Shared by all terminals, which run in different threads.
+class ExtraFormatStore
+{
+    std::mutex mutex;
+    std::map<std::string, uint32_t> formatIds;
+    uint32_t nextFormatId {0xC000};
+    std::map<uint32_t, std::string> formats; // Format ID -> data.
+    std::string formatsText;  // Text that 'formats' belong to.
+    std::string knownText;    // Last text known to be in the clipboard.
+
+    static std::string normalize(TStringView text)
+    {
+        // Line endings may change on the way (e.g. through Windows).
+        std::string out;
+        for (char c : text)
+            if (c != '\r')
+                out += c;
+        while (!out.empty() && out.back() == '\0')
+            out.pop_back();
+        return out;
+    }
+
+public:
+
+    enum : size_t { maxFormatDataSize = 1024 * 1024 };
+
+    uint32_t registerFormat(const std::string &name)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = formatIds.find(name);
+        if (it == formatIds.end())
+            it = formatIds.emplace(name, nextFormatId++).first;
+        return it->second;
+    }
+
+    void empty()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        formats.clear();
+        formatsText.clear();
+    }
+
+    // Text set by an application: extra formats set afterwards belong to it.
+    void setText(TStringView text)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        knownText = normalize(text);
+        formats.clear();
+        formatsText = knownText;
+    }
+
+    // Text read from the clipboard.
+    void setKnownText(TStringView text)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        knownText = normalize(text);
+    }
+
+    void setFormat(uint32_t format, std::string data)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (data.size() <= maxFormatDataSize)
+            formats[format] = std::move(data);
+    }
+
+    bool getFormat(uint32_t format, std::string *data = nullptr)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = formats.find(format);
+        if (it == formats.end() || knownText != formatsText)
+            return false;
+        if (data)
+            *data = it->second;
+        return true;
+    }
+};
+
+static ExtraFormatStore extraFormats;
+
 } // namespace far2lext
 
 using namespace far2lext;
@@ -315,14 +401,20 @@ bool Far2lExtensions::handleClipboard(std::string &request, std::string &reply, 
             break;
 
         case clipClose:
+            pushNum<int8_t>(reply, 1);
+            break;
+
         case clipEmpty:
+            extraFormats.empty();
             pushNum<int8_t>(reply, 1);
             break;
 
         case clipIsAvailable:
         {
             uint32_t format = popNum<uint32_t>(request);
-            pushNum<int8_t>(reply, format == cfText || format == cfUnicodeText);
+            bool available = format == cfText || format == cfUnicodeText ||
+                             extraFormats.getFormat(format);
+            pushNum<int8_t>(reply, available);
             break;
         }
 
@@ -334,17 +426,22 @@ bool Far2lExtensions::handleClipboard(std::string &request, std::string &reply, 
         {
             uint32_t format = popNum<uint32_t>(request);
             uint32_t size = popNum<uint32_t>(request);
-            if (size <= maxClipboardSize && (format == cfText || format == cfUnicodeText))
+            if (size <= maxClipboardSize)
             {
                 std::string data = popBytes(request, size);
-                std::string text = format == cfText ? data : utf32ToUtf8(data);
-                size_t end = text.find('\0');
-                if (end != std::string::npos)
-                    text.resize(end);
-                callbacks.setClipboard(std::move(text));
+                if (format == cfText || format == cfUnicodeText)
+                {
+                    std::string text = format == cfText ? data : utf32ToUtf8(data);
+                    size_t end = text.find('\0');
+                    if (end != std::string::npos)
+                        text.resize(end);
+                    extraFormats.setText(text);
+                    callbacks.setClipboard(std::move(text));
+                }
+                else
+                    // E.g. far2l's marker for vertical blocks.
+                    extraFormats.setFormat(format, std::move(data));
             }
-            // Other formats (e.g. far2l's own format for vertical blocks)
-            // are not kept; far2l then falls back to plain text.
             pushNum<int8_t>(reply, 1);
             break;
         }
@@ -357,7 +454,14 @@ bool Far2lExtensions::handleClipboard(std::string &request, std::string &reply, 
                 callbacks.requestClipboard(id, format);
                 return false;
             }
-            pushNum<uint32_t>(reply, 0); // No data.
+            std::string data;
+            if (extraFormats.getFormat(format, &data))
+            {
+                pushBytes(reply, data.data(), data.size());
+                pushNum<uint32_t>(reply, (uint32_t) data.size());
+            }
+            else
+                pushNum<uint32_t>(reply, 0); // No data.
             break;
         }
 
@@ -368,10 +472,7 @@ bool Far2lExtensions::handleClipboard(std::string &request, std::string &reply, 
         case clipRegisterFormat:
         {
             std::string name = popStr(request);
-            auto it = registeredFormats.find(name);
-            if (it == registeredFormats.end())
-                it = registeredFormats.emplace(name, nextFormatId++).first;
-            pushNum<uint32_t>(reply, it->second);
+            pushNum<uint32_t>(reply, extraFormats.registerFormat(name));
             break;
         }
 
@@ -383,6 +484,7 @@ bool Far2lExtensions::handleClipboard(std::string &request, std::string &reply, 
 
 void Far2lExtensions::sendClipboardData(uint8_t id, uint32_t format, TStringView utf8Text) noexcept
 {
+    extraFormats.setKnownText(utf8Text);
     std::string reply;
     try
     {

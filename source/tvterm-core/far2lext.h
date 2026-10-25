@@ -15,7 +15,6 @@
 
 #include <stdint.h>
 #include <string>
-#include <map>
 #include <functional>
 
 #include <tvision/tv.h>
@@ -55,8 +54,6 @@ private:
 
     Callbacks callbacks;
     bool enabled {false};
-    std::map<std::string, uint32_t> registeredFormats;
-    uint32_t nextFormatId {0xC000};
 
     void handleInteract(std::string &stack) noexcept;
     bool handleClipboard(std::string &request, std::string &reply, uint8_t id);
