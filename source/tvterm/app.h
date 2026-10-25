@@ -47,6 +47,7 @@ struct TVTermApp : public TApplication
     // 'manual': requested by the user (always reports the result).
     // 'startup': first reading, only problems are reported.
     void reloadSettings(bool manual, bool startup = false);
+    void about();
 
     // Current settings (tvterm.ini).
     static const Settings &settings();
@@ -62,6 +63,8 @@ private:
     // Message to show once the application is running (e.g. profile errors
     // found at startup).
     std::string pendingMessage;
+    // Last profile loaded (path), shown in the About dialog.
+    std::string loadedProfile;
 
     void checkSettingsFile();
 

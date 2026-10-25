@@ -44,6 +44,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 ### Commits on `far2l-extended`
 
 20. Add history mode (scroll, search, save), word/line selection and a settings file
+21. Add version information (--version) and an About dialog
 
 ---
 
@@ -53,7 +54,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
-Reload settings) · `U` Suspend · `Q` Exit.
+Reload settings, About) · `U` Suspend · `Q` Exit.
 Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 
 ### History (scrollback) — `far2l-extended`
@@ -76,7 +77,23 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 - **Mouse**: double click selects a word (letters, digits, `word-chars`; non-ASCII counts as a letter), triple click the
   whole logical line (with the line break); dragging afterwards extends by words/lines. **Shift+click** forces the
   selection in programs that use the mouse (far2l), if `shift-click-select = yes`. Copying works as before (Ctrl-C).
+  In the real setup, putty4far2l takes Shift+mouse for its own selection (on the whole outer screen), so tvterm never
+  receives Shift+click while that selection is enabled in putty4far2l (the user disabled it). tvterm's own selection
+  (without Shift, in shell windows) works and stays inside the current window.
 - Old lines dropped from a full history no longer shift the selection or the match.
+
+### Version and About — `far2l-extended`
+- Version number `0.1.0`, set in `CMakeLists.txt` (`TVTERM_VERSION`) and changed only by hand. Everything else is added
+  automatically at **every build** by `scripts/buildinfo.cmake`: the commit (`git describe --always --dirty`: short hash,
+  `-dirty` with uncommitted changes), the branch, the build date as local time of the build machine with its time zone
+  (`YYYY-MM-DD hh:mm TZ`, e.g. `2026-10-25 16:40 EET`; a machine without a time zone shows `UTC`), the build type
+  (`static`/`dynamic`) and the commits of the bundled tvision and libvterm. Without git (e.g. sources from an archive): `unknown`.
+- `tvterm --version` (or `-V`) prints it and exits, without starting the interface.
+- The first two lines in the Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` and `built <date>, <type>`.
+- **More... > About tvterm...**: version, commit and branch, build date and type, tvision/libvterm commits, the settings file
+  (`(not found)` if it does not exist), the last profile loaded (`(none)`), uptime (`2d 03:14`: days, hours, minutes),
+  the number of terminal windows (running or disconnected) and the links (deep-soft fork, magiblot original).
+  The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
 
 ### Settings file (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
@@ -144,7 +161,8 @@ source/tvterm-core/        (the library; potentially interesting for upstream)
   pty.cc                   forkpty, ClientOptions (command/dir/keepOpen; /bin/sh wrapper with `trap : INT`)
 include/tvterm/            public headers (termemu.h: TerminalState, TerminalEvent; pty.h; termctrl.h; ...)
 source/tvterm/             the application
-  app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help
+  app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help/--version
+  about.cc/.h              version text and About dialog; declarations of the generated build information
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
@@ -159,6 +177,7 @@ include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, wor
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
+scripts/buildinfo.cmake    run at every build: writes <build dir>/buildinfo.cc (version, commit, branch, date, type)
 examples/profiles/example.ini
 ```
 
@@ -192,6 +211,9 @@ examples/profiles/example.ini
 - win32-input code is guarded by `HAVE_VTERM_WIN32INPUT` (only with the bundled, patched libvterm).
 - `TDialog` only closes itself on standard commands (cmOK, cmCancel, cmYes, cmNo): custom buttons must use them.
 - `TGroup::current` hides globals named `current` inside `TVTermApp` methods.
+- Build information: generated by a custom target that runs at every build; the file is rewritten only when its contents
+  change (`configure_file(COPYONLY)`), and it is kept out of the unity build and the precompiled headers, so a rebuild
+  compiles only that small file. New top-level directories are ignored by `.gitignore`, so the script lives in `scripts/`.
 
 ---
 
@@ -218,6 +240,10 @@ examples/profiles/example.ini
     a temporary build that accepts Alt instead (not committed). In the real setup it arrives through far2l's extensions.
   - `/bin/sh` (dash) has no line editing: keys sent to the shell by mistake stay in the command line → send Ctrl+C first.
   - Measured: search in 10000 lines of 85 characters: 0.1 s found nearby, 0.9 s not found; RSS ≈ 75 MB with a full history.
+- About tests (feat 21): `--version`/`-V`; Ctrl-B `m` `b` opens the dialog; its contents without settings/profile and with
+  a profile of 3 terminals (one disconnected); uptime after 1 minute; long path shortened on a 60-column screen;
+  Enter/Esc close it; the first notes in the Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build without git → `unknown`;
+  rebuild in the same minute compiles nothing, in the next minute only `buildinfo.cc`.
 
 ---
 
@@ -242,3 +268,4 @@ examples/profiles/example.ini
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
 | History (`far2l-extended`) | 20 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
+| Version (`far2l-extended`) | 21 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |

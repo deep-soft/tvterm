@@ -8,6 +8,10 @@ option(TVTERM_STATIC "Build a fully static executable (Linux only)" OFF)
 
 project(tvterm)
 
+# Version shown by 'tvterm --version' and in More... > About. The commit,
+# branch and build date are added automatically (scripts/buildinfo.cmake).
+set(TVTERM_VERSION "0.1.0")
+
 if (TVTERM_STATIC)
     # Make every find_library() call (here and in Turbo Vision) pick static
     # archives (.a) instead of shared libraries.
@@ -68,7 +72,31 @@ install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/tvterm" DESTINATION include
 
 if (TVTERM_BUILD_APP)
     file(GLOB_RECURSE TVTERM_SRC "${CMAKE_CURRENT_LIST_DIR}/source/tvterm/*.cc")
-    add_executable(tvterm ${TVTERM_SRC})
+
+    # Build information (version, commit, date), generated at every build.
+    set(TVTERM_BUILDINFO "${CMAKE_CURRENT_BINARY_DIR}/buildinfo.cc")
+    add_custom_target(tvterm-buildinfo
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSRC=${CMAKE_CURRENT_LIST_DIR}"
+            "-DOUT=${TVTERM_BUILDINFO}"
+            "-DVERSION=${TVTERM_VERSION}"
+            "-DSTATIC=${TVTERM_STATIC}"
+            "-DSYSTEM_TVISION=${TVTERM_USE_SYSTEM_TVISION}"
+            "-DSYSTEM_LIBVTERM=${TVTERM_USE_SYSTEM_LIBVTERM}"
+            -P "${CMAKE_CURRENT_LIST_DIR}/scripts/buildinfo.cmake"
+        BYPRODUCTS "${TVTERM_BUILDINFO}"
+        VERBATIM
+    )
+    # A small file that changes often: kept out of the unity build and
+    # the precompiled headers, so that only it is compiled again.
+    set_source_files_properties("${TVTERM_BUILDINFO}" PROPERTIES
+        GENERATED ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        SKIP_PRECOMPILE_HEADERS ON
+    )
+
+    add_executable(tvterm ${TVTERM_SRC} "${TVTERM_BUILDINFO}")
+    add_dependencies(tvterm tvterm-buildinfo)
     tvterm_set_warnings(tvterm)
     target_link_libraries(tvterm PRIVATE
         tvterm-core

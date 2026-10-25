@@ -28,6 +28,7 @@ enum : ushort
     cmRenameTerm,
     cmEditSettings,
     cmReloadSettings,
+    cmAbout,
 };
 
 enum : ushort

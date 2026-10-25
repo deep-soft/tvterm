@@ -28,6 +28,7 @@
 #include "settings.h"
 #include "statline.h"
 #include "histdlg.h"
+#include "about.h"
 #include <tvterm/termopts.h>
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
@@ -55,6 +56,9 @@ enum { checkIntervalMs = 2000 };
 // Messages for the Event Viewer, kept until one is opened.
 static std::deque<std::string> notes;
 enum { maxNotes = 200 };
+
+// When tvterm started (for the uptime in the About dialog).
+static const auto startTime = std::chrono::steady_clock::now();
 
 static void showStatus(const std::string &text)
 {
@@ -112,6 +116,7 @@ static void printUsage(FILE *f, const char *argv0)
         "\n"
         "  -p, --profile PROFILE   open the windows described in PROFILE\n"
         "                          ('none': do not open the default profile)\n"
+        "  -V, --version           show the version and build information\n"
         "  -h, --help              show this help\n"
         "\n"
         "PROFILE is a file path (if it contains '/') or a name, looked up as\n"
@@ -133,6 +138,11 @@ int main(int argc, char **argv)
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help"))
         {
             printUsage(stdout, argv[0]);
+            return 0;
+        }
+        else if (!strcmp(arg, "-V") || !strcmp(arg, "--version"))
+        {
+            fputs(versionText().c_str(), stdout);
             return 0;
         }
         else if ((!strcmp(arg, "-p") || !strcmp(arg, "--profile")) && i + 1 < argc)
@@ -163,6 +173,9 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
                &TVTermApp::initDeskTop
              )
 {
+    // First lines in the Event Viewer: which build is running.
+    note(versionLine());
+    note(buildLine());
     disableCommands(tileCmds);
     for (ushort cmd : TerminalWindow::appConsts.focusedCmds())
         disableCommand(cmd);
@@ -337,6 +350,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmRenameTerm: renameTerm(); break;
                 case cmEditSettings: editSettings(); break;
                 case cmReloadSettings: reloadSettings(true); break;
+                case cmAbout: about(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -428,7 +442,9 @@ void TVTermApp::openMenu()
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
-            *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey)
+            *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +
+            newLine() +
+            *new TMenuItem("A~b~out tvterm...", cmAbout, kbNoKey)
         ) +
         *new TMenuItem("Suspend", cmDosShell, 'U', hcNoContext, "~U~") +
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
@@ -556,6 +572,7 @@ bool TVTermApp::openProfile(const std::string &nameOrPath)
         return false;
     }
     openProfile(profile);
+    loadedProfile = profile.path;
     return true;
 }
 
@@ -839,4 +856,19 @@ void TVTermApp::saveProfile()
         notes += "\nSome editors have unsaved changes:\nthe profile only keeps their file names.";
     messageBox( mfInformation | mfOKButton, "Saved %zu window(s) to\n%s%s",
                 profile.windows.size(), path.c_str(), notes.c_str() );
+}
+
+void TVTermApp::about()
+{
+    AboutInfo info;
+    std::string path = settingsPath();
+    info.settingsPath = homeRelative(path);
+    info.settingsExists = access(path.c_str(), F_OK) == 0;
+    info.profile = homeRelative(loadedProfile);
+    info.uptimeSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::steady_clock::now() - appsettings::startTime ).count();
+    for (TWindow *w : getDeskTopWindows(*deskTop))
+        if (dynamic_cast<TerminalWindow *>(w))
+            ++info.terminals;
+    showAbout(info);
 }

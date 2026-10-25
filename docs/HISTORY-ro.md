@@ -45,6 +45,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 ### Commit-uri pe `far2l-extended`
 
 20. Add history mode (scroll, search, save), word/line selection and a settings file
+21. Add version information (--version) and an About dialog
 
 ---
 
@@ -54,7 +55,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
-Reload settings) · `U` Suspend · `Q` Exit.
+Reload settings, About) · `U` Suspend · `Q` Exit.
 Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 
 ### Istoric (scrollback) — `far2l-extended`
@@ -77,7 +78,23 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 - **Mouse**: dublu click selectează un cuvânt (litere, cifre, `word-chars`; orice caracter non-ASCII contează ca literă),
   triplu click toată linia logică (cu sfârșitul de linie); tragerea după aceea extinde pe cuvinte/linii. **Shift+click**
   forțează selecția în programele care folosesc mouse-ul (far2l), dacă `shift-click-select = yes`. Copierea, ca până acum (Ctrl-C).
+  În lanțul real, putty4far2l prinde Shift+mouse pentru selecția proprie (pe tot ecranul exterior), deci tvterm nu primește
+  Shift+click cât timp acea selecție e activă în putty4far2l (utilizatorul a dezactivat-o). Selecția tvterm (fără Shift,
+  în ferestre shell) funcționează și rămâne în fereastra curentă.
 - Liniile vechi eliminate dintr-un istoric plin nu mai deplasează selecția sau potrivirea.
+
+### Versiune și About — `far2l-extended`
+- Număr de versiune `0.1.0`, în `CMakeLists.txt` (`TVTERM_VERSION`), schimbat doar manual. Restul se adaugă automat la
+  **fiecare build** de `scripts/buildinfo.cmake`: commit-ul (`git describe --always --dirty`: hash scurt, `-dirty` cu modificări
+  necommit-uite), branch-ul, data compilării în ora locală a mașinii de build, cu fus (`YYYY-MM-DD hh:mm TZ`, ex.
+  `2026-10-25 16:40 EET`; o mașină fără fus orar setat arată `UTC`), tipul build-ului (`static`/`dynamic`) și commit-urile
+  tvision și libvterm incluse. Fără git (ex. surse dintr-o arhivă): `unknown`.
+- `tvterm --version` (sau `-V`) le afișează și iese, fără să pornească interfața.
+- Primele două linii din Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` și `built <dată>, <tip>`.
+- **More... > About tvterm...**: versiunea, commit-ul și branch-ul, data și tipul build-ului, commit-urile tvision/libvterm,
+  fișierul de setări (`(not found)` dacă nu există), ultimul profil încărcat (`(none)`), uptime (`2d 03:14`: zile, ore, minute),
+  numărul de ferestre terminal (care rulează sau deconectate) și link-urile (fork deep-soft, originalul magiblot).
+  Valorile se citesc la deschiderea dialogului. Căile lungi se scurtează la început (`...`) pe ecrane înguste.
 
 ### Fișierul de setări (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (sau `$XDG_CONFIG_HOME/tvterm/`), secțiuni `[general]` (`profile`, `auto-reload`),
@@ -145,7 +162,8 @@ source/tvterm-core/        (biblioteca, potențial interesantă pentru upstream)
   pty.cc                   forkpty, ClientOptions (command/dir/keepOpen; wrapper /bin/sh cu `trap : INT`)
 include/tvterm/            headere publice (termemu.h: TerminalState, TerminalEvent; pty.h; termctrl.h; ...)
 source/tvterm/             aplicația
-  app.cc/.h                meniu, status line, comenzi, profiluri (open/save), main() cu -p/--help
+  app.cc/.h                meniu, status line, comenzi, profiluri (open/save), main() cu -p/--help/--version
+  about.cc/.h              textul versiunii și dialogul About; declarațiile informațiilor de build generate
   profile.cc/.h            parser/writer INI (WindowProfile, Profile)
   winlist.cc/.h            dialogul Window List, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            dialogul de confirmare a ieșirii (confirmQuit)
@@ -160,6 +178,7 @@ include/tvterm/termopts.h  TerminalOptions (global): mărime istoric, rotiță, 
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
+scripts/buildinfo.cmake    rulat la fiecare build: scrie <dir. build>/buildinfo.cc (versiune, commit, branch, dată, tip)
 examples/profiles/example.ini
 ```
 
@@ -193,6 +212,9 @@ examples/profiles/example.ini
 - Cod win32-input protejat cu `HAVE_VTERM_WIN32INPUT` (doar cu libvterm-ul inclus, patch-uit).
 - `TDialog` se închide singur doar la comenzile standard (cmOK, cmCancel, cmYes, cmNo): butoanele proprii trebuie să le folosească.
 - `TGroup::current` ascunde variabilele globale numite `current` în metodele lui `TVTermApp`.
+- Informațiile de build: generate de o țintă CMake rulată la fiecare build; fișierul se rescrie doar când conținutul se schimbă
+  (`configure_file(COPYONLY)`) și e scos din unity build și din headerele precompilate, deci la recompilare se compilează
+  doar acel fișier mic. Directoarele noi de pe primul nivel sunt ignorate de `.gitignore`, de aceea scriptul stă în `scripts/`.
 
 ---
 
@@ -219,6 +241,10 @@ examples/profiles/example.ini
     build temporar care acceptă Alt în loc (necomis). În lanțul real ajunge prin extensiile far2l.
   - `/bin/sh` (dash) nu are editare de linie: tastele trimise greșit la shell rămân în linia de comandă → întâi Ctrl+C.
   - Măsurat: căutare în 10000 de linii de 85 de caractere: 0,1 s găsit aproape, 0,9 s negăsit; RSS ≈ 75 MB cu istoricul plin.
+- Teste About (feat 21): `--version`/`-V`; Ctrl-B `m` `b` deschide dialogul; conținutul fără setări/profil și cu un profil
+  de 3 terminale (unul deconectat); uptime după 1 minut; cale lungă scurtată pe un ecran de 60 de coloane; Enter/Esc îl închid;
+  primele note din Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build fără git → `unknown`;
+  recompilare în același minut nu compilează nimic, în minutul următor doar `buildinfo.cc`.
 
 ---
 
@@ -244,3 +270,4 @@ examples/profiles/example.ini
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
 | Istoric (`far2l-extended`) | 20 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
+| Versiune (`far2l-extended`) | 21 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
