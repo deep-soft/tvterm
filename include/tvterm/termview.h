@@ -28,6 +28,7 @@ class TerminalView : public TView
 
     void handleMouse(ushort what, MouseEventType mouse) noexcept;
     void updateHelpContext() noexcept;
+    void updateClipboard() noexcept;
     void updateCursor(TerminalState &state) noexcept;
     void updateScrollBar(TerminalState &state) noexcept;
     void updateDisplay(TerminalState &state) noexcept;

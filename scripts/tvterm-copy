@@ -1,0 +1,22 @@
+#!/bin/sh
+# tvterm-copy: copy text to the clipboard through the terminal (OSC 52).
+#
+# Works inside tvterm (and other terminals that support OSC 52). With tvterm
+# running in far2l / putty4far2l, the text ends up in the Windows clipboard.
+#
+# Usage:
+#   tvterm-copy "some text"          copy the arguments
+#   command | tvterm-copy            copy the output of a command
+#   tvterm-copy < file.txt           copy a file
+#
+# Install: cp scripts/tvterm-copy /usr/local/bin/ && chmod +x /usr/local/bin/tvterm-copy
+
+if [ $# -gt 0 ]; then
+    printf '%s' "$*"
+else
+    cat
+fi | base64 | tr -d '\n' | {
+    printf '\033]52;c;'
+    cat
+    printf '\a'
+} > /dev/tty

@@ -97,7 +97,10 @@ void TerminalView::handleEvent(TEvent &ev)
         case evBroadcast:
             if ( ev.message.command == consts.cmCheckTerminalUpdates &&
                  termCtrl.stateHasBeenUpdated() )
+            {
+                updateClipboard();
                 drawView();
+            }
             else if ( ev.message.command == cmScrollBarChanged &&
                       ev.message.infoPtr == scrollBar && scrollBar )
             {
@@ -171,6 +174,20 @@ void TerminalView::handleMouse(ushort what, MouseEventType mouse) noexcept
         termEvent.mouse = {what, mouse};
         termCtrl.sendEvent(termEvent);
     }
+}
+
+void TerminalView::updateClipboard() noexcept
+// Forwards the clipboard requests of the client application (OSC 52) to
+// the system clipboard. Done here because it must happen in the main thread.
+{
+    termCtrl.lockState([&] (auto &state) {
+        if (state.clipboardChanged)
+        {
+            state.clipboardChanged = false;
+            TClipboard::setText({state.clipboardText.data(), state.clipboardText.size()});
+            state.clipboardText.clear();
+        }
+    });
 }
 
 void TerminalView::draw()

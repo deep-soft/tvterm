@@ -26,6 +26,12 @@ const VTermScreenCallbacks VTermEmulator::callbacks =
     _static_wrap(&VTermEmulator::sb_pushline4),
 };
 
+const VTermSelectionCallbacks VTermEmulator::selectionCallbacks =
+{
+    _static_wrap(&VTermEmulator::selection_set),
+    _static_wrap(&VTermEmulator::selection_query),
+};
+
 namespace vtermemu
 {
 
@@ -364,6 +370,10 @@ VTermEmulator::VTermEmulator(TPoint size, Writer &aClientDataWriter) noexcept :
 
     vterm_output_set_callback(vt, _static_wrap(&VTermEmulator::writeOutput), this);
 
+    // Clipboard requests from the client application (OSC 52).
+    vterm_state_set_selection_callbacks( vtState, &selectionCallbacks, this,
+                                         selectionDecodeBuf, sizeof(selectionDecodeBuf) );
+
     // VTerm's cursor blinks by default, but it shouldn't.
     VTermValue val {0};
     vterm_state_set_termprop(vtState, VTERM_PROP_CURSORBLINK, &val);
@@ -461,6 +471,13 @@ void VTermEmulator::updateState(TerminalState &state) noexcept
     }
 
     state.mouseEnabled = localState.mouseEnabled;
+
+    if (localState.clipboardChanged)
+    {
+        localState.clipboardChanged = false;
+        state.clipboardChanged = true;
+        state.clipboardText = std::move(localState.clipboardText);
+    }
 }
 
 TPoint VTermEmulator::getSize() noexcept
@@ -626,6 +643,49 @@ int VTermEmulator::sb_pushline4(int cols, const VTermScreenCell *cells, bool con
         if (!scrollback.pushLine(cols, cells, continuation))
             localState.scrollOverflowed = true;
     return true;
+}
+
+int VTermEmulator::selection_set(VTermSelectionMask, VTermStringFragment frag)
+// Invoked by libvterm when the client sends 'OSC 52 ; <targets> ; <base64> ST',
+// with the already-decoded text, possibly split in several fragments.
+// All targets (clipboard, primary selection...) go to the same clipboard.
+{
+    if (frag.initial)
+    {
+        selectionBuf.clear();
+        selectionTooLarge = false;
+    }
+    if (!selectionTooLarge)
+    {
+        if (selectionBuf.size() + frag.len <= maxClipboardTextSize)
+            selectionBuf.push(frag.str, frag.len);
+        else
+        {
+            selectionBuf.clear();
+            selectionTooLarge = true;
+        }
+    }
+    if (frag.final)
+    {
+        // An empty text means 'clear the selection' or invalid input:
+        // leave the clipboard untouched in that case.
+        if (!selectionTooLarge && selectionBuf.size() > 0)
+        {
+            localState.clipboardChanged = true;
+            localState.clipboardText = std::move(selectionBuf);
+        }
+        selectionBuf.clear();
+        selectionTooLarge = false;
+    }
+    return 1;
+}
+
+int VTermEmulator::selection_query(VTermSelectionMask)
+// Invoked when the client asks for the clipboard contents ('OSC 52 ; c ; ?').
+// Not supported on purpose: any program could read what the user copied
+// (passwords, for example). This is also the default in most terminals.
+{
+    return 1;
 }
 
 void VTermEmulator::handleScrollbackWheel(uchar wheel) noexcept

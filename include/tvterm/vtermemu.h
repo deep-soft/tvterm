@@ -80,7 +80,14 @@ private:
         bool scrollOverflowed {false};
 
         bool win32InputEnabled {false};
+
+        bool clipboardChanged {false};
+        GrowArray clipboardText;
     };
+
+    // Maximum amount of text accepted via OSC 52, to protect against
+    // misbehaving applications.
+    enum { maxClipboardTextSize = 4 * 1024 * 1024 };
 
     struct VTerm *vt;
     struct VTermState *vtState;
@@ -89,10 +96,14 @@ private:
     // Keeps track of the screen regions that were updated in VTerm.
     std::vector<RowRange> damageByRow;
     GrowArray strFragBuf;
+    GrowArray selectionBuf; // OSC 52 text being received.
+    bool selectionTooLarge {false};
+    char selectionDecodeBuf[4096]; // Used by libvterm to decode base64.
     LocalState localState;
     Scrollback scrollback;
 
     static const VTermScreenCallbacks callbacks;
+    static const VTermSelectionCallbacks selectionCallbacks;
 
     TPoint getSize() noexcept;
     void setSize(TPoint size) noexcept;
@@ -108,6 +119,8 @@ private:
     int bell();
     int resize(int rows, int cols);
     int sb_pushline4(int cols, const VTermScreenCell *cells, bool continuation);
+    int selection_set(VTermSelectionMask mask, VTermStringFragment frag);
+    int selection_query(VTermSelectionMask mask);
 
     VTermScreenCell getDefaultCell() const;
     void copySelection(SelectionRange selection) noexcept;

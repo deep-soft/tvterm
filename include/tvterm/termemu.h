@@ -186,6 +186,11 @@ struct TerminalState
     bool scrollbackEnabled {true};
 
     bool mouseEnabled {false};
+
+    // Text that the client application asked to put in the clipboard
+    // (e.g. via OSC 52). Must be handled from the main thread.
+    bool clipboardChanged {false};
+    GrowArray clipboardText;
 };
 
 enum class TerminalEventType
