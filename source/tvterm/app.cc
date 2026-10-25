@@ -84,7 +84,11 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
-            *new TStatusItem("~Ctrl-B~ Open Menu" , kbCtrlB, cmMenu)
+            *new TStatusItem("~Ctrl-B~ Open Menu" , kbCtrlB, cmMenu) +
+            // Paste from the system clipboard (e.g. the Windows clipboard via
+            // far2l/putty4far2l). Not active in 'Grab Input' mode, so the key
+            // can still reach the application if needed.
+            *new TStatusItem("~Shift-Ins~ Paste", kbShiftIns, cmPaste)
             );
     statusLine->growMode = gfGrowHiX;
     return statusLine;
