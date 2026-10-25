@@ -92,6 +92,7 @@ const char *BasicTerminalWindow::getTitle(short)
 {
     TStringView tail = isDisconnected()                 ? " (Disconnected)"
                      : helpCtx == consts.hcInputGrabbed ? " (Input Grab)"
+                     : view && view->inHistoryMode()    ? " (History)"
                                                         : "";
     TStringView text = customTitle.size() ? TStringView {customTitle.data(), customTitle.size()}
                                           : TStringView {termTitle.data(), termTitle.size()};

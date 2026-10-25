@@ -138,6 +138,13 @@ TerminalController::~TerminalController()
     delete &eventLoop;
 }
 
+void TerminalController::withEmulatorImpl( void (&func)(TerminalEmulator &, void *),
+                                           void *arg ) noexcept
+{
+    std::lock_guard<std::mutex> lock(eventLoop.mutex);
+    func(terminalEmulator, arg);
+}
+
 void TerminalController::sendEvent(const TerminalEvent &event) noexcept
 {
     eventLoop.eventQueue.lock([&] (auto &eventQueue) {

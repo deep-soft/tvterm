@@ -14,16 +14,18 @@ struct TVTermConstants
     ushort cmGrabInput;
     ushort cmReleaseInput;
     ushort cmStartSelection;
+    ushort cmHistoryMode;
     // Help contexts
     ushort hcInputGrabbed;
     ushort hcSelecting;
+    ushort hcHistory;
 
     // Commands that are active when a terminal window is focused.
     TSpan<const ushort> focusedCmds() const
     {
         // NOTE: This requires 'focused commands' to be contiguous in this
         // struct.
-        return {&cmGrabInput, size_t(&cmStartSelection + 1 - &cmGrabInput)};
+        return {&cmGrabInput, size_t(&cmHistoryMode + 1 - &cmGrabInput)};
     }
 };
 

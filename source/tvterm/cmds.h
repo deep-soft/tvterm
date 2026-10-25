@@ -10,6 +10,7 @@ enum : ushort
     cmTileCols,
     cmTileRows,
     cmStartSelection,
+    cmHistoryMode,
     // Commands that cannot be deactivated.
     cmNewTerm = 2000,
     cmCheckTerminalUpdates,
@@ -25,6 +26,8 @@ enum : ushort
     cmSaveProfile,
     cmWindowList,
     cmRenameTerm,
+    cmEditSettings,
+    cmReloadSettings,
 };
 
 enum : ushort
@@ -33,6 +36,7 @@ enum : ushort
     hcInputGrabbed,
     hcSelecting,
     hcEditor,
+    hcHistory,
 };
 
 #endif // TVTERM_CMDS_H

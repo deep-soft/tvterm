@@ -26,13 +26,14 @@ class VTermEmulator final : public TerminalEmulator
 {
 public:
 
-    enum { mouseWheelScrollLines = 3 };
-
     VTermEmulator(TPoint size, Writer &aClientDataWriter) noexcept;
     ~VTermEmulator();
 
     void handleEvent(const TerminalEvent &event) noexcept override;
     void updateState(TerminalState &state) noexcept override;
+    void getText( TextSnapshot &snapshot, int startRow, int endRow,
+                  bool withPositions ) noexcept override;
+    void getSelectionText(SelectionRange selection, std::string &text) noexcept override;
 
 private:
 
@@ -43,7 +44,7 @@ private:
     // gets resized.
     struct Scrollback
     {
-        enum { maxSize = 10000 };
+        // The maximum number of lines is 'terminalOptions.scrollbackLines'.
 
         struct Line
         {
@@ -54,8 +55,10 @@ private:
 
         std::deque<Line> lines;
         int offset {0}; // 0 (oldest line) to lines.size() - 1 (newest line), or lines.size() (no scrollback).
+        uint64_t dropped {0}; // Lines removed from the front so far.
 
         bool pushLine(int cols, const VTermScreenCell *cells, bool continuation);
+        bool trim(int maxLines); // Returns whether lines were removed.
         void incrementOffset(int count);
         void setOffset(int newOffset);
         void followTerminal();
@@ -139,6 +142,8 @@ private:
     void pasteText(const char *data, size_t size) noexcept;
     void extractScrollbackLineText(int y, int startX, int endX, GrowArray &text, int &padding) noexcept;
     void extractTerminalLineText(int y, int startX, int endX, GrowArray &text, int &padding) noexcept;
+    void extractSelectionText(SelectionRange selection, GrowArray &text) noexcept;
+    bool isContinuationRow(int absY) noexcept;
 };
 
 } // namespace tvterm

@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include <tvterm/vtermemu.h>
+#include <tvterm/termopts.h>
 #include "far2lext.h"
 #include <tvterm/debug.h>
 #include <unordered_map>
@@ -250,7 +251,8 @@ namespace vtermemu
             case mwLeft: key = VTERM_KEY_LEFT; break;
             case mwRight: key = VTERM_KEY_RIGHT; break;
         }
-        for (int i = 0; i < VTermEmulator::mouseWheelScrollLines; ++i)
+        int lines = terminalOptions.wheelLines;
+        for (int i = 0; i < lines; ++i)
             vterm_keyboard_key(vt, key, VTERM_MOD_NONE);
     }
 
@@ -460,6 +462,18 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
             scrollback.setOffset(event.scrollBackOffsetChange.offset);
             break;
 
+        case TerminalEventType::ScrollBackScroll:
+        {
+            int delta = event.scrollBackScroll.delta;
+            if (delta <= ScrollBackScrollEvent::scrollToTop)
+                scrollback.setOffset(0);
+            else if (delta >= ScrollBackScrollEvent::scrollToBottom)
+                scrollback.followTerminal();
+            else
+                scrollback.incrementOffset(delta);
+            break;
+        }
+
         case TerminalEventType::CopySelection:
             copySelection(event.copySelection.selection);
             break;
@@ -485,6 +499,10 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
 
 void VTermEmulator::updateState(TerminalState &state) noexcept
 {
+    // The maximum size of the scrollback may have been reduced.
+    if (scrollback.trim(max(0, (int) terminalOptions.scrollbackLines)))
+        localState.scrollOverflowed = true;
+
     updateSurface(state.surface);
 
     if (localState.cursorChanged)
@@ -515,6 +533,7 @@ void VTermEmulator::updateState(TerminalState &state) noexcept
         // be confused with the client application's content.
         state.scrollbackEnabled = !localState.altScreenEnabled;
     }
+    state.scrollbackDropped = scrollback.dropped;
 
     state.mouseEnabled = localState.mouseEnabled;
 
@@ -805,16 +824,19 @@ int VTermEmulator::apc(VTermStringFragment frag)
 
 void VTermEmulator::handleScrollbackWheel(uchar wheel) noexcept
 {
+    int lines = terminalOptions.wheelLines;
     if (wheel == mwUp)
-        scrollback.incrementOffset(-mouseWheelScrollLines);
+        scrollback.incrementOffset(-lines);
     else if (wheel == mwDown)
-        scrollback.incrementOffset(mouseWheelScrollLines);
+        scrollback.incrementOffset(lines);
 }
 
 void VTermEmulator::drawScrollbackLine(TerminalSurface &surface, int y) noexcept
 {
     using namespace vtermemu;
     int lineIndex = scrollback.offset + y;
+    if (lineIndex < 0 || lineIndex >= scrollback.numLines())
+        return;
     auto &line = scrollback.lines[lineIndex];
 
     TSpan<TScreenCell> rowCells(&surface.at(y, 0), surface.size.x);
@@ -831,6 +853,20 @@ void VTermEmulator::drawScrollbackLine(TerminalSurface &surface, int y) noexcept
 
 void VTermEmulator::copySelection(SelectionRange selection) noexcept
 {
+    GrowArray text;
+    extractSelectionText(selection, text);
+    TClipboard::setText({text.data(), text.size()});
+}
+
+void VTermEmulator::getSelectionText(SelectionRange selection, std::string &out) noexcept
+{
+    GrowArray text;
+    extractSelectionText(selection, text);
+    out.assign(text.data(), text.size());
+}
+
+void VTermEmulator::extractSelectionText(SelectionRange selection, GrowArray &text) noexcept
+{
     auto start = min(selection.start, selection.end);
     auto end = max(selection.start, selection.end);
 
@@ -840,7 +876,6 @@ void VTermEmulator::copySelection(SelectionRange selection) noexcept
     int startY = max(0, start.y);
     int endY = min(end.y + 1, maxY);
 
-    GrowArray text;
     int padding = 0;
 
     for (int y = startY; y < endY; ++y)
@@ -853,8 +888,112 @@ void VTermEmulator::copySelection(SelectionRange selection) noexcept
         else
             extractTerminalLineText(y - scrollback.numLines(), startX, endX, text, padding);
     }
+}
 
-    TClipboard::setText({text.data(), text.size()});
+bool VTermEmulator::isContinuationRow(int absY) noexcept
+// Whether the absolute row 'absY' continues the previous one (the line was
+// wrapped by the terminal's width).
+{
+    int sbLines = scrollback.numLines();
+    if (absY <= 0)
+        return false;
+    if (absY < sbLines)
+        return scrollback.lines[absY].continuation;
+    int row = absY - sbLines;
+    if (row < getSize().y)
+        return vterm_state_get_lineinfo(vtState, row)->continuation;
+    return false;
+}
+
+void VTermEmulator::getText( TextSnapshot &snapshot, int startRow, int endRow,
+                             bool withPositions ) noexcept
+{
+    TPoint termSize = getSize();
+    int sbLines = scrollback.numLines();
+    int totalRows = sbLines + termSize.y;
+
+    snapshot = TextSnapshot();
+    snapshot.scrollbackLines = sbLines;
+    snapshot.screenRows = termSize.y;
+    snapshot.altScreen = localState.altScreenEnabled;
+
+    // In the alternate screen, the scrollback belongs to another program.
+    int firstRow = localState.altScreenEnabled ? sbLines : 0;
+    startRow = max(startRow, firstRow);
+    endRow = min(endRow, totalRows);
+    if (startRow >= endRow)
+        return;
+    // Extend the range to whole logical lines.
+    while (startRow > firstRow && isContinuationRow(startRow))
+        --startRow;
+    while (endRow < totalRows && isContinuationRow(endRow))
+        ++endRow;
+
+    TextLine *line = nullptr;
+    int padding = 0; // Empty cells not yet added to the line.
+    std::vector<SelectionAnchor> padCells;
+    for (int y = startRow; y < endRow; ++y)
+    {
+        if (!line || !isContinuationRow(y) || y == firstRow)
+        {
+            snapshot.lines.emplace_back();
+            line = &snapshot.lines.back();
+            line->firstRow = y;
+            padding = 0;
+            padCells.clear();
+        }
+        line->lastRow = y;
+
+        const VTermScreenCell *sbCells = nullptr;
+        int cols = termSize.x;
+        if (y < sbLines)
+        {
+            sbCells = scrollback.lines[y].cells.get();
+            cols = scrollback.lines[y].cols;
+        }
+        for (int x = 0; x < cols; ++x)
+        {
+            VTermScreenCell cell;
+            if (sbCells)
+                cell = sbCells[x];
+            else if (!vterm_screen_get_cell(vtScreen, {y - sbLines, x}, &cell))
+                continue;
+
+            if (cell.chars[0] == (uint32_t) -1) // Wide char trail.
+                continue;
+            if (cell.chars[0] == 0)
+            {
+                ++padding;
+                if (withPositions)
+                    padCells.push_back({x, y});
+                continue;
+            }
+            for (int i = 0; i < padding; ++i)
+            {
+                if (withPositions)
+                {
+                    line->charCell.push_back((int) line->cells.size());
+                    line->cells.push_back(padCells[i]);
+                    line->cellWidth.push_back(1);
+                }
+                line->text.push_back(U' ');
+            }
+            padding = 0;
+            padCells.clear();
+
+            if (withPositions)
+            {
+                line->cells.push_back({x, y});
+                line->cellWidth.push_back(cell.width > 1 ? 2 : 1);
+            }
+            for (int i = 0; i < VTERM_MAX_CHARS_PER_CELL && cell.chars[i]; ++i)
+            {
+                if (withPositions)
+                    line->charCell.push_back((int) line->cells.size() - 1);
+                line->text.push_back((char32_t) cell.chars[i]);
+            }
+        }
+    }
 }
 
 static void extractCellText(const VTermScreenCell &cell, GrowArray &text, int &padding) noexcept
@@ -945,18 +1084,40 @@ inline VTermScreenCell VTermEmulator::getDefaultCell() const
     return cell;
 }
 
+bool VTermEmulator::Scrollback::trim(int maxLines)
+{
+    int excess = numLines() - maxLines;
+    if (excess <= 0)
+        return false;
+    bool following = isFollowingTerminal();
+    lines.erase(lines.begin(), lines.begin() + excess);
+    dropped += excess;
+    offset = following ? numLines() : max(offset - excess, 0);
+    return true;
+}
+
 bool VTermEmulator::Scrollback::pushLine(int cols, const VTermScreenCell *src, bool continuation)
 {
+    int maxLines = max(0, (int) terminalOptions.scrollbackLines);
+    if (maxLines == 0)
+    {
+        // No scrollback: drop what is left after the option was changed.
+        bool trimmed = trim(0);
+        return !trimmed;
+    }
+
     // This must be checked before altering the number of lines.
     bool following = isFollowingTerminal();
 
     bool overflowed = false;
-    if (numLines() >= maxSize)
+    if (numLines() >= maxLines)
     {
         overflowed = true;
-        lines.pop_front();
+        int excess = numLines() - maxLines + 1;
+        lines.erase(lines.begin(), lines.begin() + excess);
+        dropped += excess;
         if (!following)
-            offset = max(offset - 1, 0);
+            offset = max(offset - excess, 0);
     }
 
     auto *line = new VTermScreenCell[cols];

@@ -11,7 +11,8 @@ The outer far2l restores the session when SSH drops; tvterm runs inside it.
 
 | Branch | Role |
 |---|---|
-| `far2l-integration` | **main, stable branch** (on top of `magiblot/master` 210eb23) |
+| `far2l-integration` | **main, stable branch** (on top of `magiblot/master` 210eb23): generic parts |
+| `far2l-extended` | working branch for new features, on top of `far2l-integration` |
 | `master` | up-to-date copy of magiblot's master |
 
 **Workflow:** each new feature goes in a `feat/<name>` branch created from `far2l-integration`;
@@ -40,6 +41,10 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 
+### Commits on `far2l-extended`
+
+20. Add history mode (scroll, search, save), word/line selection and a settings file
+
 ---
 
 ## 2. Features (all tested by the user in the real setup)
@@ -47,8 +52,44 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 ### Menu (Ctrl-B)
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
-`L` Load Profile · `A` Save Profile As · `More...` (change dir, tile, cascade, Grab Input) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
+`L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
+Reload settings) · `U` Suspend · `Q` Exit.
+Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
+
+### History (scrollback) — `far2l-extended`
+- Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
+  full-screen programs (far2l, mc, multitail, editors) use the alternate screen, where there is none.
+- **History mode**: Ctrl-B H, or directly **Alt-Shift-PgUp/PgDn/Home/End** (configurable; in full-screen programs and in
+  Grab Input mode these keys go to the program as usual). The title shows `(History)` and the status line the keys:
+  Up/Down, PgUp/PgDn, Home/End (also Ctrl-Home/End) scroll; the mouse wheel scrolls; **Esc** clears the selection, then
+  the search match, then leaves the mode; any other key leaves the mode, goes back to the bottom and reaches the program.
+  Entered with a direct key, the mode also ends when scrolling back to the bottom. Output keeps arriving meanwhile.
+- **Search**: `/` or F7. Plain text (case-insensitive by default, also for diacritics: `ăla știe` finds `Ăla ȘTIE`) or
+  regular expression (ECMAScript, like `grep -E`). Starts from the visible lines towards older ones; **F3 / n** older,
+  **Shift-F3 / N** newer; the match is shown black on yellow; wrapped lines are searched as one line.
+  Ctrl-C (or Ctrl-Ins) copies the selection, or else the match. Not found: a message in the status line.
+- **Save**: F2 or `s` (Ctrl-B H in a full-screen program opens it directly, for the visible screen). Proposed name:
+  `tvterm-<title>-YYYY-MM-DD-hhmm.txt` in `save-dir`, otherwise in the current directory of what runs in the terminal;
+  a relative name is relative to that directory. Everything (history + screen) or the selection only. Plain UTF-8 text,
+  trailing spaces removed, wrapped lines joined, empty lines at the start/end left out. Existing file: Overwrite / Append / Cancel.
+  The result goes to the status line and the Event Viewer.
+- **Mouse**: double click selects a word (letters, digits, `word-chars`; non-ASCII counts as a letter), triple click the
+  whole logical line (with the line break); dragging afterwards extends by words/lines. **Shift+click** forces the
+  selection in programs that use the mouse (far2l), if `shift-click-select = yes`. Copying works as before (Ctrl-C).
+- Old lines dropped from a full history no longer shift the selection or the match.
+
+### Settings file (`tvterm.ini`) — `far2l-extended`
+- `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
+  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
+  `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
+- **Default profile**: `profile = NAME` is opened when tvterm starts without `-p`; `-p OTHER` wins; `-p none` starts without it.
+  If it is missing or has errors: a normal terminal opens, the reason goes to the Event Viewer and the status line.
+- Reloaded automatically (checked every 2 s, by modification time and size) and with More... > Reload settings;
+  More... > Edit settings creates the file (every key commented out) and opens it in the editor. Everything except
+  `profile` applies at once (a smaller `lines` drops the oldest lines). Invalid values keep their previous value;
+  removed keys (or a removed file) go back to the defaults.
+- **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: HH:MM:SS ...`,
+  even when it is paused; the last 200 are kept and shown when it is opened. Short messages appear in the status line for 5 s.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -111,6 +152,10 @@ source/tvterm/             the application
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
+  settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
+  histdlg.cc/.h            search and save dialogs of history mode
+  statline.cc/.h           status line that can show a message for a few seconds
+include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
@@ -122,6 +167,11 @@ examples/profiles/example.ini
 - Main thread → worker thread through `TerminalEvent` (`termCtrl.sendEvent`); added types: `Far2lClipboardData`, `Paste`
   (data allocated with `new char[]`, freed by the receiver).
 - far2l **waits forever** for the answer to requests with ID ≠ 0 → tvterm always answers (an empty answer on timeout).
+- History mode lives in `TerminalView` (main thread). The scrollback belongs to the worker thread: text is read with
+  `TerminalController::withEmulator()` (locks the worker's mutex; **never call it inside `lockState()`**, the worker locks
+  them in the opposite order) and `TerminalEmulator::getText()` (logical lines with the position of every cell) /
+  `getSelectionText()`. Scrolling uses the `ScrollBackScroll` event (relative; `scrollToTop`/`scrollToBottom`).
+  `TerminalState::scrollbackDropped` counts the dropped lines, so that the view can shift its absolute coordinates.
 
 ---
 
@@ -140,6 +190,8 @@ examples/profiles/example.ini
 - Unity build: `static` functions from different files can clash → own namespaces (`far2lext`, `far2lclip`).
 - `TFileDialog`: its `directory` field starts empty → typed names are relative to the current directory; tvterm sets it to the profiles directory.
 - win32-input code is guarded by `HAVE_VTERM_WIN32INPUT` (only with the bundled, patched libvterm).
+- `TDialog` only closes itself on standard commands (cmOK, cmCancel, cmYes, cmNo): custom buttons must use them.
+- `TGroup::current` hides globals named `current` inside `TVTermApp` methods.
 
 ---
 
@@ -159,6 +211,13 @@ examples/profiles/example.ini
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
+- History tests (feat 20): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
+  F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
+  press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
+  - tvision ignores the Shift bit of xterm mouse reports, so Shift+click cannot be sent from the harness: it was tested with
+    a temporary build that accepts Alt instead (not committed). In the real setup it arrives through far2l's extensions.
+  - `/bin/sh` (dash) has no line editing: keys sent to the shell by mistake stay in the command line → send Ctrl+C first.
+  - Measured: search in 10000 lines of 85 characters: 0.1 s found nearby, 0.9 s not found; RSS ≈ 75 MB with a full history.
 
 ---
 
@@ -168,6 +227,8 @@ examples/profiles/example.ini
 - `ClientOptions` and process information: not implemented on Windows.
 - win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, numpad) have `vk = 0`.
 - The paused state of the Event Viewer is not saved in profiles.
+- Case-insensitive regular expressions only fold ASCII letters (plain text search also folds Latin, Romanian, Greek, Cyrillic).
+- History search reads the whole history on every step (fine up to the 100000 lines limit, but not instant).
 
 ---
 
@@ -180,3 +241,4 @@ examples/profiles/example.ini
 | Profiles | 12–16 | ClientOptions + fixed title; INI profiles; process information; Window List, Rename, Save Profile; editors and Event Viewer in profiles |
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
+| History (`far2l-extended`) | 20 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |

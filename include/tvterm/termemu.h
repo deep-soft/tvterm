@@ -5,6 +5,7 @@
 #include <tvterm/array.h>
 #include <tvterm/mutex.h>
 #include <vector>
+#include <string>
 #include <stdint.h>
 
 #define Uses_TDrawSurface
@@ -109,6 +110,35 @@ inline RowRange SelectionRange::intersectRow(int y, int cols) const noexcept
     };
 }
 
+// Plain text of the terminal's scrollback and screen, one entry per logical
+// line (rows joined when a line was wrapped by the terminal's width).
+// Used for searching, saving and selecting words or lines.
+
+struct TextLine
+{
+    // Codepoints of the line. Empty cells followed by text become spaces;
+    // trailing empty cells are left out.
+    std::u32string text;
+    // Only filled when positions are requested:
+    // - 'charCell[i]' is the index in 'cells' of the cell 'text[i]' belongs to
+    //   (a cell may hold several codepoints, e.g. combining characters);
+    // - 'cells[j]' is the absolute position of a cell (y = 0 is the oldest
+    //   scrollback line), and 'cellWidth[j]' its width (1 or 2).
+    std::vector<int> charCell;
+    std::vector<SelectionAnchor> cells;
+    std::vector<uint8_t> cellWidth;
+    int firstRow {0}; // Absolute rows covered by the line.
+    int lastRow {0};
+};
+
+struct TextSnapshot
+{
+    std::vector<TextLine> lines;
+    int scrollbackLines {0}; // Rows below this are the screen.
+    int screenRows {0};
+    bool altScreen {false};  // When true, only the screen is included.
+};
+
 // A TDrawSurface that can keep track of the areas that were modified.
 // Otherwise, the view displaying this surface would have to copy all of
 // it every time, which doesn't scale well when using big resolutions.
@@ -192,6 +222,9 @@ struct TerminalState
     int scrollbackOffset {0}; // 0 (oldest) to 'scrollbackLimit' (no scrollback shown)
     int scrollbackLimit {0};
     bool scrollbackEnabled {true};
+    // Total number of scrollback lines dropped so far (oldest lines removed
+    // when the scrollback is full). Absolute rows shift up by one for each.
+    uint64_t scrollbackDropped {0};
 
     bool mouseEnabled {false};
 
@@ -217,6 +250,7 @@ enum class TerminalEventType
     ViewportResize,
     FocusChange,
     ScrollBackOffsetChange,
+    ScrollBackScroll,
     CopySelection,
     Far2lClipboardData,
     Paste,
@@ -247,6 +281,14 @@ struct FocusChangeEvent
 struct ScrollBackOffsetChangeEvent
 {
     int offset;
+};
+
+struct ScrollBackScrollEvent
+{
+    // < 0: show older lines; > 0: show newer lines.
+    // 'scrollToTop' / 'scrollToBottom' go to the oldest line / the screen.
+    enum { scrollToTop = -0x40000000, scrollToBottom = 0x40000000 };
+    int delta;
 };
 
 struct CopySelectionEvent
@@ -281,6 +323,7 @@ struct TerminalEvent
         ViewportResizeEvent viewportResize;
         FocusChangeEvent focusChange;
         ScrollBackOffsetChangeEvent scrollBackOffsetChange;
+        ScrollBackScrollEvent scrollBackScroll;
         CopySelectionEvent copySelection;
         Far2lClipboardDataEvent far2lClipboardData;
         PasteEvent paste;
@@ -299,6 +342,17 @@ public:
     // Gets called shortly after 'handleEvent()', so that any changes that
     // may have occurred can be reported via the TerminalState.
     virtual void updateState(TerminalState &state) noexcept = 0;
+
+    // Text access, used from the main thread through
+    // 'TerminalController::withEmulator()'.
+    // Fills 'snapshot' with the logical lines that touch the absolute rows
+    // [startRow, endRow). Positions are only filled if 'withPositions'.
+    virtual void getText( TextSnapshot &snapshot, int startRow, int endRow,
+                          bool withPositions ) noexcept
+        { (void) snapshot; (void) startRow; (void) endRow; (void) withPositions; }
+    // Text of a selection, as it would be copied to the clipboard.
+    virtual void getSelectionText(SelectionRange selection, std::string &text) noexcept
+        { (void) selection; (void) text; }
 };
 
 class Writer

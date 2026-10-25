@@ -64,6 +64,19 @@ void TEventViewer::print(const TEvent &ev)
     }
 }
 
+void TEventViewer::printNote(const std::string &text)
+{
+    if (out)
+    {
+        lock();
+        *out << "tvterm: " << text;
+        if (text.empty() || text.back() != '\n')
+            *out << '\n';
+        *out << std::flush;
+        unlock();
+    }
+}
+
 void TEventViewer::handleEvent(TEvent &ev)
 {
     TWindow::handleEvent(ev);

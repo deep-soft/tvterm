@@ -6,6 +6,7 @@
 #include <tvision/tv.h>
 
 #include <iosfwd>
+#include <string>
 
 // TEventViewer: a window displaying the attributes of the TEvents received
 // by the application. Useful to find out what Turbo Vision receives when a
@@ -38,6 +39,9 @@ public:
 
     void toggle();
     void print(const TEvent &ev);
+    // Messages from tvterm itself (settings, saved files, errors). Shown
+    // even while the viewer is stopped.
+    void printNote(const std::string &text);
 };
 
 #endif // TVTERM_EVNTVIEW_H

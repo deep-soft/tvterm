@@ -10,7 +10,8 @@ Limba: română. Versiunea în engleză: [HISTORY.md](HISTORY.md); cele două se
 
 | Branch | Rol |
 |---|---|
-| `far2l-integration` | **branch principal, stabil** (peste `magiblot/master` 210eb23) |
+| `far2l-integration` | **branch principal, stabil** (peste `magiblot/master` 210eb23): părțile generice |
+| `far2l-extended` | branch de lucru pentru funcționalitățile noi, peste `far2l-integration` |
 | `master` | copie la zi a lui magiblot |
 
 Branch-urile vechi (`evntedit`, `evntview` cu binare, `cleanup`, `ci-test`, `static-test-1`) au fost **șterse**.
@@ -41,6 +42,10 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 
+### Commit-uri pe `far2l-extended`
+
+20. Add history mode (scroll, search, save), word/line selection and a settings file
+
 ---
 
 ## 2. Funcționalități (toate testate de utilizator în lanțul real)
@@ -48,8 +53,44 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 ### Meniu (Ctrl-B)
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
-`L` Load Profile · `A` Save Profile As · `More...` (change dir, tile, cascade, Grab Input) · `U` Suspend · `Q` Exit.
-Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More).
+`L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
+Reload settings) · `U` Suspend · `Q` Exit.
+Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
+
+### Istoric (scrollback) — `far2l-extended`
+- Fiecare terminal păstrează până la `lines` (implicit 10000) linii ieșite de pe ecran. Doar ecranul normal are istoric:
+  programele pe tot ecranul (far2l, mc, multitail, editoare) folosesc ecranul alternativ, unde nu există istoric.
+- **Modul istoric**: Ctrl-B H sau direct **Alt-Shift-PgUp/PgDn/Home/End** (configurabile; în programele pe tot ecranul și în
+  modul Grab Input aceste taste ajung la program, ca până acum). Titlul arată `(History)`, iar bara de stare tastele:
+  Sus/Jos, PgUp/PgDn, Home/End (și Ctrl-Home/End) derulează; rotița derulează; **Esc** anulează selecția, apoi potrivirea,
+  apoi iese din mod; orice altă tastă iese, revine jos și ajunge la program. Intrat cu o tastă directă, modul se închide
+  și când revii jos de tot. Ieșirea programului continuă să se adune între timp.
+- **Căutare**: `/` sau F7. Text simplu (implicit fără diferență între litere mari/mici, inclusiv la diacritice: `ăla știe`
+  găsește `Ăla ȘTIE`) sau expresie regulată (ECMAScript, ca `grep -E`). Pornește de la liniile vizibile spre cele mai vechi;
+  **F3 / n** mai veche, **Shift-F3 / N** mai nouă; potrivirea apare negru pe galben; liniile rupte se caută ca o singură linie.
+  Ctrl-C (sau Ctrl-Ins) copiază selecția, altfel potrivirea. Fără rezultat: mesaj în bara de stare.
+- **Salvare**: F2 sau `s` (Ctrl-B H într-un program pe tot ecranul deschide direct dialogul, pentru ecranul vizibil). Nume propus:
+  `tvterm-<titlu>-YYYY-MM-DD-hhmm.txt` în `save-dir`, altfel în directorul curent al programului din terminal; un nume relativ
+  e relativ la acel director. Tot (istoric + ecran) sau doar selecția. Text simplu UTF-8, fără spații la capăt, cu liniile rupte
+  lipite, fără liniile goale de la început/sfârșit. Fișier existent: Overwrite / Append / Cancel.
+  Rezultatul apare în bara de stare și în Event Viewer.
+- **Mouse**: dublu click selectează un cuvânt (litere, cifre, `word-chars`; orice caracter non-ASCII contează ca literă),
+  triplu click toată linia logică (cu sfârșitul de linie); tragerea după aceea extinde pe cuvinte/linii. **Shift+click**
+  forțează selecția în programele care folosesc mouse-ul (far2l), dacă `shift-click-select = yes`. Copierea, ca până acum (Ctrl-C).
+- Liniile vechi eliminate dintr-un istoric plin nu mai deplasează selecția sau potrivirea.
+
+### Fișierul de setări (`tvterm.ini`) — `far2l-extended`
+- `~/.config/tvterm/tvterm.ini` (sau `$XDG_CONFIG_HOME/tvterm/`), secțiuni `[general]` (`profile`, `auto-reload`),
+  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
+  `[keys]` (`history-page-up/-page-down/-top/-bottom`, ex. `Ctrl-F5`, `none`). Documentat în `examples/tvterm.ini`.
+- **Profil implicit**: `profile = NUME` se deschide când tvterm pornește fără `-p`; `-p ALTUL` are prioritate; `-p none` pornește fără el.
+  Dacă lipsește sau are erori: se deschide un terminal normal, iar motivul apare în Event Viewer și în bara de stare.
+- Reîncărcare automată (verificare la 2 s, după data modificării și mărime) și din More... > Reload settings;
+  More... > Edit settings creează fișierul (toate cheile comentate) și îl deschide în editor. Totul în afară de `profile`
+  se aplică imediat (un `lines` mai mic elimină cele mai vechi linii). Valorile invalide își păstrează valoarea anterioară;
+  cheile șterse (sau fișierul șters) revin la valorile implicite.
+- **Mesaje**: mesajele tvterm (setări, fișiere salvate, erori de profil) apar în Event Viewer ca `tvterm: HH:MM:SS ...`,
+  chiar și în pauză; ultimele 200 se păstrează și se afișează la deschidere. Mesajele scurte apar 5 s în bara de stare.
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
@@ -112,6 +153,10 @@ source/tvterm/             aplicația
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
+  settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, nume de taste, șablon, FileStamp
+  histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric
+  statline.cc/.h           bară de stare care poate afișa un mesaj câteva secunde
+include/tvterm/termopts.h  TerminalOptions (global): mărime istoric, rotiță, caractere de cuvânt, taste, apeluri către aplicație
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
@@ -123,6 +168,11 @@ examples/profiles/example.ini
 - Fir principal → fir de lucru prin `TerminalEvent` (`termCtrl.sendEvent`); tipuri adăugate: `Far2lClipboardData`, `Paste`
   (date alocate cu `new char[]`, eliberate de receptor).
 - far2l **așteaptă la nesfârșit** răspunsul la cererile cu ID ≠ 0 → tvterm răspunde întotdeauna (inclusiv timeout gol).
+- Modul istoric e în `TerminalView` (firul principal). Istoricul aparține firului de lucru: textul se citește cu
+  `TerminalController::withEmulator()` (blochează mutex-ul firului de lucru; **niciodată în interiorul `lockState()`**, firul
+  de lucru le blochează în ordine inversă) și `TerminalEmulator::getText()` (linii logice, cu poziția fiecărei celule) /
+  `getSelectionText()`. Derularea folosește evenimentul `ScrollBackScroll` (relativ; `scrollToTop`/`scrollToBottom`).
+  `TerminalState::scrollbackDropped` numără liniile eliminate, ca vederea să-și poată ajusta coordonatele absolute.
 
 ---
 
@@ -141,6 +191,8 @@ examples/profiles/example.ini
 - Unity build: funcțiile `static` din fișiere diferite pot intra în conflict → namespace-uri proprii (`far2lext`, `far2lclip`).
 - `TFileDialog`: câmpul `directory` pornește gol → numele tastate sunt relative la directorul curent; tvterm îl setează la directorul profilurilor.
 - Cod win32-input protejat cu `HAVE_VTERM_WIN32INPUT` (doar cu libvterm-ul inclus, patch-uit).
+- `TDialog` se închide singur doar la comenzile standard (cmOK, cmCancel, cmYes, cmNo): butoanele proprii trebuie să le folosească.
+- `TGroup::current` ascunde variabilele globale numite `current` în metodele lui `TVTermApp`.
 
 ---
 
@@ -160,6 +212,13 @@ examples/profiles/example.ini
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
   bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
   dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
+- Teste istoric (feat 20): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
+  F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse în format SGR `ESC[<b;x;yM/m` (dublu/triplu click = apăsare/eliberare
+  repetată în 0,1 s; tragere = butonul 32). Potrivirea apare în pyte cu fundal `brightbrown`.
+  - tvision ignoră bitul Shift din rapoartele de mouse xterm, deci Shift+click nu se poate trimite din test: s-a testat cu un
+    build temporar care acceptă Alt în loc (necomis). În lanțul real ajunge prin extensiile far2l.
+  - `/bin/sh` (dash) nu are editare de linie: tastele trimise greșit la shell rămân în linia de comandă → întâi Ctrl+C.
+  - Măsurat: căutare în 10000 de linii de 85 de caractere: 0,1 s găsit aproape, 0,9 s negăsit; RSS ≈ 75 MB cu istoricul plin.
 
 ---
 
@@ -169,6 +228,9 @@ examples/profiles/example.ini
 - `ClientOptions` și info procese: neimplementate pe Windows.
 - Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, numpad) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil.
+- Expresiile regulate fără diferență între litere mari/mici tratează doar literele ASCII (căutarea de text simplu tratează și
+  literele latine, românești, grecești, chirilice).
+- Căutarea citește tot istoricul la fiecare pas (merge până la limita de 100000 de linii, dar nu instantaneu).
 
 ---
 
@@ -181,3 +243,4 @@ examples/profiles/example.ini
 | Profiluri | 12–16 | ClientOptions + titlu fix; profiluri INI; info procese; Window List, Rename, Save Profile; editor și Event Viewer în profiluri |
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
+| Istoric (`far2l-extended`) | 20 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |

@@ -9,13 +9,16 @@
 
 class TVTermDesk;
 struct Profile;
+struct Settings;
 
 struct TVTermApp : public TApplication
 {
     static TCommandSet tileCmds;
 
     // 'profileName': profile to open at startup (see profile.h), or null.
-    TVTermApp(const char *profileName = nullptr);
+    // 'useDefaultProfile': if 'profileName' is null, open the profile set
+    // in the settings file (tvterm.ini), if any.
+    TVTermApp(const char *profileName = nullptr, bool useDefaultProfile = true);
     static TStatusLine* initStatusLine(TRect r);
     static TDeskTop* initDeskTop(TRect r);
 
@@ -40,6 +43,16 @@ struct TVTermApp : public TApplication
     void saveProfile();
     void windowList();
     void renameTerm();
+    void editSettings();
+    // 'manual': requested by the user (always reports the result).
+    // 'startup': first reading, only problems are reported.
+    void reloadSettings(bool manual, bool startup = false);
+
+    // Current settings (tvterm.ini).
+    static const Settings &settings();
+    // A message from tvterm, shown in the Event Viewer (kept until one is
+    // opened).
+    static void note(const std::string &text);
 
     bool openProfile(const std::string &nameOrPath);
     void openProfile(const Profile &profile);
@@ -49,6 +62,8 @@ private:
     // Message to show once the application is running (e.g. profile errors
     // found at startup).
     std::string pendingMessage;
+
+    void checkSettingsFile();
 
 };
 

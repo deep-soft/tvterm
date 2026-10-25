@@ -13,8 +13,10 @@ const tvterm::TVTermConstants TerminalWindow::appConsts =
     cmGrabInput,
     cmReleaseInput,
     cmStartSelection,
+    cmHistoryMode,
     hcInputGrabbed,
     hcSelecting,
+    hcHistory,
 };
 
 void TerminalWindow::handleEvent(TEvent &ev)

@@ -8,6 +8,7 @@
 #include <tvterm/pty.h>
 #include <atomic>
 #include <memory>
+#include <type_traits>
 
 namespace tvterm
 {
@@ -37,6 +38,14 @@ public:
     // * 'func' takes a 'TerminalState &' by parameter.
     auto lockState(Func &&func);
 
+    template <class Func>
+    // Runs 'func' with exclusive access to the TerminalEmulator, which is
+    // otherwise used by the worker thread. For short operations only (e.g.
+    // reading text). Must not be invoked from within 'lockState()', since
+    // the worker thread locks both in the opposite order.
+    // * 'func' takes a 'TerminalEmulator &' by parameter.
+    void withEmulator(Func &&func);
+
 private:
 
     struct TerminalEventLoop;
@@ -50,6 +59,8 @@ private:
     std::atomic<bool> disconnected {false};
 
     std::shared_ptr<TerminalController> selfOwningPtr;
+
+    void withEmulatorImpl(void (&)(TerminalEmulator &, void *), void *) noexcept;
 
     TerminalController(TPoint, TerminalEmulatorFactory &, PtyDescriptor) noexcept;
     ~TerminalController();
@@ -77,6 +88,19 @@ inline auto TerminalController::lockState(Func &&func)
     return terminalState.lock([&] (auto &state) {
         return func(state);
     });
+}
+
+template <class Func>
+inline void TerminalController::withEmulator(Func &&func)
+{
+    struct Thunk
+    {
+        static void call(TerminalEmulator &emu, void *f)
+        {
+            (*(typename std::remove_reference<Func>::type *) f)(emu);
+        }
+    };
+    withEmulatorImpl(Thunk::call, (void *) &func);
 }
 
 } // namespace tvterm

@@ -51,6 +51,9 @@ public:
     void setCustomTitle(TStringView title) noexcept;
     TStringView getCustomTitle() noexcept
         { return {customTitle.data(), customTitle.size()}; }
+    // The title set by the application.
+    TStringView getTerminalTitle() noexcept
+        { return {termTitle.data(), termTitle.size()}; }
     TerminalView *getTerminalView() const noexcept { return view; }
 
     void handleEvent(TEvent &ev) override;

@@ -25,6 +25,11 @@
 #include "winlist.h"
 #include "procinfo.h"
 #include "quitdlg.h"
+#include "settings.h"
+#include "statline.h"
+#include "histdlg.h"
+#include <tvterm/termopts.h>
+#include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -36,6 +41,59 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <vector>
+#include <deque>
+#include <chrono>
+
+namespace appsettings
+{
+
+static Settings currentSettings;
+static FileStamp stamp;
+static std::chrono::steady_clock::time_point nextCheck;
+enum { checkIntervalMs = 2000 };
+
+// Messages for the Event Viewer, kept until one is opened.
+static std::deque<std::string> notes;
+enum { maxNotes = 200 };
+
+static void showStatus(const std::string &text)
+{
+    TVTermStatusLine::showMessage(text);
+}
+
+} // namespace appsettings
+
+static TRect editorBounds(const TRect &extent);
+
+const Settings &TVTermApp::settings()
+{
+    return appsettings::currentSettings;
+}
+
+void TVTermApp::note(const std::string &text)
+{
+    // Timestamp, so that notes can be told apart.
+    char stamp[16] = "";
+    time_t now = time(nullptr);
+    if (struct tm *tm = localtime(&now))
+        strftime(stamp, sizeof(stamp), "%H:%M:%S ", tm);
+    std::string line = stamp + text;
+    appsettings::notes.push_back(line);
+    while (appsettings::notes.size() > appsettings::maxNotes)
+        appsettings::notes.pop_front();
+    if (TProgram::deskTop)
+        if (auto *viewer = (TEventViewer *) message(TProgram::deskTop, evBroadcast, cmFindEventViewer, nullptr))
+            viewer->printNote(line);
+}
+
+static TEventViewer *newEventViewer(const TRect &bounds)
+// An Event Viewer, with the notes received so far.
+{
+    auto *viewer = new TEventViewer(bounds, 0x0F00);
+    for (auto &line : appsettings::notes)
+        viewer->printNote(line);
+    return viewer;
+}
 
 TCommandSet TVTermApp::tileCmds = []()
 {
@@ -53,17 +111,22 @@ static void printUsage(FILE *f, const char *argv0)
         "Usage: %s [-p PROFILE]\n"
         "\n"
         "  -p, --profile PROFILE   open the windows described in PROFILE\n"
+        "                          ('none': do not open the default profile)\n"
         "  -h, --help              show this help\n"
         "\n"
         "PROFILE is a file path (if it contains '/') or a name, looked up as\n"
         "  %s/PROFILE.ini\n"
-        "See examples/profiles/example.ini in the tvterm sources for the format.\n",
-        argv0, profileDir().c_str());
+        "See examples/profiles/example.ini in the tvterm sources for the format.\n"
+        "\n"
+        "Settings (default profile, history, keys): %s\n"
+        "See examples/tvterm.ini in the tvterm sources.\n",
+        argv0, profileDir().c_str(), settingsPath().c_str());
 }
 
 int main(int argc, char **argv)
 {
     const char *profileName = nullptr;
+    bool useDefaultProfile = true;
     for (int i = 1; i < argc; ++i)
     {
         const char *arg = argv[i];
@@ -83,13 +146,18 @@ int main(int argc, char **argv)
             return 1;
         }
     }
+    if (profileName && !strcmp(profileName, "none"))
+    {
+        profileName = nullptr;
+        useDefaultProfile = false;
+    }
 
-    TVTermApp app(profileName);
+    TVTermApp app(profileName, useDefaultProfile);
     app.run();
     app.shutDown();
 }
 
-TVTermApp::TVTermApp(const char *profileName) :
+TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
     TProgInit( &TVTermApp::initStatusLine,
                nullptr,
                &TVTermApp::initDeskTop
@@ -101,14 +169,106 @@ TVTermApp::TVTermApp(const char *profileName) :
     disableCommand(cmPaste);
     TVTermEditWindow::initEditorDialogs();
 
-    if (!profileName || !openProfile(profileName))
+    tvterm::terminalOptions.showMessage = appsettings::showStatus;
+    tvterm::terminalOptions.openSearch = openHistorySearch;
+    tvterm::terminalOptions.openSave = openHistorySave;
+    // Before any terminal is created (scrollback size).
+    reloadSettings(false, true);
+
+    std::string profile = profileName ? profileName :
+                          useDefaultProfile ? appsettings::currentSettings.profile : "";
+    bool opened = !profile.empty() && openProfile(profile);
+    if (!profileName && !profile.empty() && !pendingMessage.empty())
+    {
+        // Problems with the default profile: reported, but not blocking.
+        note("default profile '" + profile + "' (from " + settingsPath() + "): " + pendingMessage);
+        appsettings::showStatus( "Problems with the default profile '" + profile +
+                                 "': see the Event Viewer (Ctrl-B V)." );
+        pendingMessage.clear();
+    }
+    if (!opened)
         newTerm();
+}
+
+void TVTermApp::reloadSettings(bool manual, bool startup)
+{
+    using namespace appsettings;
+    std::string path = settingsPath();
+    stamp = FileStamp::of(path);
+    nextCheck = std::chrono::steady_clock::now() + std::chrono::milliseconds(checkIntervalMs);
+    std::string warnings;
+    bool existed = loadSettings(path, currentSettings, warnings);
+    applySettings(currentSettings);
+
+    int problems = 0;
+    for (size_t pos = 0; (pos = warnings.find('\n', pos)) != std::string::npos; ++pos)
+        ++problems;
+    if (!warnings.empty())
+    {
+        size_t start = 0, end;
+        while ((end = warnings.find('\n', start)) != std::string::npos)
+        {
+            note("settings: " + warnings.substr(start, end - start));
+            start = end + 1;
+        }
+    }
+    if (problems)
+        showStatus( "Settings: " + std::to_string(problems) +
+                    " problem(s), see the Event Viewer (Ctrl-B V)." );
+    else if (!existed && manual)
+        showStatus("No settings file " + path + " (More... > Edit settings creates it).");
+    else if (existed && !startup)
+    {
+        // Not at startup, where there is nothing to report.
+        note("settings reloaded from " + path);
+        showStatus("Settings reloaded.");
+    }
+    else if (!existed && !startup)
+        note("settings file " + path + " removed: using the default settings");
+}
+
+void TVTermApp::checkSettingsFile()
+{
+    using namespace appsettings;
+    auto now = std::chrono::steady_clock::now();
+    if (now < nextCheck)
+        return;
+    nextCheck = now + std::chrono::milliseconds(checkIntervalMs);
+    if (!currentSettings.autoReload)
+        return;
+    if (FileStamp::of(settingsPath()) != stamp)
+        reloadSettings(false);
+}
+
+void TVTermApp::editSettings()
+{
+    std::string path = settingsPath();
+    if (access(path.c_str(), F_OK) != 0)
+    {
+        // A new file, with every setting commented out.
+        size_t slash = path.rfind('/');
+        makeDirs(path.substr(0, slash));
+        if (FILE *f = fopen(path.c_str(), "w"))
+        {
+            std::string text = settingsTemplate();
+            fwrite(text.data(), 1, text.size(), f);
+            fclose(f);
+            // Not a change to reload.
+            appsettings::stamp = FileStamp::of(path);
+        }
+        else
+        {
+            messageBox(mfError | mfOKButton, "Cannot create %s:\n%s", path.c_str(), strerror(errno));
+            return;
+        }
+    }
+    insertWindow(new TVTermEditWindow(editorBounds(deskTop->getExtent()), path.c_str()));
 }
 
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
     r.b.y = r.a.y + 1;
-    TStatusLine *statusLine = new TStatusLine(r,
+    TStatusLine *statusLine = new TVTermStatusLine(r,
         *new TStatusDef(hcDragging, hcDragging) +
             *new TStatusItem("~↑↓→←~ Move", kbNoKey, 0) +
             *new TStatusItem("~Shift-↑↓→←~ Resize", kbNoKey, 0) +
@@ -121,6 +281,15 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Click & Drag~ Select Text", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
+            *new TStatusItem(0 , kbCtrlB, cmMenu) +
+        // History mode: the keys are handled by the terminal view.
+        *new TStatusDef(hcHistory, hcHistory) +
+            *new TStatusItem("~↑↓ PgUp PgDn Home End~ Scroll", kbNoKey, 0) +
+            *new TStatusItem("~/~ Search", kbNoKey, 0) +
+            *new TStatusItem("~F3~/~Shift-F3~ Next/Prev", kbNoKey, 0) +
+            *new TStatusItem("~F2~ Save", kbNoKey, 0) +
+            *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, 0) +
+            *new TStatusItem("~Esc~ Exit", kbNoKey, 0) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
@@ -166,6 +335,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmSaveProfile: saveProfile(); break;
                 case cmWindowList: windowList(); break;
                 case cmRenameTerm: renameTerm(); break;
+                case cmEditSettings: editSettings(); break;
+                case cmReloadSettings: reloadSettings(true); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -221,6 +392,8 @@ void TVTermApp::idle()
             disableCommands(tileCmds);
     }
     message(this, evBroadcast, cmCheckTerminalUpdates, nullptr);
+    TVTermStatusLine::checkExpired();
+    checkSettingsFile();
 }
 
 void TVTermApp::openMenu()
@@ -237,6 +410,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Maximize/Restore", cmZoom, 'F', hcNoContext, "~F~") +
         newLine() +
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
+        *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
         *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
         newLine() +
         *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
@@ -251,7 +425,10 @@ void TVTermApp::openMenu()
             *new TMenuItem("Tile (~C~olumns First)", cmTileCols, kbNoKey) +
             *new TMenuItem("Tile (~R~ows First)", cmTileRows, kbNoKey) +
             *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
-            *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey)
+            *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
+            newLine() +
+            *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
+            *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey)
         ) +
         *new TMenuItem("Suspend", cmDosShell, 'U', hcNoContext, "~U~") +
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
@@ -332,7 +509,7 @@ void TVTermApp::toggleEventViewer()
         viewer->toggle();
     else
     {
-        insertWindow(new TEventViewer(eventViewerBounds(deskTop->getExtent()), 0x0F00));
+        insertWindow(newEventViewer(eventViewerBounds(deskTop->getExtent())));
     }
 }
 
@@ -449,7 +626,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 if (message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
                     break;
                 TRect r = win.hasPos ? profileBounds(win, ext) : eventViewerBounds(ext);
-                window = new TEventViewer(r, 0x0F00);
+                window = newEventViewer(r);
                 break;
             }
         }
