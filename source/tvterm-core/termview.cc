@@ -9,8 +9,39 @@
 #define Uses_TClipboard
 #include <tvision/tv.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
 namespace tvterm
 {
+
+// Debug log for clipboard requests from client applications (OSC 52).
+// Enabled by setting TVTERM_CLIPBOARD_LOG to a file path.
+static void logClipboardRequest(const char *text, size_t size) noexcept
+{
+    static const char *path = getenv("TVTERM_CLIPBOARD_LOG");
+    if (!path || !*path)
+        return;
+    if (FILE *f = fopen(path, "a"))
+    {
+        char timeBuf[32] = "";
+        time_t now = time(nullptr);
+        if (struct tm *tm = localtime(&now))
+            strftime(timeBuf, sizeof(timeBuf), "%H:%M:%S", tm);
+        fprintf(f, "%s OSC 52 from application: %zu bytes: \"", timeBuf, size);
+        for (size_t i = 0; i < size && i < 60; ++i)
+        {
+            unsigned char c = (unsigned char) text[i];
+            if (c < 0x20 || c == 0x7F)
+                fputc('.', f);
+            else
+                fputc(c, f);
+        }
+        fprintf(f, "%s\" -> TClipboard::setText\n", size > 60 ? "..." : "");
+        fclose(f);
+    }
+}
 
 TerminalView::TerminalView( const TRect &bounds, TerminalController &aTermCtrl,
                             const TVTermConstants &aConsts, TScrollBar *aScrollBar ) noexcept :
@@ -184,6 +215,7 @@ void TerminalView::updateClipboard() noexcept
         if (state.clipboardChanged)
         {
             state.clipboardChanged = false;
+            logClipboardRequest(state.clipboardText.data(), state.clipboardText.size());
             TClipboard::setText({state.clipboardText.data(), state.clipboardText.size()});
             state.clipboardText.clear();
         }
