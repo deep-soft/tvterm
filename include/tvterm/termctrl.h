@@ -20,7 +20,8 @@ public:
     // On error, invokes the 'onError' callback and returns null.
     static TerminalController *create( TPoint size,
                                      TerminalEmulatorFactory &terminalEmulatorFactory,
-                                     void (&onError)(const char *reason) ) noexcept;
+                                     void (&onError)(const char *reason),
+                                     const ClientOptions &options = {} ) noexcept;
     // Takes ownership over 'this'.
     void shutDown() noexcept;
 

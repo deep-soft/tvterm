@@ -81,11 +81,13 @@ struct TerminalController::TerminalEventLoop
 
 TerminalController *TerminalController::create( TPoint size,
                                                 TerminalEmulatorFactory &terminalEmulatorFactory,
-                                                void (&onError)(const char *) ) noexcept
+                                                void (&onError)(const char *),
+                                                const ClientOptions &options ) noexcept
 {
     PtyDescriptor ptyDescriptor;
     if ( !createPty( ptyDescriptor, size,
-                     terminalEmulatorFactory.getCustomEnvironment(), onError ) )
+                     terminalEmulatorFactory.getCustomEnvironment(), onError,
+                     options ) )
         return nullptr;
 
     auto &terminalController = *new TerminalController( size,

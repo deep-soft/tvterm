@@ -93,7 +93,8 @@ const char *BasicTerminalWindow::getTitle(short)
     TStringView tail = isDisconnected()                 ? " (Disconnected)"
                      : helpCtx == consts.hcInputGrabbed ? " (Input Grab)"
                                                         : "";
-    TStringView text = {termTitle.data(), termTitle.size()};
+    TStringView text = customTitle.size() ? TStringView {customTitle.data(), customTitle.size()}
+                                          : TStringView {termTitle.data(), termTitle.size()};
     if (size_t length = text.size() + tail.size())
     {
         resizeTitle(length + 1);
@@ -104,6 +105,14 @@ const char *BasicTerminalWindow::getTitle(short)
         return title;
     }
     return nullptr;
+}
+
+void BasicTerminalWindow::setCustomTitle(TStringView title) noexcept
+{
+    customTitle.clear();
+    customTitle.push(title.data(), title.size());
+    if (frame)
+        frame->drawView();
 }
 
 void BasicTerminalWindow::handleEvent(TEvent &ev)

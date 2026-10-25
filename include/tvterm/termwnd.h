@@ -23,6 +23,7 @@ class BasicTerminalWindow : public TWindow
     TerminalView *view {nullptr};
     size_t titleCapacity {0};
     GrowArray termTitle;
+    GrowArray customTitle; // If not empty, replaces the title set by the application.
 
     void checkChanges(TerminalUpdatedMsg &) noexcept;
     void resizeTitle(size_t);
@@ -44,6 +45,10 @@ public:
 
     void shutDown() override;
     const char *getTitle(short) override;
+
+    // Sets a fixed title, which replaces the one set by the application.
+    // An empty string restores the application's title.
+    void setCustomTitle(TStringView title) noexcept;
 
     void handleEvent(TEvent &ev) override;
     void setState(ushort aState, Boolean enable) override;

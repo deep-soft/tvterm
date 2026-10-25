@@ -37,10 +37,25 @@ struct EnvironmentVar
     const char *value;
 };
 
+// Optional settings for the program started in the terminal.
+struct ClientOptions
+{
+    // Command line to run with the user's shell ('$SHELL -c command').
+    // If null or empty, an interactive shell is started.
+    const char *command {nullptr};
+    // Initial working directory. If null or empty, the current one is kept.
+    const char *workingDir {nullptr};
+    // If true, an interactive shell is started after 'command' finishes
+    // (also when it is interrupted with Ctrl+C), instead of leaving the
+    // terminal disconnected.
+    bool keepOpen {true};
+};
+
 bool createPty( PtyDescriptor &ptyDescriptor,
                 TPoint size,
                 TSpan<const EnvironmentVar> environment,
-                void (&onError)(const char *reason) ) noexcept;
+                void (&onError)(const char *reason),
+                const ClientOptions &options = {} ) noexcept;
 
 class PtyMaster
 {

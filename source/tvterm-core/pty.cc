@@ -29,7 +29,8 @@ static struct winsize createWinsize(TPoint size) noexcept;
 
 bool createPty( PtyDescriptor &ptyDescriptor, TPoint size,
                 TSpan<const EnvironmentVar> customEnvironment,
-                void (&onError)(const char *) ) noexcept
+                void (&onError)(const char *),
+                const ClientOptions &options ) noexcept
 {
     auto termios = createTermios();
     auto winsize = createWinsize(size);
@@ -46,11 +47,52 @@ bool createPty( PtyDescriptor &ptyDescriptor, TPoint size,
         for (const auto &envVar : customEnvironment)
             setenv(envVar.name, envVar.value, 1);
 
-        char *shell = getenv("SHELL");
-        char *args[] = {shell, nullptr};
-        execvp(shell, args);
-
         setbuf(stderr, nullptr); // Ensure 'stderr' is unbuffered.
+
+        if (options.workingDir && *options.workingDir && chdir(options.workingDir) != 0)
+            fprintf(
+                stderr,
+                "\x1B[1;33m" // Color attributes: bold and yellow.
+                "Warning: cannot change to directory '%s': %s"
+                "\x1B[0m\r\n",
+                options.workingDir,
+                strerror(errno)
+            );
+
+        char *shell = getenv("SHELL");
+        if (!shell || !*shell)
+        {
+            setenv("SHELL", "/bin/sh", 1);
+            shell = getenv("SHELL");
+        }
+
+        if (options.command && *options.command)
+        {
+            if (options.keepOpen)
+            {
+                // Run the command with the user's shell, then start an
+                // interactive shell. 'trap : INT' (not 'trap "" INT', which
+                // would be inherited by the command) lets the wrapper
+                // survive a Ctrl+C that stops the command.
+                // The command is passed as $0, so it needs no quoting.
+                char sh[] = "/bin/sh", c[] = "-c";
+                char script[] = "trap : INT; \"$SHELL\" -c \"$0\"; exec \"$SHELL\"";
+                char *args[] = {sh, c, script, (char *) options.command, nullptr};
+                execv(sh, args);
+            }
+            else
+            {
+                char c[] = "-c";
+                char *args[] = {shell, c, (char *) options.command, nullptr};
+                execvp(shell, args);
+            }
+        }
+        else
+        {
+            char *args[] = {shell, nullptr};
+            execvp(shell, args);
+        }
+
         fprintf(
             stderr,
             "\x1B[1;31m" // Color attributes: bold and red.
@@ -304,7 +346,9 @@ struct ProcessWaiter
 bool createPty( PtyDescriptor &ptyDescriptor,
                 TPoint size,
                 TSpan<const EnvironmentVar> customEnvironment,
-                void (&onError)(const char *) ) noexcept
+                void (&onError)(const char *),
+                const ClientOptions & ) noexcept
+// Note: 'ClientOptions' are not supported on Windows yet.
 {
     static bool conPtyAvailable = [] ()
     {
