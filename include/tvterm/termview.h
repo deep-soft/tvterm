@@ -30,6 +30,7 @@ class TerminalView : public TView
     void updateHelpContext() noexcept;
     void updateClipboard() noexcept;
     bool pasteOnShiftIns() noexcept;
+    void sendPaste(TEvent &ev) noexcept;
     void updateCursor(TerminalState &state) noexcept;
     void updateScrollBar(TerminalState &state) noexcept;
     void updateDisplay(TerminalState &state) noexcept;

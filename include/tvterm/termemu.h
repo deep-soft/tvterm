@@ -219,6 +219,7 @@ enum class TerminalEventType
     ScrollBackOffsetChange,
     CopySelection,
     Far2lClipboardData,
+    Paste,
 };
 
 struct MouseEvent
@@ -262,6 +263,13 @@ struct Far2lClipboardDataEvent
     size_t size;
 };
 
+struct PasteEvent
+{
+    // UTF-8 text allocated with 'new char[]'. The receiver must delete it.
+    char *data;
+    size_t size;
+};
+
 struct TerminalEvent
 {
     TerminalEventType type;
@@ -275,6 +283,7 @@ struct TerminalEvent
         ScrollBackOffsetChangeEvent scrollBackOffsetChange;
         CopySelectionEvent copySelection;
         Far2lClipboardDataEvent far2lClipboardData;
+        PasteEvent paste;
     };
 };
 

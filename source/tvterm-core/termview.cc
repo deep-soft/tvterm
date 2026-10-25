@@ -239,6 +239,15 @@ void TerminalView::handleEvent(TEvent &ev)
 
         case evKeyDown:
         {
+            if (ev.keyDown.controlKeyState & kbPaste)
+            {
+                // Pasted text (from Ctrl-B P, Shift-Ins or the outer
+                // terminal, e.g. PuTTY's right click): send it all at once,
+                // so that it can be marked as a paste (bracketed paste).
+                sendPaste(ev);
+                clearEvent(ev);
+                break;
+            }
             if (ev.keyDown.keyCode == kbShiftIns && pasteOnShiftIns())
             {
                 // Paste from the system clipboard (e.g. the Windows
@@ -273,6 +282,35 @@ void TerminalView::handleEvent(TEvent &ev)
             handleMouse(ev.what, ev.mouse);
             clearEvent(ev);
             break;
+    }
+}
+
+void TerminalView::sendPaste(TEvent &ev) noexcept
+// Collects the text of consecutive paste events, starting with 'ev'.
+{
+    std::string text;
+    do {
+        if (ev.keyDown.textLength)
+            text.append(ev.keyDown.text, ev.keyDown.textLength);
+        else if (ev.keyDown.keyCode == kbEnter)
+            text += '\n';
+        else if (ev.keyDown.keyCode == kbTab)
+            text += '\t';
+        int timeoutMs = 0;
+        getEvent(ev, timeoutMs);
+    } while (ev.what == evKeyDown && (ev.keyDown.controlKeyState & kbPaste));
+    // Give back the first event that is not part of the paste.
+    if (ev.what != evNothing)
+        putEvent(ev);
+
+    if (!text.empty())
+    {
+        char *data = new char[text.size()];
+        memcpy(data, text.data(), text.size());
+        TerminalEvent termEvent;
+        termEvent.type = TerminalEventType::Paste;
+        termEvent.paste = {data, text.size()};
+        termCtrl.sendEvent(termEvent);
     }
 }
 

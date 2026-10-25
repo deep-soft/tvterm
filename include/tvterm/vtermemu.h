@@ -136,6 +136,7 @@ private:
 
     VTermScreenCell getDefaultCell() const;
     void copySelection(SelectionRange selection) noexcept;
+    void pasteText(const char *data, size_t size) noexcept;
     void extractScrollbackLineText(int y, int startX, int endX, GrowArray &text, int &padding) noexcept;
     void extractTerminalLineText(int y, int startX, int endX, GrowArray &text, int &padding) noexcept;
 };

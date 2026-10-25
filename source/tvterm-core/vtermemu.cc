@@ -9,6 +9,7 @@
 #include "far2lext.h"
 #include <tvterm/debug.h>
 #include <unordered_map>
+#include <string>
 
 namespace tvterm
 {
@@ -463,6 +464,12 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
             copySelection(event.copySelection.selection);
             break;
 
+        case TerminalEventType::Paste:
+            pasteText(event.paste.data, event.paste.size);
+            delete[] event.paste.data;
+            scrollback.followTerminal();
+            break;
+
         case TerminalEventType::Far2lClipboardData:
         {
             auto &data = event.far2lClipboardData;
@@ -734,6 +741,37 @@ int VTermEmulator::selection_query(VTermSelectionMask)
 // (passwords, for example). This is also the default in most terminals.
 {
     return 1;
+}
+
+void VTermEmulator::pasteText(const char *data, size_t size) noexcept
+// Sends pasted text to the client application. If the application enabled
+// bracketed paste mode (e.g. bash, vim, far2l), the text is enclosed in
+// 'ESC [200~' ... 'ESC [201~', so that it is not executed line by line;
+// libvterm only sends these markers when the mode is enabled.
+{
+    std::string text;
+    text.reserve(size);
+    for (size_t i = 0; i < size; ++i)
+    {
+        unsigned char c = data[i];
+        if (c == '\r')
+        {
+            // "\r\n" (Windows line ending) -> "\r".
+            if (i + 1 < size && data[i + 1] == '\n')
+                ++i;
+            text += '\r';
+        }
+        else if (c == '\n')
+            text += '\r';
+        else if (c == '\t' || (c >= 0x20 && c != 0x7F))
+            text += (char) c;
+        // Other control characters are dropped. In particular ESC, so that
+        // pasted text cannot end the bracketed paste early ('ESC [201~')
+        // and inject commands.
+    }
+    vterm_keyboard_start_paste(vt);
+    writeOutput(text.data(), text.size());
+    vterm_keyboard_end_paste(vt);
 }
 
 int VTermEmulator::apc(VTermStringFragment frag)
