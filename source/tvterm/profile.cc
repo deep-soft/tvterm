@@ -54,7 +54,7 @@ static bool parseBool(const std::string &value, bool &out)
     return false;
 }
 
-static bool parsePos(const std::string &value, TerminalProfile &term)
+static bool parsePos(const std::string &value, WindowProfile &term)
 // Format: 'x y width height', in percent of the desktop. Commas, spaces
 // and '%' signs are all accepted as separators.
 {
@@ -96,7 +96,7 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
 
     profile = Profile();
     profile.path = path;
-    enum { None, InProfile, InTerminal } section = None;
+    enum { None, InProfile, InWindow } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -114,10 +114,13 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             std::string name = lower(trim(line.substr(1, line.find(']') - 1)));
             if (name == "profile")
                 section = InProfile;
-            else if (name == "terminal")
+            else if (name == "terminal" || name == "editor" || name == "eventviewer" || name == "event-viewer")
             {
-                section = InTerminal;
-                profile.terminals.emplace_back();
+                section = InWindow;
+                profile.windows.emplace_back();
+                profile.windows.back().kind = name == "terminal" ? WindowProfile::Terminal :
+                                              name == "editor"   ? WindowProfile::Editor :
+                                                                   WindowProfile::EventViewer;
             }
             else
             {
@@ -159,30 +162,35 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             else
                 warn("unknown key '" + key + "' in [profile]");
         }
-        else if (section == InTerminal)
+        else if (section == InWindow)
         {
-            TerminalProfile &term = profile.terminals.back();
-            if (key == "title")
-                term.title = value;
-            else if (key == "dir")
-                term.dir = expandHome(value);
-            else if (key == "command")
-                term.command = value;
-            else if (key == "keep-open")
+            WindowProfile &win = profile.windows.back();
+            bool isTerm = win.kind == WindowProfile::Terminal;
+            bool isEditor = win.kind == WindowProfile::Editor;
+            const char *sectionName = isTerm ? "[terminal]" : isEditor ? "[editor]" : "[eventviewer]";
+            if (key == "pos")
             {
-                if (!parseBool(value, term.keepOpen))
-                    warn("invalid keep-open '" + value + "' (use yes or no)");
-            }
-            else if (key == "pos")
-            {
-                if (!parsePos(value, term))
+                if (!parsePos(value, win))
                     warn("invalid pos '" + value + "' (use: x y width height, in percent)");
             }
+            else if (isTerm && key == "title")
+                win.title = value;
+            else if (isTerm && key == "dir")
+                win.dir = expandHome(value);
+            else if (isTerm && key == "command")
+                win.command = value;
+            else if (isTerm && key == "keep-open")
+            {
+                if (!parseBool(value, win.keepOpen))
+                    warn("invalid keep-open '" + value + "' (use yes or no)");
+            }
+            else if (isEditor && key == "file")
+                win.file = expandHome(value);
             else
-                warn("unknown key '" + key + "' in [terminal]");
+                warn("unknown key '" + key + "' in " + sectionName);
         }
         else
-            warn("key '" + key + "' outside of [profile] or [terminal]");
+            warn("key '" + key + "' outside of a section");
     }
     return true;
 }
@@ -230,22 +238,35 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
             "layout = manual\n";
     if (profile.focus > 0)
         file << "focus = " << profile.focus << "\n";
-    for (const auto &term : profile.terminals)
+    for (const auto &win : profile.windows)
     {
-        file << "\n[terminal]\n";
-        if (!term.title.empty())
-            file << "title = " << term.title << "\n";
-        if (!term.dir.empty())
-            file << "dir = " << term.dir << "\n";
-        if (!term.command.empty())
+        switch (win.kind)
         {
-            file << "command = " << term.command << "\n";
-            if (!term.keepOpen)
-                file << "keep-open = no\n";
+            case WindowProfile::Terminal:
+                file << "\n[terminal]\n";
+                if (!win.title.empty())
+                    file << "title = " << win.title << "\n";
+                if (!win.dir.empty())
+                    file << "dir = " << win.dir << "\n";
+                if (!win.command.empty())
+                {
+                    file << "command = " << win.command << "\n";
+                    if (!win.keepOpen)
+                        file << "keep-open = no\n";
+                }
+                break;
+            case WindowProfile::Editor:
+                file << "\n[editor]\n";
+                if (!win.file.empty())
+                    file << "file = " << win.file << "\n";
+                break;
+            case WindowProfile::EventViewer:
+                file << "\n[eventviewer]\n";
+                break;
         }
-        if (term.hasPos)
-            file << "pos = " << formatPercent(term.x) << " " << formatPercent(term.y)
-                 << " " << formatPercent(term.w) << " " << formatPercent(term.h) << "\n";
+        if (win.hasPos)
+            file << "pos = " << formatPercent(win.x) << " " << formatPercent(win.y)
+                 << " " << formatPercent(win.w) << " " << formatPercent(win.h) << "\n";
     }
     file.close();
     if (!file)

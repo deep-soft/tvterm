@@ -1,20 +1,27 @@
 #ifndef TVTERM_PROFILE_H
 #define TVTERM_PROFILE_H
 
-// Startup profiles: a set of terminals with their commands, working
-// directories, titles and positions, described in an INI file.
+// Startup profiles: a set of windows (terminals with their commands, working
+// directories and titles, editors with their files, the event viewer) and
+// their positions, described in an INI file.
 // See 'examples/profiles/example.ini' for the format.
 
 #include <string>
 #include <vector>
 
-struct TerminalProfile
+struct WindowProfile
 {
+    enum Kind { Terminal, Editor, EventViewer };
+    Kind kind {Terminal};
+
+    // Terminal.
     std::string title;
     std::string dir;
     std::string command;
     bool keepOpen {true};
-    // Position and size in percent of the desktop, if 'hasPos'.
+    // Editor: file name (empty: untitled).
+    std::string file;
+    // All windows: position and size in percent of the desktop, if 'hasPos'.
     bool hasPos {false};
     double x {0}, y {0}, w {100}, h {100};
 };
@@ -25,8 +32,8 @@ struct Profile
 
     std::string path;
     Layout layout {Auto};
-    int focus {0}; // 1-based index of the terminal to focus; 0: the last one.
-    std::vector<TerminalProfile> terminals;
+    int focus {0}; // 1-based index of the window to focus; 0: the last one.
+    std::vector<WindowProfile> windows;
 };
 
 // Directory where profiles are looked up by name:

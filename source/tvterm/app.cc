@@ -11,6 +11,7 @@
 #define Uses_TDeskTop
 #define Uses_MsgBox
 #define Uses_TFileDialog
+#define Uses_TFileEditor
 #include <tvision/tv.h>
 
 #include "app.h"
@@ -50,7 +51,7 @@ static void printUsage(FILE *f, const char *argv0)
     fprintf(f,
         "Usage: %s [-p PROFILE]\n"
         "\n"
-        "  -p, --profile PROFILE   open the terminals described in PROFILE\n"
+        "  -p, --profile PROFILE   open the windows described in PROFILE\n"
         "  -h, --help              show this help\n"
         "\n"
         "PROFILE is a file path (if it contains '/') or a name, looked up as\n"
@@ -297,6 +298,8 @@ void TVTermApp::changeDir()
     execDialog(new TChDirDialog(cdNormal, 0));
 }
 
+static TRect eventViewerBounds(const TRect &extent);
+
 static TRect editorBounds(const TRect &extent)
 {
     // Prefer an 80-column editor on the right side, leaving room for
@@ -335,10 +338,7 @@ void TVTermApp::toggleEventViewer()
         viewer->toggle();
     else
     {
-        TRect r = deskTop->getExtent();
-        if (r.b.x - r.a.x > 100)
-            r.a.x = r.b.x - 70;
-        insertWindow(new TEventViewer(r, 0x0F00));
+        insertWindow(new TEventViewer(eventViewerBounds(deskTop->getExtent()), 0x0F00));
     }
 }
 
@@ -377,53 +377,91 @@ bool TVTermApp::openProfile(const std::string &nameOrPath)
     }
     if (!warnings.empty())
         pendingMessage = "Problems in profile " + profile.path + ":\n" + firstLines(warnings, 8);
-    if (profile.terminals.empty())
+    if (profile.windows.empty())
     {
         if (warnings.empty())
-            pendingMessage = "Profile " + profile.path + " has no [terminal] sections.";
+            pendingMessage = "Profile " + profile.path + " has no windows "
+                             "([terminal], [editor] or [eventviewer] sections).";
         return false;
     }
     openProfile(profile);
     return true;
 }
 
+static TRect profileBounds(const WindowProfile &win, const TRect &ext)
+// Position in percent of the desktop -> window bounds. Computed from the
+// edges, so that adjacent windows touch.
+{
+    int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
+    return TRect( ext.a.x + (int) lround(width * win.x / 100),
+                  ext.a.y + (int) lround(height * win.y / 100),
+                  ext.a.x + (int) lround(width * (win.x + win.w) / 100),
+                  ext.a.y + (int) lround(height * (win.y + win.h) / 100) );
+}
+
+static TRect eventViewerBounds(const TRect &extent)
+{
+    TRect r = extent;
+    if (r.b.x - r.a.x > 100)
+        r.a.x = r.b.x - 70;
+    return r;
+}
+
+static TRect editorBounds(const TRect &extent);
+
 void TVTermApp::openProfile(const Profile &profile)
 {
     using namespace tvterm;
     TRect ext = deskTop->getExtent();
-    int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
     bool anyPos = false;
     std::vector<TWindow *> windows;
     VTermEmulatorFactory factory;
 
-    for (const auto &term : profile.terminals)
+    for (const auto &win : profile.windows)
     {
-        TRect r = ext;
-        if (term.hasPos)
+        anyPos |= win.hasPos;
+        TWindow *window = nullptr;
+        switch (win.kind)
         {
-            anyPos = true;
-            // Computed from the edges, so that adjacent terminals touch.
-            r = TRect( ext.a.x + (int) lround(width * term.x / 100),
-                       ext.a.y + (int) lround(height * term.y / 100),
-                       ext.a.x + (int) lround(width * (term.x + term.w) / 100),
-                       ext.a.y + (int) lround(height * (term.y + term.h) / 100) );
+            case WindowProfile::Terminal:
+            {
+                TRect r = win.hasPos ? profileBounds(win, ext) : ext;
+                ClientOptions options;
+                options.command = win.command.c_str();
+                options.workingDir = win.dir.c_str();
+                options.keepOpen = win.keepOpen;
+                auto *termCtrl = TerminalController::create( TerminalWindow::viewSize(r),
+                                                             factory, onTermError, options );
+                if (!termCtrl)
+                    break;
+                auto *term = new TerminalWindow(r, *termCtrl);
+                if (!win.title.empty())
+                    term->setCustomTitle(win.title);
+                term->launchCommand = win.command;
+                term->launchDir = win.dir;
+                term->launchKeepOpen = win.keepOpen;
+                window = term;
+                break;
+            }
+            case WindowProfile::Editor:
+            {
+                TRect r = win.hasPos ? profileBounds(win, ext) : editorBounds(ext);
+                window = new TVTermEditWindow(r, win.file);
+                break;
+            }
+            case WindowProfile::EventViewer:
+            {
+                // Only one Event Viewer.
+                if (message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
+                    break;
+                TRect r = win.hasPos ? profileBounds(win, ext) : eventViewerBounds(ext);
+                window = new TEventViewer(r, 0x0F00);
+                break;
+            }
         }
-        ClientOptions options;
-        options.command = term.command.c_str();
-        options.workingDir = term.dir.c_str();
-        options.keepOpen = term.keepOpen;
-        auto *termCtrl = TerminalController::create( TerminalWindow::viewSize(r),
-                                                     factory, onTermError, options );
-        if (!termCtrl)
-            continue;
-        auto *window = new TerminalWindow(r, *termCtrl);
-        if (!term.title.empty())
-            window->setCustomTitle(term.title);
-        window->launchCommand = term.command;
-        window->launchDir = term.dir;
-        window->launchKeepOpen = term.keepOpen;
-        if (TWindow *inserted = insertWindow(window))
-            windows.push_back(inserted);
+        if (window)
+            if (TWindow *inserted = insertWindow(window))
+                windows.push_back(inserted);
     }
 
     Profile::Layout layout = profile.layout;
@@ -534,9 +572,11 @@ static std::string homeRelative(const std::string &path)
     return path;
 }
 
-static TerminalProfile describeTerminal(TerminalWindow &w, const TRect &ext)
+static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext);
+
+static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
 {
-    TerminalProfile term;
+    WindowProfile term;
     TStringView title = w.getCustomTitle();
     term.title.assign(title.data(), title.size());
 
@@ -560,41 +600,67 @@ static TerminalProfile describeTerminal(TerminalWindow &w, const TRect &ext)
             term.dir = homeRelative(cwd);
     }
 
+    setProfilePos(term, w, ext);
+    return term;
+}
+
+static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
+{
     int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
     if (width > 0 && height > 0)
     {
         TRect r = w.getBounds();
-        term.hasPos = true;
-        term.x = 100.0 * (r.a.x - ext.a.x) / width;
-        term.y = 100.0 * (r.a.y - ext.a.y) / height;
-        term.w = 100.0 * (r.b.x - r.a.x) / width;
-        term.h = 100.0 * (r.b.y - r.a.y) / height;
+        win.hasPos = true;
+        win.x = 100.0 * (r.a.x - ext.a.x) / width;
+        win.y = 100.0 * (r.a.y - ext.a.y) / height;
+        win.w = 100.0 * (r.b.x - r.a.x) / width;
+        win.h = 100.0 * (r.b.y - r.a.y) / height;
     }
-    return term;
 }
 
 void TVTermApp::saveProfile()
 {
-    // Terminals, from back to front, so that the stacking order is the
+    // Windows, from back to front, so that the stacking order is the
     // same when the profile is loaded again.
     std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
     Profile profile;
     TRect ext = deskTop->getExtent();
-    int skipped = 0;
+    int untitledWithText = 0, modifiedFiles = 0;
     for (auto it = windows.rbegin(); it != windows.rend(); ++it)
     {
-        if (auto *term = dynamic_cast<TerminalWindow *>(*it))
+        TWindow *w = *it;
+        if (auto *term = dynamic_cast<TerminalWindow *>(w))
+            profile.windows.push_back(describeTerminal(*term, ext));
+        else if (auto *edit = dynamic_cast<TEditWindow *>(w))
         {
-            profile.terminals.push_back(describeTerminal(*term, ext));
-            if (*it == deskTop->current)
-                profile.focus = (int) profile.terminals.size();
+            WindowProfile win;
+            win.kind = WindowProfile::Editor;
+            if (edit->editor)
+            {
+                win.file = edit->editor->fileName;
+                if (win.file.empty() && edit->editor->bufLen > 0)
+                    ++untitledWithText;
+                else if (!win.file.empty() && edit->editor->modified)
+                    ++modifiedFiles;
+            }
+            setProfilePos(win, *w, ext);
+            profile.windows.push_back(std::move(win));
+        }
+        else if (dynamic_cast<TEventViewer *>(w))
+        {
+            WindowProfile win;
+            win.kind = WindowProfile::EventViewer;
+            setProfilePos(win, *w, ext);
+            profile.windows.push_back(std::move(win));
         }
         else
-            ++skipped;
+            continue;
+        if (w == deskTop->current)
+            profile.focus = (int) profile.windows.size();
     }
-    if (profile.terminals.empty())
+    if (profile.windows.empty())
     {
-        messageBox("There are no terminals to save.", mfInformation | mfOKButton);
+        messageBox("There are no windows to save.", mfInformation | mfOKButton);
         return;
     }
 
@@ -631,9 +697,15 @@ void TVTermApp::saveProfile()
 
     std::string error;
     if (!::saveProfile(path, profile, error))
+    {
         messageBox(mfError | mfOKButton, "Cannot save %s: %s", path.c_str(), error.c_str());
-    else
-        messageBox( mfInformation | mfOKButton,
-                    "Saved %zu terminal(s) to\n%s%s", profile.terminals.size(), path.c_str(),
-                    skipped ? "\n(Editors and other windows are not saved.)" : "" );
+        return;
+    }
+    std::string notes;
+    if (untitledWithText)
+        notes += "\nThe text of untitled editors is not saved\n(save it to a file with F2 first).";
+    if (modifiedFiles)
+        notes += "\nSome editors have unsaved changes:\nthe profile only keeps their file names.";
+    messageBox( mfInformation | mfOKButton, "Saved %zu window(s) to\n%s%s",
+                profile.windows.size(), path.c_str(), notes.c_str() );
 }
