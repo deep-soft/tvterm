@@ -57,6 +57,17 @@ bool createPty( PtyDescriptor &ptyDescriptor,
                 void (&onError)(const char *reason),
                 const ClientOptions &options = {} ) noexcept;
 
+// Information about the processes running in a terminal.
+struct ClientProcessInfo
+{
+    // Process started in the terminal (usually the shell).
+    long clientPid {0};
+    // Process group in the foreground of the terminal, e.g. a command
+    // started from an interactive shell. Equal to 'clientPid' when the
+    // shell itself is in the foreground. 0 if unknown.
+    long foregroundPgid {0};
+};
+
 class PtyMaster
 {
     PtyDescriptor d;
@@ -69,6 +80,8 @@ public:
     bool writeToClient(TSpan<const char> data) noexcept;
     void resizeClient(TPoint size) noexcept;
     void disconnect() noexcept;
+    // Returns false if not supported (Windows).
+    bool getProcessInfo(ClientProcessInfo &info) noexcept;
 };
 
 inline PtyMaster::PtyMaster(PtyDescriptor ptyDescriptor) noexcept :

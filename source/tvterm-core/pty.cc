@@ -165,6 +165,14 @@ void PtyMaster::resizeClient(TPoint size) noexcept
     (void) rr;
 }
 
+bool PtyMaster::getProcessInfo(ClientProcessInfo &info) noexcept
+{
+    info.clientPid = d.clientPid;
+    pid_t pgid = tcgetpgrp(d.masterFd);
+    info.foregroundPgid = pgid > 0 ? pgid : 0;
+    return true;
+}
+
 void PtyMaster::disconnect() noexcept
 {
     close(d.masterFd);
@@ -542,6 +550,11 @@ bool PtyMaster::writeToClient(TSpan<const char> data) noexcept
 void PtyMaster::resizeClient(TPoint size) noexcept
 {
     conPty.ResizePseudoConsole(d.hPseudoConsole, toCoord(size));
+}
+
+bool PtyMaster::getProcessInfo(ClientProcessInfo &) noexcept
+{
+    return false;
 }
 
 void PtyMaster::disconnect() noexcept

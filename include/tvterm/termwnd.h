@@ -49,6 +49,9 @@ public:
     // Sets a fixed title, which replaces the one set by the application.
     // An empty string restores the application's title.
     void setCustomTitle(TStringView title) noexcept;
+    TStringView getCustomTitle() noexcept
+        { return {customTitle.data(), customTitle.size()}; }
+    TerminalView *getTerminalView() const noexcept { return view; }
 
     void handleEvent(TEvent &ev) override;
     void setState(ushort aState, Boolean enable) override;

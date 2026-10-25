@@ -29,6 +29,8 @@ public:
 
     bool stateHasBeenUpdated() noexcept;
     bool clientIsDisconnected() noexcept;
+    // Returns false if the client is disconnected or if not supported.
+    bool getClientProcessInfo(ClientProcessInfo &info) noexcept;
 
     template <class Func>
     // This method locks a mutex, so reentrance will lead to a deadlock.
@@ -61,6 +63,12 @@ inline bool TerminalController::stateHasBeenUpdated() noexcept
 inline bool TerminalController::clientIsDisconnected() noexcept
 {
     return disconnected;
+}
+
+inline bool TerminalController::getClientProcessInfo(ClientProcessInfo &info) noexcept
+{
+    // The pty is only closed after 'shutDown()', so it is still valid here.
+    return !disconnected && ptyMaster.getProcessInfo(info);
 }
 
 template <class Func>
