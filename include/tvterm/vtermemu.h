@@ -2,6 +2,7 @@
 #define TVTERM_VTERMEMU_H
 
 #include <tvterm/termemu.h>
+#include <tvterm/outfilter.h>
 #include <utility>
 #include <memory>
 #include <deque>
@@ -90,7 +91,12 @@ private:
         GrowArray clipboardText;
 
         std::vector<Far2lClipboardRequest> far2lClipboardRequests;
+
+        uint64_t outputBytes {0};
+        std::string newOutputText;
     };
+
+    OutputTextFilter outputFilter;
 
     // Maximum size of an APC string (far2l extensions requests).
     enum { maxApcSize = 32 * 1024 * 1024 };

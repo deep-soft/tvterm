@@ -49,17 +49,18 @@ Numbered E1, E2, … so that new commits on `far2l-integration` do not change th
 E1. Add history mode (scroll, search, save), word/line selection and a settings file
 E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
+E4. Add alerts: activity, keywords and silence
 
 ---
 
 ## 2. Features (all tested by the user in the real setup)
 
 ### Menu (Ctrl-B)
-`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
-`F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
+`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
+`R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
+Free menu letters: B, C, D, I, X, Y, Z (`M` opens More...).
 
 ### History (scrollback) — `far2l-extended`
 - Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
@@ -126,6 +127,26 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 - **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: HH:MM:SS ...`,
   even when it is paused; the last 200 are kept and shown when it is opened. Short messages appear in the status line for 5 s.
 
+### Alerts — `far2l-extended`
+- Only for terminals that are **not selected**. Three kinds, set per terminal with **Ctrl-B K** (Alerts...) or in profiles:
+  **activity** (any new text), **keywords** (comma-separated, plain text, case-insensitive for ASCII letters),
+  **silence** (N seconds without output, counted from the start of the terminal or from setting the alert, then from
+  the last output and from leaving the terminal; after a silence alert, armed again by new output).
+- Shown as: a mark in the window title (`[!]`, `[!error]`, `[!silent]`, so also in the Window List and in the quit dialog),
+  `Alerts: N (Ctrl-B G)` on the right of the status line. **Ctrl-B G** goes to the oldest alert. Selecting a terminal clears its alert.
+  Priority when several happen: keyword > silence > activity.
+- Profile keys: `alert-activity = yes`, `alert-keywords = error, reject`, `alert-silence = 60`; saved by Save Profile As.
+- False alarms avoided: output is ignored for 3 s after the terminal starts and for 1.5 s after a resize (tile, maximize)
+  or after leaving the terminal (programs redraw then); this output still restarts the silence count.
+  Activity alerts are still noisy with full-screen programs (far2l's clock changes every minute) → use keywords there.
+- How: the emulator (worker thread) counts the bytes received and keeps the new text without escape sequences
+  (`OutputTextFilter`: CSI/OSC/DCS/APC removed, cursor movements become line breaks, so the window title and far2l's
+  APC data never match; at most 64 KB kept); `TerminalView` collects it on every `cmCheckTerminalUpdates`, even when
+  the window is hidden; `TerminalWindow::checkAlerts` does the matching (keywords split between two reads are found).
+- Real test (CentOS 7.9): activity and keywords worked; silence was first armed only by output, so a `tail -f`
+  on a quiet log never alerted until new lines came → changed: silence is counted from the start of the terminal
+  (not yet tested in the real setup).
+
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
 - **OSC 52**: programs inside tvterm (vim, tmux, scripts) can write to the clipboard; reading is refused on purpose (security).
@@ -179,6 +200,7 @@ Free menu letters: B, C, D, G, I, K, M, X, Y, Z (some are used inside More).
 source/tvterm-core/        (the library; potentially interesting for upstream)
   vtermemu.cc              emulator (worker thread): libvterm, win32-input, OSC 52, far2l APC, paste
   far2lext.cc/.h           far2l extensions protocol (clipboard), ExtraFormatStore (vertical blocks)
+  outfilter.cc             OutputTextFilter: plain text from the client's output (for alerts)
   termview.cc              main thread: clipboard (TClipboard, asynchronous read with 3 s timeout), Shift-Ins, paste
   termwnd.cc               terminal window: fixed title (setCustomTitle)
   termctrl.cc              controller (reader/writer threads), getClientProcessInfo
@@ -190,6 +212,8 @@ source/tvterm/             the application
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
+  alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, AlertStatusLine (a TVTermStatusLine with the alert counter);
+                           logic in wnd.cc (TerminalWindow::checkAlerts)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
@@ -282,6 +306,10 @@ examples/profiles/example.ini
   keep the first notes, ~300 drop the oldest; pause title; profile keys, saving (comment + five keys) and reloading;
   invalid value and filter keys in [terminal] reported; letters typed in a terminal do not reach the viewer.
   The test must click inside the viewer: a click elsewhere moves the focus (and a maximized terminal covers it).
+- Alerts tests (feat E4): activity, keyword, keyword split between writes, keyword only in an OSC title, silence and
+  re-arming, silence from the start of a terminal that never writes (also from a profile), output in the first seconds
+  restarts the silence count, Ctrl-B G/K, tile without false alarms, saved profile, a temporary message hides the alert
+  counter, CPU with a flooding terminal + a unit test of OutputTextFilter.
 
 ---
 
@@ -310,3 +338,4 @@ examples/profiles/example.ini
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |
+| Alerts (`far2l-extended`) | E4 | activity / keyword / silence alerts (silence counted from the start), title mark, status line counter, Ctrl-B K and G, profile keys |

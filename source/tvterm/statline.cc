@@ -54,3 +54,8 @@ void TVTermStatusLine::checkExpired()
             TProgram::statusLine->drawView();
     }
 }
+
+bool TVTermStatusLine::hasMessage()
+{
+    return !statline::message.empty();
+}

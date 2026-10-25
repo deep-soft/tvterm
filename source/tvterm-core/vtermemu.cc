@@ -506,6 +506,12 @@ void VTermEmulator::handleEvent(const TerminalEvent &event) noexcept
         {
             auto &clientData = event.clientDataRead;
             vterm_input_write(vt, clientData.data, clientData.size);
+            // For alerts (see TerminalState::newOutputText).
+            localState.outputBytes += clientData.size;
+            std::string text;
+            outputFilter.feed(clientData.data, clientData.size, text);
+            appendBounded( localState.newOutputText, text.data(), text.size(),
+                           TerminalState::maxNewOutputText );
             break;
         }
 
@@ -610,6 +616,14 @@ void VTermEmulator::updateState(TerminalState &state) noexcept
     }
 
     state.far2lExtensionsEnabled = far2l->isEnabled();
+
+    state.outputBytes = localState.outputBytes;
+    if (!localState.newOutputText.empty())
+    {
+        appendBounded( state.newOutputText, localState.newOutputText.data(),
+                       localState.newOutputText.size(), TerminalState::maxNewOutputText );
+        localState.newOutputText.clear();
+    }
 
     if (!localState.far2lClipboardRequests.empty())
     {

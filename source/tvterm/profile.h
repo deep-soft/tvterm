@@ -29,6 +29,10 @@ struct WindowProfile
     std::string dir;
     std::string command;
     bool keepOpen {true};
+    // Terminal alerts (see alerts.h).
+    bool alertActivity {false};
+    std::string alertKeywords; // Comma-separated.
+    int alertSilence {0};      // Seconds; 0: disabled.
     // Editor: file name (empty: untitled).
     std::string file;
     // Event Viewer.

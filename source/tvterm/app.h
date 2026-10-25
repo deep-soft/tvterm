@@ -54,6 +54,8 @@ struct TVTermApp : public TApplication
     // A message from tvterm, shown in the Event Viewer (kept until one is
     // opened).
     static void note(const std::string &text);
+    void alertSettings();
+    void nextAlert();
 
     bool openProfile(const std::string &nameOrPath);
     void openProfile(const Profile &profile);

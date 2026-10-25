@@ -21,6 +21,8 @@ public:
     static void showMessage(const std::string &text, int seconds = 5);
     // Removes the message once its time is over. Called periodically.
     static void checkExpired();
+    // True while a message is shown.
+    static bool hasMessage();
 };
 
 #endif // TVTERM_STATLINE_H

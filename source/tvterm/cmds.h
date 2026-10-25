@@ -30,6 +30,8 @@ enum : ushort
     cmReloadSettings,
     cmAbout,
     cmShowNotes, // From the Event Viewer (infoPtr): show the kept messages.
+    cmAlertSettings,
+    cmNextAlert,
 };
 
 enum : ushort

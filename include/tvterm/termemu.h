@@ -240,6 +240,14 @@ struct TerminalState
     // Whether the client application uses far2l's terminal extensions,
     // and therefore has its own access to the clipboard.
     bool far2lExtensionsEnabled {false};
+
+    // Output of the client application, used for alerts: the total number
+    // of bytes received so far, and the text received since the main thread
+    // last took it (see OutputTextFilter; at most 'maxNewOutputText' bytes,
+    // the most recent ones).
+    uint64_t outputBytes {0};
+    std::string newOutputText;
+    enum { maxNewOutputText = 64 * 1024 };
 };
 
 enum class TerminalEventType

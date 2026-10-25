@@ -19,6 +19,10 @@ std::string profileDir()
     return std::string(home ? home : ".") + "/.config/tvterm/profiles";
 }
 
+// Own namespace: this file is compiled together with others (Unity Build).
+namespace profileini
+{
+
 static std::string trim(const std::string &s)
 {
     size_t a = 0, b = s.size();
@@ -100,8 +104,11 @@ static bool parsePos(const std::string &value, WindowProfile &term)
     return true;
 }
 
+} // namespace profileini
+
 bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &warnings)
 {
+    using namespace profileini;
     std::string path = nameOrPath;
     if (path.find('/') == std::string::npos)
     {
@@ -205,6 +212,22 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 if (!parseBool(value, win.keepOpen))
                     warn("invalid keep-open '" + value + "' (use yes or no)");
             }
+            else if (isTerm && key == "alert-activity")
+            {
+                if (!parseBool(value, win.alertActivity))
+                    warn("invalid alert-activity '" + value + "' (use yes or no)");
+            }
+            else if (isTerm && key == "alert-keywords")
+                win.alertKeywords = value;
+            else if (isTerm && key == "alert-silence")
+            {
+                char *end;
+                long n = strtol(value.c_str(), &end, 10);
+                if (value.empty() || *end || n < 0 || n > 999999)
+                    warn("invalid alert-silence '" + value + "' (use a number of seconds, 0: off)");
+                else
+                    win.alertSilence = (int) n;
+            }
             else if (isEditor && key == "file")
                 win.file = expandHome(value);
             else if (!isTerm && !isEditor && isFilterKey(key))
@@ -235,6 +258,9 @@ bool makeDirs(const std::string &dir)
     return true;
 }
 
+namespace profileini
+{
+
 static std::string formatPercent(double v)
 {
     char buf[32];
@@ -249,8 +275,11 @@ static std::string formatPercent(double v)
     return buf;
 }
 
+} // namespace profileini
+
 bool saveProfile(const std::string &path, const Profile &profile, std::string &error)
 {
+    using namespace profileini;
     std::ofstream file(path);
     if (!file)
     {
@@ -280,6 +309,12 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     if (!win.keepOpen)
                         file << "keep-open = no\n";
                 }
+                if (win.alertActivity)
+                    file << "alert-activity = yes\n";
+                if (!win.alertKeywords.empty())
+                    file << "alert-keywords = " << win.alertKeywords << "\n";
+                if (win.alertSilence > 0)
+                    file << "alert-silence = " << win.alertSilence << "\n";
                 break;
             case WindowProfile::Editor:
                 file << "\n[editor]\n";

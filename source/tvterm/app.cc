@@ -29,6 +29,7 @@
 #include "statline.h"
 #include "histdlg.h"
 #include "about.h"
+#include "alerts.h"
 #include <tvterm/termopts.h>
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
@@ -287,7 +288,7 @@ void TVTermApp::editSettings()
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
     r.b.y = r.a.y + 1;
-    TStatusLine *statusLine = new TVTermStatusLine(r,
+    TStatusLine *statusLine = new AlertStatusLine(r,
         *new TStatusDef(hcDragging, hcDragging) +
             *new TStatusItem("~↑↓→←~ Move", kbNoKey, 0) +
             *new TStatusItem("~Shift-↑↓→←~ Resize", kbNoKey, 0) +
@@ -367,6 +368,8 @@ void TVTermApp::handleEvent(TEvent &event)
                     if (event.message.infoPtr)
                         showNotes(*(TEventViewer *) event.message.infoPtr, true);
                     break;
+                case cmAlertSettings: alertSettings(); break;
+                case cmNextAlert: nextAlert(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
                 default:
@@ -424,6 +427,15 @@ void TVTermApp::idle()
     message(this, evBroadcast, cmCheckTerminalUpdates, nullptr);
     TVTermStatusLine::checkExpired();
     checkSettingsFile();
+    if (auto *sl = dynamic_cast<AlertStatusLine *>(statusLine))
+    {
+        size_t count = countAlerts(*deskTop);
+        if (count != sl->alertCount)
+        {
+            sl->alertCount = count;
+            sl->drawView();
+        }
+    }
 }
 
 void TVTermApp::openMenu()
@@ -436,6 +448,8 @@ void TVTermApp::openMenu()
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
         *new TMenuItem("Window List...", cmWindowList, 'J', hcNoContext, "~J~") +
         *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
+        *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
+        *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Maximize/Restore", cmZoom, 'F', hcNoContext, "~F~") +
         newLine() +
@@ -644,6 +658,11 @@ void TVTermApp::openProfile(const Profile &profile)
                 term->launchCommand = win.command;
                 term->launchDir = win.dir;
                 term->launchKeepOpen = win.keepOpen;
+                AlertSettings alerts;
+                alerts.activity = win.alertActivity;
+                alerts.keywords = parseKeywords(win.alertKeywords);
+                alerts.silenceSeconds = win.alertSilence;
+                term->setAlertSettings(std::move(alerts));
                 window = term;
                 break;
             }
@@ -715,6 +734,20 @@ void TVTermApp::windowList()
     execWindowList(*deskTop);
 }
 
+void TVTermApp::alertSettings()
+{
+    if (auto *term = dynamic_cast<TerminalWindow *>(deskTop->current))
+        execAlertSettings(*term);
+    else
+        messageBox("The current window is not a terminal.", mfInformation | mfOKButton);
+}
+
+void TVTermApp::nextAlert()
+{
+    if (!goToNextAlert(*deskTop))
+        messageBox("There are no alerts.", mfInformation | mfOKButton);
+}
+
 void TVTermApp::renameTerm()
 {
     auto *w = dynamic_cast<TWindow *>(deskTop->current);
@@ -763,6 +796,11 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
         if (!cwd.empty())
             term.dir = homeRelative(cwd);
     }
+
+    const AlertSettings &alerts = w.getAlertSettings();
+    term.alertActivity = alerts.activity;
+    term.alertKeywords = joinKeywords(alerts.keywords);
+    term.alertSilence = alerts.silenceSeconds;
 
     setProfilePos(term, w, ext);
     return term;

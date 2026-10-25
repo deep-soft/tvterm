@@ -2,6 +2,7 @@
 #include <tvterm/termctrl.h>
 #include <tvterm/consts.h>
 #include <tvterm/termopts.h>
+#include <tvterm/outfilter.h>
 #include "util.h"
 
 #define Uses_TKeys
@@ -345,6 +346,7 @@ void TerminalView::handleEvent(TEvent &ev)
                  termCtrl.stateHasBeenUpdated() )
             {
                 updateClipboard();
+                collectOutput();
                 drawView();
                 // A full-screen application started: no more scrollback.
                 if (historyMode && !sbEnabled)
@@ -537,6 +539,19 @@ void TerminalView::handleMouse(ushort what, MouseEventType mouse) noexcept
         termEvent.mouse = {what, mouse};
         termCtrl.sendEvent(termEvent);
     }
+}
+
+void TerminalView::collectOutput() noexcept
+{
+    termCtrl.lockState([&] (auto &state) {
+        outputBytes = state.outputBytes;
+        if (!state.newOutputText.empty())
+        {
+            appendBounded( newOutputText, state.newOutputText.data(),
+                           state.newOutputText.size(), TerminalState::maxNewOutputText );
+            state.newOutputText.clear();
+        }
+    });
 }
 
 void TerminalView::updateClipboard() noexcept

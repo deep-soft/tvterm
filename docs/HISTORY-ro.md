@@ -50,17 +50,18 @@ Numerotate E1, E2, … ca să nu se schimbe când apar commit-uri noi pe `far2l-
 E1. Add history mode (scroll, search, save), word/line selection and a settings file
 E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
+E4. Add alerts: activity, keywords and silence
 
 ---
 
 ## 2. Funcționalități (toate testate de utilizator în lanțul real)
 
 ### Meniu (Ctrl-B)
-`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
-`F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
+`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
+`R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
+Litere libere în meniu: B, C, D, I, X, Y, Z (`M` deschide More...).
 
 ### Istoric (scrollback) — `far2l-extended`
 - Fiecare terminal păstrează până la `lines` (implicit 10000) linii ieșite de pe ecran. Doar ecranul normal are istoric:
@@ -127,6 +128,26 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 - **Mesaje**: mesajele tvterm (setări, fișiere salvate, erori de profil) apar în Event Viewer ca `tvterm: HH:MM:SS ...`,
   chiar și în pauză; ultimele 200 se păstrează și se afișează la deschidere. Mesajele scurte apar 5 s în bara de stare.
 
+### Alerte — `far2l-extended`
+- Doar pentru terminalele **neselectate**. Trei tipuri, setate per terminal cu **Ctrl-B K** (Alerts...) sau în profil:
+  **activitate** (orice text nou), **cuvinte cheie** (separate prin virgulă, text simplu, fără diferență între majuscule
+  și minuscule pentru literele ASCII), **liniște** (N secunde fără ieșire, numărate de la pornirea terminalului sau de la
+  setarea alertei, apoi de la ultima ieșire și de la părăsirea terminalului; după o alertă de liniște, re-armată de ieșire nouă).
+- Afișare: marcaj în titlul ferestrei (`[!]`, `[!error]`, `[!silent]`, deci și în Window List și în dialogul de ieșire),
+  `Alerts: N (Ctrl-B G)` în dreapta barei de jos. **Ctrl-B G** duce la cea mai veche alertă. Selectarea terminalului șterge alerta.
+  Prioritate când apar mai multe: cuvânt cheie > liniște > activitate.
+- Chei în profil: `alert-activity = yes`, `alert-keywords = error, reject`, `alert-silence = 60`; salvate de Save Profile As.
+- Alarme false evitate: ieșirea e ignorată 3 s după pornirea terminalului și 1,5 s după redimensionare (tile, maximize)
+  sau după ieșirea din terminal (programele redesenează atunci); această ieșire repornește totuși numărarea liniștii.
+  Alerta de activitate rămâne zgomotoasă cu programe full-screen (ceasul far2l se schimbă în fiecare minut) → acolo cuvinte cheie.
+- Cum: emulatorul (firul de lucru) numără octeții primiți și păstrează textul nou fără secvențe escape
+  (`OutputTextFilter`: CSI/OSC/DCS/APC eliminate, mișcările cursorului devin sfârșit de linie, deci titlul ferestrei și
+  datele APC ale far2l nu se potrivesc niciodată; maximum 64 KB); `TerminalView` îl preia la fiecare `cmCheckTerminalUpdates`,
+  chiar dacă fereastra e ascunsă; `TerminalWindow::checkAlerts` face căutarea (cuvintele tăiate între două citiri sunt găsite).
+- Test real (CentOS 7.9): activitatea și cuvintele cheie au mers; liniștea era armată doar de ieșire, deci un `tail -f`
+  pe un log liniștit nu dădea alertă până nu veneau linii noi → schimbat: liniștea se numără de la pornirea
+  terminalului (netestat încă în lanțul real).
+
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
 - **OSC 52**: programele din tvterm (vim, tmux, scripturi) pot scrie în clipboard; citirea e refuzată intenționat (securitate).
@@ -181,6 +202,7 @@ Litere libere în meniu: B, C, D, G, I, K, M, X, Y, Z (unele au rol în More).
 source/tvterm-core/        (biblioteca, potențial interesantă pentru upstream)
   vtermemu.cc              emulator (fir de lucru): libvterm, win32-input, OSC 52, APC far2l, paste
   far2lext.cc/.h           protocolul extensiilor far2l (clipboard), ExtraFormatStore (blocuri verticale)
+  outfilter.cc             OutputTextFilter: textul simplu din ieșirea programului (pentru alerte)
   termview.cc              fir principal: clipboard (TClipboard, citire asincronă cu timeout 3 s), Shift-Ins, paste
   termwnd.cc               fereastra terminal: titlu fix (setCustomTitle)
   termctrl.cc              controller (fire reader/writer), getClientProcessInfo
@@ -192,6 +214,8 @@ source/tvterm/             aplicația
   profile.cc/.h            parser/writer INI (WindowProfile, Profile)
   winlist.cc/.h            dialogul Window List, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            dialogul de confirmare a ieșirii (confirmQuit)
+  alerts.cc/.h             setări alerte (Ctrl-B K), Ctrl-B G, AlertStatusLine (o TVTermStatusLine cu contorul de alerte);
+                           logica în wnd.cc (TerminalWindow::checkAlerts)
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
@@ -285,6 +309,10 @@ examples/profiles/example.ini
   salvarea (comentariu + cinci chei) și reîncărcarea; valoare greșită și chei de filtru în [terminal] raportate; literele tastate
   într-un terminal nu ajung la Event Viewer. Testul trebuie să dea click în Event Viewer: un click în altă parte mută focusul
   (iar un terminal maximizat îl acoperă).
+- Teste alerte (feat E4): activitate, cuvânt cheie, cuvânt tăiat între scrieri, cuvânt doar în titlu OSC, liniște și
+  re-armare, liniște de la pornire pentru un terminal care nu scrie nimic (și din profil), ieșirea din primele secunde
+  repornește numărarea liniștii, Ctrl-B G/K, tile fără alarme false, profil salvat, un mesaj temporar ascunde contorul
+  de alerte, CPU cu un terminal inundat + test unitar pentru OutputTextFilter.
 
 ---
 
@@ -315,3 +343,4 @@ examples/profiles/example.ini
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
+| Alerte (`far2l-extended`) | E4 | alerte de activitate / cuvânt cheie / liniște (liniștea numărată de la pornire), marcaj în titlu, contor în bara de jos, Ctrl-B K și G, chei în profil |

@@ -61,6 +61,7 @@ class TerminalView : public TView
     void updateWindowTitle() noexcept;
     void updateHelpContext() noexcept;
     void updateClipboard() noexcept;
+    void collectOutput() noexcept;
     bool pasteOnShiftIns() noexcept;
     void sendPaste(TEvent &ev) noexcept;
     void updateCursor(TerminalState &state) noexcept;
@@ -78,6 +79,13 @@ class TerminalView : public TView
 public:
 
     TerminalController &termCtrl;
+
+    // Output of the client application, for alerts (see TerminalState):
+    // the total number of bytes received, and the text received since the
+    // owner last cleared 'newOutputText'. Updated on cmCheckTerminalUpdates,
+    // even if the view is not visible.
+    uint64_t outputBytes {0};
+    std::string newOutputText;
 
     // Takes ownership over 'termCtrl'.
     // The lifetime of 'consts' must exceed that of 'this'.
