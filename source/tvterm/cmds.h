@@ -21,6 +21,7 @@ enum : ushort
     cmOpenEditor,
     cmEventViewer,
     cmFindEventViewer, // Broadcast: answered by an open Event Viewer.
+    cmLoadProfile,
 };
 
 enum : ushort

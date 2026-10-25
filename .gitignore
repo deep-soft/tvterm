@@ -9,6 +9,8 @@
 !source/**/
 !.github/
 !.github/**/
+!examples/
+!examples/**/
 !scripts/
 !scripts/**/
 !scripts/*

@@ -5,13 +5,17 @@
 #define Uses_TCommandSet
 #include <tvision/tv.h>
 
+#include <string>
+
 class TVTermDesk;
+struct Profile;
 
 struct TVTermApp : public TApplication
 {
     static TCommandSet tileCmds;
 
-    TVTermApp();
+    // 'profileName': profile to open at startup (see profile.h), or null.
+    TVTermApp(const char *profileName = nullptr);
     static TStatusLine* initStatusLine(TRect r);
     static TDeskTop* initDeskTop(TRect r);
 
@@ -32,6 +36,16 @@ struct TVTermApp : public TApplication
     void newEditor();
     void openEditor();
     void toggleEventViewer();
+    void loadProfile();
+
+    bool openProfile(const std::string &nameOrPath);
+    void openProfile(const Profile &profile);
+
+private:
+
+    // Message to show once the application is running (e.g. profile errors
+    // found at startup).
+    std::string pendingMessage;
 
 };
 
