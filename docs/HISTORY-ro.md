@@ -41,6 +41,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
+21. Fix the doubled path in the profile file dialogs
 
 ---
 
@@ -75,6 +76,8 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
 - **Save Profile As** (Ctrl-B A): salvează toate ferestrele (ordine, focus, titlu fix, poziții, directorul curent real din `/proc/<pid>/cwd`,
   comanda din profil sau comanda din prim-plan detectată prin `tcgetpgrp` + `/proc/<pgid>/cmdline`).
   Textul editoarelor „Untitled” nu se salvează (avertisment).
+- Load Profile / Save Profile As listează directorul de profiluri cu wildcard-ul `*.ini`; `..\` și directoarele merg normal,
+  iar un nume tastat e relativ la directorul afișat (commit 21; înainte, calea completă apărea dublată: „Invalid drive or directory”).
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
@@ -154,6 +157,8 @@ examples/profiles/example.ini
 - Sursele sunt găsite cu `GLOB` → după adăugarea unui fișier `.cc` nou trebuie rulat din nou `cmake`.
 - Unity build: funcțiile `static` din fișiere diferite pot intra în conflict → namespace-uri proprii (`far2lext`, `far2lclip`).
 - `TFileDialog`: câmpul `directory` pornește gol → numele tastate sunt relative la directorul curent; tvterm îl setează la directorul profilurilor.
+  Wildcard-ul trebuie să fie doar un tipar (`*.ini`): tvision îl lipește la director (panoul de jos, câmpul Name pentru un director focusat).
+  O cale completă acolo apare dublată → dialogul e creat cu `fdNoLoadDir`, apoi se setează `directory` și se citește lista (`profiledlg::newDialog`, `app.cc`).
 - Cod win32-input protejat cu `HAVE_VTERM_WIN32INPUT` (doar cu libvterm-ul inclus, patch-uit).
 
 ---
@@ -184,6 +189,8 @@ examples/profiles/example.ini
 - Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, cifrele de pe tastatura
   numerică) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil.
+- tvision (pentru un PR la magiblot): `TFileList::getText` adaugă `\` după ce copiază până la 255 de caractere într-un buffer de 256
+  → un octet în plus la un director cu numele de exact 255 de octeți; `hotKeyStr` (tinputli.cpp) primește pointer nul de la separatoarele meniului.
 
 ---
 
@@ -197,3 +204,4 @@ examples/profiles/example.ini
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
 | Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
+| Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |

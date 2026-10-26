@@ -40,6 +40,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
+21. Fix the doubled path in the profile file dialogs
 
 ---
 
@@ -74,6 +75,8 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
 - **Save Profile As** (Ctrl-B A): saves all windows (stacking order, focus, fixed title, positions, actual current directory from `/proc/<pid>/cwd`,
   the command from the profile, or the foreground command found with `tcgetpgrp` + `/proc/<pgid>/cmdline`).
   The text of "Untitled" editors is not saved (the user is warned).
+- Load Profile / Save Profile As list the profiles directory with the wildcard `*.ini`; `..\` and directories work normally,
+  and a typed name is relative to the directory shown (commit 21; before, the full path was doubled: "Invalid drive or directory").
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
@@ -152,6 +155,8 @@ examples/profiles/example.ini
 - Sources are found with `GLOB` → after adding a new `.cc` file, run `cmake` again.
 - Unity build: `static` functions from different files can clash → own namespaces (`far2lext`, `far2lclip`).
 - `TFileDialog`: its `directory` field starts empty → typed names are relative to the current directory; tvterm sets it to the profiles directory.
+  The wildcard must be a bare pattern (`*.ini`): tvision joins it to the directory (bottom pane, Name field for a focused directory).
+  A full path there is doubled → the dialog is created with `fdNoLoadDir`, then `directory` is set and the list read (`profiledlg::newDialog`, `app.cc`).
 - win32-input code is guarded by `HAVE_VTERM_WIN32INPUT` (only with the bundled, patched libvterm).
 
 ---
@@ -181,6 +186,8 @@ examples/profiles/example.ini
 - `ClientOptions` and process information: not implemented on Windows.
 - win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, keypad digits) have `vk = 0`.
 - The paused state of the Event Viewer is not saved in profiles.
+- tvision (for a PR to magiblot): `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
+  → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators.
 
 ---
 
@@ -194,3 +201,4 @@ examples/profiles/example.ini
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
 | Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
+| File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
