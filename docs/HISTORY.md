@@ -41,6 +41,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
+22. Fix overlapping memcpy in tvision's input line history
 
 ---
 
@@ -122,6 +123,7 @@ source/tvterm/             the application
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
+deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
 examples/profiles/example.ini
@@ -148,6 +150,13 @@ examples/profiles/example.ini
   Ncurses"). Two verified solutions: (1) build on Ubuntu 24 (glibc + ncurses 6.4), which works on Ubuntu 12 and CentOS 7.9;
   (2) copy a new `xterm-256color` (e.g. from Alpine) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users).
   The system's old programs (ncurses 5.9) skip the new-format file and keep using theirs (`top`, `mc` verified).
+- **"Illegal instruction" in file dialogs (Alpine, commit 22):** tvision's input line history (`histlist.cpp`: `deleteString`,
+  `insertString`) moved entries with `memcpy` over overlapping memory (the DOS original used `movmem`). With `_FORTIFY_SOURCE`
+  on musl (fortify-headers), an overlapping `memcpy` stops the program with `ud2` = "Illegal instruction"; glibc does not check.
+  Trigger: a name chosen again in a dialog field with history after a longer one (e.g. Load Profile `a1.ini`, `longername.ini`,
+  `a1.ini`), or a full history (1024 bytes). The history is empty at startup, so the crash looked random.
+  `deps/tvision-fixes.cmake` uses a copy of `histlist.cpp` with `memmove` (configure message: "Applied tvision fix");
+  if upstream changes the file, the original is used. Not applied with `TVTERM_USE_SYSTEM_TVISION`.
 
 ### Known pitfalls
 - Upstream's `.gitignore` ignores **everything** except explicitly allowed directories; files without an extension must be allowed too
@@ -186,7 +195,7 @@ examples/profiles/example.ini
 - `ClientOptions` and process information: not implemented on Windows.
 - win32-input-mode: scan code 0; key-up sent right after key-down; some keys (shifted symbols, keypad digits) have `vk = 0`.
 - The paused state of the Event Viewer is not saved in profiles.
-- tvision (for a PR to magiblot): `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
+- tvision (for a PR to magiblot): `histlist.cpp` memcpy → memmove (fixed locally, commit 22); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
   → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators.
 
 ---
@@ -202,3 +211,4 @@ examples/profiles/example.ini
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
 | Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
 | File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
+| tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |

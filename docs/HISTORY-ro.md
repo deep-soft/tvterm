@@ -42,6 +42,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
+22. Fix overlapping memcpy in tvision's input line history
 
 ---
 
@@ -124,6 +125,7 @@ source/tvterm/             aplicația
   evntview.cc/.h           Event Viewer
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
+deps/tvision-fixes.cmake   corecturi tvision: histlist.cpp copiat în directorul de build, memcpy → memmove (submodulul curat)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
 examples/profiles/example.ini
@@ -150,6 +152,13 @@ examples/profiles/example.ini
   Ncurses”). Două soluții verificate: (1) build pe Ubuntu 24 (glibc + ncurses 6.4), care merge pe Ubuntu 12 și CentOS 7.9;
   (2) un `xterm-256color` nou (ex. de pe Alpine) copiat în `~/.terminfo/x/` (un utilizator) sau `/etc/terminfo/x/` (toți).
   Programele vechi ale sistemului (ncurses 5.9) sar peste fișierul în format nou și îl folosesc pe al lor (verificat `top`, `mc`).
+- **„Illegal instruction” în dialogurile de fișiere (Alpine, commit 22):** istoricul câmpurilor din tvision (`histlist.cpp`:
+  `deleteString`, `insertString`) muta intrările cu `memcpy` peste zone care se suprapun (originalul DOS folosea `movmem`).
+  Cu `_FORTIFY_SOURCE` pe musl (fortify-headers), un `memcpy` cu suprapunere oprește programul cu `ud2` = „Illegal instruction”;
+  glibc nu verifică. Declanșator: un nume ales din nou într-un câmp cu istoric după unul mai lung (ex. Load Profile `a1.ini`,
+  `longername.ini`, `a1.ini`) sau istoricul plin (1024 de octeți). Istoricul e gol la pornire, de aceea blocarea părea aleatoare.
+  `deps/tvision-fixes.cmake` folosește o copie a `histlist.cpp` cu `memmove` (mesaj la configurare: „Applied tvision fix”);
+  dacă fișierul se schimbă upstream, se folosește originalul. Nu se aplică cu `TVTERM_USE_SYSTEM_TVISION`.
 
 ### Capcane cunoscute
 - `.gitignore` din upstream ignoră **tot** în afară de directoare permise explicit; fișierele fără extensie trebuie permise
@@ -189,7 +198,7 @@ examples/profiles/example.ini
 - Win32-input-mode: scan code 0; key-up trimis imediat după key-down; unele taste (simboluri cu Shift, cifrele de pe tastatura
   numerică) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil.
-- tvision (pentru un PR la magiblot): `TFileList::getText` adaugă `\` după ce copiază până la 255 de caractere într-un buffer de 256
+- tvision (pentru un PR la magiblot): `histlist.cpp` memcpy → memmove (corectat local, commit 22); `TFileList::getText` adaugă `\` după ce copiază până la 255 de caractere într-un buffer de 256
   → un octet în plus la un director cu numele de exact 255 de octeți; `hotKeyStr` (tinputli.cpp) primește pointer nul de la separatoarele meniului.
 
 ---
@@ -205,3 +214,4 @@ examples/profiles/example.ini
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
 | Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
 | Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |
+| Istoric tvision | 22 | `memmove` în istoricul câmpurilor (cauza „Illegal instruction” din dialogurile de fișiere pe Alpine) |
