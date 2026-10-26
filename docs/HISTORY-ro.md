@@ -52,6 +52,7 @@ E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
+E6. Make the status line items of the Event Viewer and History mode clickable
 
 ---
 
@@ -88,6 +89,8 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   Shift+click cât timp acea selecție e activă în putty4far2l (utilizatorul a dezactivat-o). Selecția tvterm (fără Shift,
   în ferestre shell) funcționează și rămâne în fereastra curentă.
 - Liniile vechi eliminate dintr-un istoric plin nu mai deplasează selecția sau potrivirea.
+- Bara de stare (E6): click pe `/ Search`, `F3 Next`, `Shift-F3 Prev`, `F2 Save`, `Ctrl-C Copy`, `Esc Exit` = tasta respectivă
+  (`F3/Shift-F3 Next/Prev` a fost împărțit în două); tastele de derulare rămân doar indicație.
 
 ### Versiune și About — `far2l-extended`
 - Număr de versiune `0.1.0`, în `CMakeLists.txt` (`TVTERM_VERSION`), schimbat doar manual. Restul se adaugă automat la
@@ -106,7 +109,8 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Taste, când fereastra Event Viewer are focus (nu apar ca evenimente): **M** mișcări de mouse, **C** butoane de mouse,
   rotiță și auto-repetare, **K** taste, **O** alte evenimente (comenzi etc.), **T** mesajele tvterm — fiecare afișează/ascunde
   acel tip; **N** golește fereastra și reafișează mesajele reținute de tvterm (ultimele 200, cu cele două linii de versiune
-  în frunte), chiar dacă T e oprit; **X** golește fereastra. Bara de stare le afișează.
+  în frunte), chiar dacă T e oprit; **X** golește fereastra. Bara de stare le afișează, câte un element pentru fiecare tastă
+  (`M Moves`, `C Clicks`, `K Keys`, `O Other`, `T Messages`, `N Notes`, `X Clear`); click pe un element = tasta lui (E6).
 - Titlul arată starea: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` înaintea parantezelor când e pe pauză).
   Implicit: mișcările de mouse ascunse, restul afișate. Filtrul se aplică doar evenimentelor noi.
 - Evenimentele ascunse se numără în continuare: golurile din `Received event #N` le arată.
@@ -379,6 +383,8 @@ examples/profiles/example.ini
   de stare: F9, F4, I, F, Space, /, Ctrl-C, F2; un click pe un mesaj temporar doar îl închide; F4: Apply (dialog deschis,
   `[I] 10/300`), Apply cu `(` (eroare, dialog deschis), Cancel după Apply (filtrul aplicat rămâne), OK cu `(` (eroare, deschis),
   OK (`[I] 111/300`). Build dinamic și static.
+- Teste bară de stare cu click (E6): Event Viewer — click pe M, C (titlu `[M+ C- …]`, și înapoi), X (golit), N (notele din nou);
+  History — `Esc Exit` iese din mod (fără `(History)` în titlu), `/ Search` deschide dialogul de căutare.
 
 ---
 
@@ -414,3 +420,4 @@ examples/profiles/example.ini
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
 | Alerte (`far2l-extended`) | E4 | alerte de activitate / cuvânt cheie / liniște (liniștea numărată de la pornire), marcaj în titlu, contor în bara de jos, Ctrl-B K și G, chei în profil |
 | LogView (`far2l-extended`) | E5 | Ctrl-B D: ieșirea filtrată a unei comenzi, surse partajate, include/exclude, pauză, linii rupte, căutare, cursor de linie, selecție în clipboard/editor, salvare, meniul F9, bară de stare cu click, setări cu Apply, alerte, profiluri |
+| Bară de stare cu click (`far2l-extended`) | E6 | Event Viewer (un element pentru fiecare tastă) și modul istoric: click pe un element = tasta lui |

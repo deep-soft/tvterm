@@ -312,11 +312,12 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
         // History mode: the keys are handled by the terminal view.
         *new TStatusDef(hcHistory, hcHistory) +
             *new TStatusItem("~↑↓ PgUp PgDn Home End~ Scroll", kbNoKey, 0) +
-            *new TStatusItem("~/~ Search", kbNoKey, 0) +
-            *new TStatusItem("~F3~/~Shift-F3~ Next/Prev", kbNoKey, 0) +
-            *new TStatusItem("~F2~ Save", kbNoKey, 0) +
-            *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, 0) +
-            *new TStatusItem("~Esc~ Exit", kbNoKey, 0) +
+            *new TStatusItem("~/~ Search", kbNoKey, keyCmd('/', 0, '/')) +
+            *new TStatusItem("~F3~ Next", kbNoKey, keyCmd(kbF3)) +
+            *new TStatusItem("~Shift-F3~ Prev", kbNoKey, keyCmd(kbShiftF3, kbShift)) +
+            *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
+            *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
+            *new TStatusItem("~Esc~ Exit", kbNoKey, keyCmd(kbEsc)) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
         // Log View: its keys are handled by the window.
         *new TStatusDef(hcLogView, hcLogView) +
@@ -332,9 +333,13 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
-            *new TStatusItem("~M C K O T~ Filter", kbNoKey, 0) +
-            *new TStatusItem("~N~ Notes", kbNoKey, 0) +
-            *new TStatusItem("~X~ Clear", kbNoKey, 0) +
+            *new TStatusItem("~M~ Moves", kbNoKey, keyCmd('m', 0, 'm')) +
+            *new TStatusItem("~C~ Clicks", kbNoKey, keyCmd('c', 0, 'c')) +
+            *new TStatusItem("~K~ Keys", kbNoKey, keyCmd('k', 0, 'k')) +
+            *new TStatusItem("~O~ Other", kbNoKey, keyCmd('o', 0, 'o')) +
+            *new TStatusItem("~T~ Messages", kbNoKey, keyCmd('t', 0, 't')) +
+            *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
+            *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
             *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +

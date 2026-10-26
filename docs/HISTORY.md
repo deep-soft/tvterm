@@ -51,6 +51,7 @@ E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
+E6. Make the status line items of the Event Viewer and History mode clickable
 
 ---
 
@@ -87,6 +88,8 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   receives Shift+click while that selection is enabled in putty4far2l (the user disabled it). tvterm's own selection
   (without Shift, in shell windows) works and stays inside the current window.
 - Old lines dropped from a full history no longer shift the selection or the match.
+- Status line (E6): a click on `/ Search`, `F3 Next`, `Shift-F3 Prev`, `F2 Save`, `Ctrl-C Copy`, `Esc Exit` works like the key
+  (`F3/Shift-F3 Next/Prev` was split in two); the scrolling keys stay a hint.
 
 ### Version and About — `far2l-extended`
 - Version number `0.1.0`, set in `CMakeLists.txt` (`TVTERM_VERSION`) and changed only by hand. Everything else is added
@@ -105,7 +108,8 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - Keys, when the Event Viewer window is focused (they are not shown as events): **M** mouse movements, **C** mouse buttons,
   wheel and auto-repeat, **K** keys, **O** other events (commands etc.), **T** tvterm's messages — each one shows/hides
   that kind; **N** clears the window and shows again the messages kept by tvterm (the last 200, the two version lines
-  first), even if T is off; **X** clears the window. The status line shows them.
+  first), even if T is off; **X** clears the window. The status line shows them, one item per key (`M Moves`, `C Clicks`,
+  `K Keys`, `O Other`, `T Messages`, `N Notes`, `X Clear`); a click on an item works like its key (E6).
 - The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
   Default: mouse movements hidden, everything else shown. Only new events are affected.
 - Hidden events are still counted: gaps in `Received event #N` show them.
@@ -377,6 +381,8 @@ examples/profiles/example.ini
   F4, I, F, Space, /, Ctrl-C, F2; a click on a temporary message only removes it; F4: Apply (dialog open, `[I] 10/300`), Apply
   with `(` (error, dialog open), Cancel after Apply (applied filter kept), OK with `(` (error, open), OK (`[I] 111/300`).
   Dynamic and static builds.
+- Clickable status line tests (E6): Event Viewer — clicks on M, C (title `[M+ C- …]`, back), X (cleared), N (notes again);
+  History — `Esc Exit` leaves the mode (no `(History)` in the title), `/ Search` opens the search dialog.
 
 ---
 
@@ -410,3 +416,4 @@ examples/profiles/example.ini
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |
 | Alerts (`far2l-extended`) | E4 | activity / keyword / silence alerts (silence counted from the start), title mark, status line counter, Ctrl-B K and G, profile keys |
 | Log View (`far2l-extended`) | E5 | Ctrl-B D: filtered output of a command, shared sources, include/exclude, pause, wrap, search, cursor line, selection to clipboard/editor, save, F9 menu, clickable status line, settings with Apply, alerts, profiles |
+| Clickable status line (`far2l-extended`) | E6 | Event Viewer (one item per key) and History mode: a click on an item works like its key |
