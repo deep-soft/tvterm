@@ -52,6 +52,7 @@ E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
+E7. Log View: filters on/off in the settings dialog and in profiles
 
 ---
 
@@ -152,11 +153,11 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   on a quiet log never alerted until new lines came → changed: silence is counted from the start of the terminal
   (tested by the user in the real setup).
 
-### Log View — `far2l-extended` (not yet tested in the real setup)
+### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
   **exclude** (one regular expression each, POSIX extended like `grep -E`; alternatives with `|`, e.g. `dstport=(993|465|587) `;
   trailing spaces are kept), ignore case, wrap long lines, max lines (0: `[logview] max-lines` from tvterm.ini, default 50000),
-  restart after N seconds (0: no). Invalid values are reported in the dialog, which stays open with the focus on the field.
+  restart after N seconds (0: no), **Filters on** (E7; the same as the F key). Invalid values are reported in the dialog, which stays open with the focus on the field.
   **F4** on an open window: the same dialog (modal) with **OK / Apply / Cancel**; Apply applies the settings and keeps the
   dialog open (to see the effect of the filters); Cancel closes it and drops only what was not applied.
 - A Log View is a window, not a terminal: it shows the lines written by the command. As many as needed; windows with
@@ -192,8 +193,11 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   starts (e.g. `tail -n 5000`). The alert code is shared through the `AlertTarget` interface (terminal and Log View).
 - Window List (`Log`), Rename (Ctrl-B T), quit dialog (lists the Log Views with their command), profiles:
   `[logview]` with `title`, `command`, `include`, `exclude` (in quotes when they start/end with spaces), `ignore-case`, `wrap`,
-  `max-lines`, `auto-restart`, `alert-*`, `pos`. An invalid expression in a profile: reported, the window opens without it.
-  Paused state, selection and F (filters off) are not saved.
+  `filters` (E7: `yes`/`no`, missing = `yes`, an invalid value is reported and the filters stay on), `max-lines`,
+  `auto-restart`, `alert-*`, `pos`. An invalid expression in a profile: reported, the window opens without it.
+  Paused state and selection are not saved.
+- Real test (first version, then v2, on CentOS 7.9 and Alpine): v2 tested by the user and pushed. The F state is now part of
+  the window's settings (E7): F, the F4 check box, D and profiles use the same value.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -383,6 +387,9 @@ examples/profiles/example.ini
   Dynamic and static builds.
 - Clickable status line tests (E6): Event Viewer — clicks on M, C (title `[M+ C- …]`, back), X (cleared), N (notes again);
   History — `Esc Exit` leaves the mode (no `(History)` in the title), `/ Search` opens the search dialog.
+- Filters on/off tests (E7): new dialog shows `[X] Filters on`; unchecked + Apply → `[F-] 300/300`, dialog still open;
+  Cancel keeps it; F → `[I] 100/300` and F4 shows `[X]` again; D copies `[F-]`; Save Profile As writes `filters = no`;
+  a profile with `filters = no` → `[F-]`, without the key → filters on, `filters = maybe` → "invalid filters 'maybe'", filters on.
 
 ---
 
@@ -417,3 +424,4 @@ examples/profiles/example.ini
 | Alerts (`far2l-extended`) | E4 | activity / keyword / silence alerts (silence counted from the start), title mark, status line counter, Ctrl-B K and G, profile keys |
 | Log View (`far2l-extended`) | E5 | Ctrl-B D: filtered output of a command, shared sources, include/exclude, pause, wrap, search, cursor line, selection to clipboard/editor, save, F9 menu, clickable status line, settings with Apply, alerts, profiles |
 | Clickable status line (`far2l-extended`) | E6 | Event Viewer (one item per key) and History mode: a click on an item works like its key |
+| Log View filters in F4 (`far2l-extended`) | E7 | "Filters on" check box in F4 (synchronized with F), `filters` key in `[logview]`, copied by D |

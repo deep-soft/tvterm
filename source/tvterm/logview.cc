@@ -483,7 +483,7 @@ private:
 LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusField,
                               LogViewApply aApply ) noexcept :
     TWindowInit(&initFrame),
-    TDialog(TRect(0, 0, 76, 22), isNew ? "New Log View" : "Log View settings"),
+    TDialog(TRect(0, 0, 76, 23), isNew ? "New Log View" : "Log View settings"),
     o(options),
     apply(std::move(aApply))
 {
@@ -501,9 +501,10 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     excIn = new TInputLine(TRect(3, 12, 72, 13), 512);
     insert(excIn);
     insert(new TLabel(TRect(2, 11, 72, 12), "~E~xclude: hide lines matching (empty: none)", excIn));
-    checkBoxes = new TCheckBoxes(TRect(3, 14, 30, 16),
+    checkBoxes = new TCheckBoxes(TRect(3, 14, 30, 17),
         new TSItem("I~g~nore case",
-        new TSItem("~W~rap long lines", nullptr)));
+        new TSItem("~W~rap long lines",
+        new TSItem("Filters ~o~n", nullptr))));
     insert(checkBoxes);
     maxIn = new TInputLine(TRect(62, 14, 72, 15), 8);
     insert(maxIn);
@@ -511,20 +512,20 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     restartIn = new TInputLine(TRect(62, 15, 72, 16), 6);
     insert(restartIn);
     insert(new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn));
-    insert(new TStaticText(TRect(3, 17, 73, 19),
+    insert(new TStaticText(TRect(3, 18, 73, 20),
         "Regular expressions like grep -E; alternatives with |, e.g.\n"
         "dstport=(993|465|587)  Trailing spaces are kept."));
     if (apply)
     {
         // Apply: the changes are applied and the dialog stays open.
-        insert(new TButton(TRect(17, 19, 29, 21), "O~K~", cmOK, bfDefault));
-        insert(new TButton(TRect(32, 19, 44, 21), "~A~pply", cmLogApply, bfNormal));
-        insert(new TButton(TRect(47, 19, 59, 21), "Cancel", cmCancel, bfNormal));
+        insert(new TButton(TRect(17, 20, 29, 22), "O~K~", cmOK, bfDefault));
+        insert(new TButton(TRect(32, 20, 44, 22), "~A~pply", cmLogApply, bfNormal));
+        insert(new TButton(TRect(47, 20, 59, 22), "Cancel", cmCancel, bfNormal));
     }
     else
     {
-        insert(new TButton(TRect(24, 19, 36, 21), "O~K~", cmOK, bfDefault));
-        insert(new TButton(TRect(40, 19, 52, 21), "Cancel", cmCancel, bfNormal));
+        insert(new TButton(TRect(24, 20, 36, 22), "O~K~", cmOK, bfDefault));
+        insert(new TButton(TRect(40, 20, 52, 22), "Cancel", cmCancel, bfNormal));
     }
 
     // setData copies the whole buffer of the field.
@@ -537,7 +538,7 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     setField(cmdIn, o.command);
     setField(incIn, o.include);
     setField(excIn, o.exclude);
-    ushort checks = (o.ignoreCase ? 1 : 0) | (o.wrap ? 2 : 0);
+    ushort checks = (o.ignoreCase ? 1 : 0) | (o.wrap ? 2 : 0) | (o.filters ? 4 : 0);
     checkBoxes->setData(&checks);
     setField(maxIn, std::to_string(o.maxLines));
     setField(restartIn, std::to_string(o.autoRestart));
@@ -602,6 +603,7 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     out.exclude = exclude;
     out.ignoreCase = checks & 1;
     out.wrap = checks & 2;
+    out.filters = checks & 4;
     out.maxLines = (int) nLines;
     out.autoRestart = (int) nRestart;
     return true;
@@ -777,7 +779,7 @@ void LogViewWindow::setCustomTitle(const std::string &title)
 bool LogViewWindow::passes(const LogLine &line) const
 {
     using namespace logview;
-    if (line.marker || !filtersOn)
+    if (line.marker || !options.filters)
         return true;
     if (includeRe && !includeRe->matches(line.text))
         return false;
@@ -1018,7 +1020,7 @@ const char *LogViewWindow::getTitle(short)
     text += "Log: ";
     text += options.title.empty() ? options.command : options.title;
     bool anyFilter = !options.include.empty() || !options.exclude.empty();
-    if (anyFilter && !filtersOn)
+    if (anyFilter && !options.filters)
         text += " [F-]";
     else
     {
@@ -1424,9 +1426,8 @@ void LogViewWindow::duplicate()
         if (r.a.x < ext.a.x || r.a.y < ext.a.y)
             r = getBounds();
     }
+    // The options include the filters on/off state (F).
     auto *copy = new LogViewWindow(r, o);
-    copy->filtersOn = filtersOn;
-    copy->refilter();
     TProgram::application->insertWindow(copy);
 }
 
@@ -1458,9 +1459,9 @@ void LogViewWindow::toggleFilters()
         showStatus("No filters: set them with I (include), E (exclude) or F4.");
         return;
     }
-    filtersOn = !filtersOn;
+    options.filters = !options.filters;
     refilter();
-    showStatus(filtersOn ? "Filters on." : "Filters off: all the lines are shown.");
+    showStatus(options.filters ? "Filters on." : "Filters off: all the lines are shown.");
 }
 
 void LogViewWindow::toggleWrap()

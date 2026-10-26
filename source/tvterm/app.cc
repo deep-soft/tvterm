@@ -732,6 +732,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 o.exclude = win.logExclude;
                 o.ignoreCase = win.logIgnoreCase;
                 o.wrap = win.logWrap;
+                o.filters = win.logFilters;
                 o.maxLines = win.logMaxLines;
                 o.autoRestart = win.logAutoRestart;
                 auto *log = new LogViewWindow(r, o);
@@ -930,6 +931,7 @@ void TVTermApp::saveProfile()
             win.logExclude = o.exclude;
             win.logIgnoreCase = o.ignoreCase;
             win.logWrap = o.wrap;
+            win.logFilters = o.filters;
             win.logMaxLines = o.maxLines;
             win.logAutoRestart = o.autoRestart;
             const AlertSettings &alerts = log->getAlertSettings();

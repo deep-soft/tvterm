@@ -37,6 +37,7 @@ struct LogViewOptions
     std::string exclude;    // Empty: nothing excluded.
     bool ignoreCase {false};
     bool wrap {false};
+    bool filters {true};    // F: the include / exclude filters are used.
     int maxLines {0};       // Lines kept by the source; 0: the default (tvterm.ini).
     int autoRestart {0};    // Restart the source N seconds after it ends; 0: never.
 };
@@ -92,7 +93,6 @@ private:
     LogViewOptions options;
     std::shared_ptr<LogSource> source;
     std::unique_ptr<LogRegex> includeRe, excludeRe;
-    bool filtersOn {true};
 
     LogViewInterior *interior {nullptr};
     TScrollBar *vScrollBar {nullptr}, *hScrollBar {nullptr};

@@ -53,6 +53,7 @@ E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
+E7. Log View: filters on/off in the settings dialog and in profiles
 
 ---
 
@@ -153,11 +154,11 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   pe un log liniștit nu dădea alertă până nu veneau linii noi → schimbat: liniștea se numără de la pornirea
   terminalului (testat de utilizator în lanțul real).
 
-### Log View — `far2l-extended` (netestat încă în lanțul real)
+### Log View — `far2l-extended`
 - **Ctrl-B D** deschide un dialog: titlu (gol: comanda), **comanda** (cu lista comenzilor anterioare, ↓), **include** și
   **exclude** (câte un regex, POSIX extins ca `grep -E`; alternative cu `|`, ex. `dstport=(993|465|587) `; spațiile de la final
   se păstrează), fără diferență de majuscule, linii rupte, linii maxime (0: `[logview] max-lines` din tvterm.ini, implicit 50000),
-  repornire după N secunde (0: nu). Valorile greșite sunt raportate în dialog, care rămâne deschis cu focus pe câmp.
+  repornire după N secunde (0: nu), **Filters on** (E7; la fel ca tasta F). Valorile greșite sunt raportate în dialog, care rămâne deschis cu focus pe câmp.
   **F4** pe o fereastră deschisă: același dialog (modal) cu **OK / Apply / Cancel**; Apply aplică setările și lasă dialogul
   deschis (ca să vezi efectul filtrelor); Cancel îl închide și renunță doar la ce nu s-a aplicat.
 - Un LogView e o fereastră, nu un terminal: arată liniile scrise de comandă. Oricâte; ferestrele cu **aceeași comandă folosesc
@@ -192,8 +193,11 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   (ex. `tail -n 5000`). Codul alertelor e comun prin interfața `AlertTarget` (terminal și LogView).
 - Window List (`Log`), Rename (Ctrl-B T), dialogul de ieșire (listează LogView-urile cu comanda lor), profiluri:
   `[logview]` cu `title`, `command`, `include`, `exclude` (între ghilimele când încep/se termină cu spații), `ignore-case`, `wrap`,
-  `max-lines`, `auto-restart`, `alert-*`, `pos`. Un regex greșit în profil: raportat, fereastra se deschide fără el.
-  Pauza, selecția și F (filtre oprite) nu se salvează.
+  `filters` (E7: `yes`/`no`, lipsă = `yes`, o valoare greșită e raportată și filtrele rămân active), `max-lines`,
+  `auto-restart`, `alert-*`, `pos`. Un regex greșit în profil: raportat, fereastra se deschide fără el.
+  Pauza și selecția nu se salvează.
+- Test real (prima versiune, apoi v2, pe CentOS 7.9 și Alpine): v2 testat de utilizator și urcat. Starea F face acum parte
+  din setările ferestrei (E7): F, căsuța din F4, D și profilurile folosesc aceeași valoare.
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
@@ -385,6 +389,9 @@ examples/profiles/example.ini
   OK (`[I] 111/300`). Build dinamic și static.
 - Teste bară de stare cu click (E6): Event Viewer — click pe M, C (titlu `[M+ C- …]`, și înapoi), X (golit), N (notele din nou);
   History — `Esc Exit` iese din mod (fără `(History)` în titlu), `/ Search` deschide dialogul de căutare.
+- Teste filtre on/off (E7): dialogul nou arată `[X] Filters on`; debifat + Apply → `[F-] 300/300`, dialogul rămâne deschis;
+  Cancel o păstrează; F → `[I] 100/300`, iar F4 arată din nou `[X]`; D copiază `[F-]`; Save Profile As scrie `filters = no`;
+  profil cu `filters = no` → `[F-]`, fără cheie → filtre active, `filters = maybe` → „invalid filters 'maybe'”, filtre active.
 
 ---
 
@@ -421,3 +428,4 @@ examples/profiles/example.ini
 | Alerte (`far2l-extended`) | E4 | alerte de activitate / cuvânt cheie / liniște (liniștea numărată de la pornire), marcaj în titlu, contor în bara de jos, Ctrl-B K și G, chei în profil |
 | LogView (`far2l-extended`) | E5 | Ctrl-B D: ieșirea filtrată a unei comenzi, surse partajate, include/exclude, pauză, linii rupte, căutare, cursor de linie, selecție în clipboard/editor, salvare, meniul F9, bară de stare cu click, setări cu Apply, alerte, profiluri |
 | Bară de stare cu click (`far2l-extended`) | E6 | Event Viewer (un element pentru fiecare tastă) și modul istoric: click pe un element = tasta lui |
+| Filtre LogView în F4 (`far2l-extended`) | E7 | căsuța „Filters on” în F4 (sincronizată cu F), cheia `filters` în `[logview]`, copiată de D |

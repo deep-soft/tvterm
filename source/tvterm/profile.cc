@@ -248,6 +248,11 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 if (!parseBool(value, win.logWrap))
                     warn("invalid wrap '" + value + "' (use yes or no)");
             }
+            else if (isLog && key == "filters")
+            {
+                if (!parseBool(value, win.logFilters))
+                    warn("invalid filters '" + value + "' (use yes or no)");
+            }
             else if (isLog && key == "max-lines")
             {
                 int n = win.logMaxLines;
@@ -385,6 +390,7 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     file << "exclude = " << quoteIfNeeded(win.logExclude) << "\n";
                 file << "ignore-case = " << (win.logIgnoreCase ? "yes" : "no") << "\n"
                      << "wrap = " << (win.logWrap ? "yes" : "no") << "\n"
+                     << "filters = " << (win.logFilters ? "yes" : "no") << "\n"
                      << "max-lines = " << win.logMaxLines << "\n";
                 if (win.logAutoRestart > 0)
                     file << "auto-restart = " << win.logAutoRestart << "\n";

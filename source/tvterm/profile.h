@@ -34,6 +34,7 @@ struct WindowProfile
     std::string logExclude;
     bool logIgnoreCase {false};
     bool logWrap {false};
+    bool logFilters {true};
     int logMaxLines {0};
     int logAutoRestart {0};
     // Terminal and Log View alerts (see alerts.h).
