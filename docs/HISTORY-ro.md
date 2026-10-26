@@ -51,17 +51,18 @@ E1. Add history mode (scroll, search, save), word/line selection and a settings 
 E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
+E5. Add Log View: filtered output of a command
 
 ---
 
-## 2. Funcționalități (toate testate de utilizator în lanțul real)
+## 2. Funcționalități (toate testate de utilizator în lanțul real, dacă nu e menționat altfel)
 
 ### Meniu (Ctrl-B)
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
 `R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
-`L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
+`D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Litere libere în meniu: B, C, D, I, X, Y, Z (`M` deschide More...).
+Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 
 ### Istoric (scrollback) — `far2l-extended`
 - Fiecare terminal păstrează până la `lines` (implicit 10000) linii ieșite de pe ecran. Doar ecranul normal are istoric:
@@ -146,7 +147,49 @@ Litere libere în meniu: B, C, D, I, X, Y, Z (`M` deschide More...).
   chiar dacă fereastra e ascunsă; `TerminalWindow::checkAlerts` face căutarea (cuvintele tăiate între două citiri sunt găsite).
 - Test real (CentOS 7.9): activitatea și cuvintele cheie au mers; liniștea era armată doar de ieșire, deci un `tail -f`
   pe un log liniștit nu dădea alertă până nu veneau linii noi → schimbat: liniștea se numără de la pornirea
-  terminalului (netestat încă în lanțul real).
+  terminalului (testat de utilizator în lanțul real).
+
+### Log View — `far2l-extended` (netestat încă în lanțul real)
+- **Ctrl-B D** deschide un dialog: titlu (gol: comanda), **comanda** (cu lista comenzilor anterioare, ↓), **include** și
+  **exclude** (câte un regex, POSIX extins ca `grep -E`; alternative cu `|`, ex. `dstport=(993|465|587) `; spațiile de la final
+  se păstrează), fără diferență de majuscule, linii rupte, linii maxime (0: `[logview] max-lines` din tvterm.ini, implicit 50000),
+  repornire după N secunde (0: nu). Valorile greșite sunt raportate în dialog, care rămâne deschis cu focus pe câmp.
+  **F4** pe o fereastră deschisă: același dialog (modal) cu **OK / Apply / Cancel**; Apply aplică setările și lasă dialogul
+  deschis (ca să vezi efectul filtrelor); Cancel îl închide și renunță doar la ce nu s-a aplicat.
+- Un LogView e o fereastră, nu un terminal: arată liniile scrise de comandă. Oricâte; ferestrele cu **aceeași comandă folosesc
+  o singură sursă** (un proces, un buffer; bufferul ține cel mai mare număr de linii cerut). O linie trece dacă se potrivește
+  cu include (sau nu există) și nu cu exclude. **Filtrele noi se aplică pe tot bufferul** (50000 de linii FortiGate: ~0,1 s).
+- Sursa rulează cu `$SHELL -c comanda` (ca la terminale) într-un pseudo-terminal (`TERM=dumb`, 512 coloane), deci programe
+  ca awk scriu fiecare linie imediat (în pipe țin 4 KB). Secvențele escape, `\r` și alte caractere de control se elimină;
+  tab-urile se păstrează (afișate până la următorul multiplu de 8). Liniile peste 64 KB se taie; o linie fără `\n` apare
+  după 1 s fără date. Citire în timpul liber al aplicației (fără thread-uri, maximum 4 MB pe trecere).
+  Când comanda se termină: `-- source ended (exit N) --` (galben), notă în Event Viewer, `(ended)` în titlu; **R** o repornește
+  (`-- source restarted --`), sau automat după N secunde. Închiderea ultimei ferestre care folosește o sursă trimite SIGHUP
+  grupului de procese (SIGKILL după 2 s, fără blocare).
+- Titlu: `Log: <titlu> [I] [E] afișate/total`, `[F-]` cu filtrele oprite, `(ended)`, `[PAUSE +N]` în pauză, `[+N]` când ai urcat
+  în istoric și au venit linii noi, marcajul de alertă în față (`[!reject] Log: ...`).
+- Taste (fereastra cu focus; și în meniul ei, **F9** sau click dreapta; bara de stare le arată pe cele principale, iar un click
+  pe una dintre ele face ce face tasta: F9, F4, I, E, F, Space, /, Ctrl-C, F2): F4 setări,
+  I / E dialogul pe include / exclude, F filtre active/oprite, D duplicat (aceeași sursă, filtre copiate, titlu + ` (2)`),
+  R repornire, Space pauză/continuare, W linii rupte / derulare orizontală (←→, 8 coloane), X golește fereastra (nu sursa),
+  `/` căutare (text simplu sau regex; potrivirea e negru pe galben), F3 sau n mai vechi, Shift-F3 sau N mai nou, F2 sau s salvare,
+  Ctrl-C (sau Ctrl-Ins) copiere, Ctrl-E într-un editor nou, Ctrl-A adăugare la finalul unui editor deschis (ales din listă;
+  focusul rămâne în LogView) — toate trei folosesc selecția sau, fără ea, linia cursorului —, rotița mouse-ului, Esc șterge
+  selecția, apoi potrivirea.
+- **Cursor de linie** (negru pe cyan, doar în fereastra cu focus): Sus/Jos/PgUp/PgDn/Home/End îl mută, vederea se derulează
+  doar cât să-l țină pe ecran; click-ul îl pune pe o linie; căutarea îl pune pe potrivire; la filtre noi rămâne pe aceeași linie
+  (dacă e ascunsă: cea mai apropiată dinaintea ei); cu W, toate rândurile liniei. **Cu cursorul pe ultima linie, liniile noi sunt
+  urmărite**; mai sus, vederea rămâne fixă (`[+N]` numără liniile noi), End reia urmărirea. Rotița și bara de derulare mută doar
+  vederea: la final, urmărirea reîncepe și cursorul trece pe ultima linie.
+- Selecție: linii întregi; click, tragere, Shift+click, Shift+Sus/Jos/PgUp/PgDn/Home/End (de la linia cursorului); Sus/Jos fără
+  Shift o șterg. Dublu click copiază un cuvânt. Clipboard-ul
+  primește liniile fără ultimul sfârșit de linie (la paste în shell nu se execută nimic). Salvare: liniile afișate sau selecția.
+- Alerte (Ctrl-B K, aceleași chei ca la terminale) pe liniile care trec de filtre; nimic în primele 3 s după pornirea sursei
+  (ex. `tail -n 5000`). Codul alertelor e comun prin interfața `AlertTarget` (terminal și LogView).
+- Window List (`Log`), Rename (Ctrl-B T), dialogul de ieșire (listează LogView-urile cu comanda lor), profiluri:
+  `[logview]` cu `title`, `command`, `include`, `exclude` (între ghilimele când încep/se termină cu spații), `ignore-case`, `wrap`,
+  `max-lines`, `auto-restart`, `alert-*`, `pos`. Un regex greșit în profil: raportat, fereastra se deschide fără el.
+  Pauza, selecția și F (filtre oprite) nu se salvează.
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
@@ -214,15 +257,21 @@ source/tvterm/             aplicația
   profile.cc/.h            parser/writer INI (WindowProfile, Profile)
   winlist.cc/.h            dialogul Window List, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            dialogul de confirmare a ieșirii (confirmQuit)
-  alerts.cc/.h             setări alerte (Ctrl-B K), Ctrl-B G, AlertStatusLine (o TVTermStatusLine cu contorul de alerte);
-                           logica în wnd.cc (TerminalWindow::checkAlerts)
+  alerts.cc/.h             setări alerte (Ctrl-B K), Ctrl-B G, AlertStatusLine (o TVTermStatusLine cu contorul de alerte),
+                           AlertTarget (interfața ferestrelor cu alerte); logica în wnd.cc (TerminalWindow::checkAlerts)
+                           și logview.cc (LogViewWindow::checkAlerts)
+  logsrc.cc/.h             LogSource: o comandă într-un pseudo-terminal, linii fără secvențe escape, partajată după comandă,
+                           citită în idle (LogSource::pollAll), oprită fără blocare
+  logview.cc/.h            LogViewWindow (filtre, derulare, linii rupte, căutare, selecție, editor, salvare, meniul F9, alerte),
+                           LogViewInterior (desenare, mouse), dialogul de setări (execLogViewDialog); regex POSIX (regcomp)
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, nume de taste, șablon, FileStamp
-  histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric
-  statline.cc/.h           bară de stare care poate afișa un mesaj câteva secunde
+  histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric; openTextSave (dialogul de salvare pentru LogView)
+  statline.cc/.h           bară de stare care poate afișa un mesaj câteva secunde; elemente care trimit o tastă la click
+                           (keyCommand: o comandă pentru fiecare tastă, transformată în eveniment de tastă în putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): mărime istoric, rotiță, caractere de cuvânt, taste, apeluri către aplicație
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
@@ -313,6 +362,23 @@ examples/profiles/example.ini
   re-armare, liniște de la pornire pentru un terminal care nu scrie nimic (și din profil), ieșirea din primele secunde
   repornește numărarea liniștii, Ctrl-B G/K, tile fără alarme false, profil salvat, un mesaj temporar ascunde contorul
   de alerte, CPU cu un terminal inundat + test unitar pentru OutputTextFilter.
+- Teste LogView (feat E5), cu tmux (`tmux send-keys`, `capture-pane -p`, `-e` pentru culori) și linii FortiGate generate:
+  două ferestre pe același `tail -F` → un singur proces; include cu spațiu final (între ghilimele) + exclude = `grep -E | grep -Ev`
+  (60/200, 10047/50000; fără diferență de majuscule 9996/50000); linii noi; rotația logului (mesajele lui `tail -F`, apoi
+  fișierul nou); Space (`[PAUSE +N]`), F (`[F-]`), PgUp + linii noi (`[+N]`), End, W, X; căutare cu evidențiere (fundal `103`)
+  și „No older match”; Shift+Sus → Ctrl-E (editor nou), Ctrl-A (listă, adăugare; fișier salvat: 6 linii cu LF); salvare
+  (implicit selecția); culori/`\r`/tab eliminate sau extinse; cod de ieșire; repornire automată după 2 s; alertă cuvânt cheie,
+  contor, Ctrl-B G, Ctrl-B K; dialogul Ctrl-B D; D duplicat (proces comun); Save Profile As (ghilimele păstrate) și reîncărcare;
+  dialogul de ieșire listează LogView-urile și procesele se opresc; regex greșit în profil; `[logview] max-lines` din tvterm.ini
+  (și o valoare greșită); 3 × 50000 de linii (~38 MB) încărcate în < 1 s, RSS ≈ 59 MB.
+  După primul test al utilizatorului (E5 refăcut): click-uri de mouse trimise ca secvențe SGR (`printf '\033[<0;X;Ym'`,
+  shell-ul testului e `sh`); culorile citite celulă cu celulă din `capture-pane -e` (fundalul cursorului, 46, colorează și rama
+  ferestrei); cursor pe ultima linie și urmărit, Sus/Jos (vedere fixă, `[+N]` = doar liniile noi; înainte le număra pe toate),
+  End; Shift+Sus ×2 → 3 linii copiate, Sus → 1 linie (a cursorului); Home, PgDn, Shift-End; click pe o linie + Sus; linie ruptă
+  (3 rânduri cu cursor); cursorul păstrat la filtre pornite/oprite/schimbate (linie ascunsă → cea dinainte); click-uri în bara
+  de stare: F9, F4, I, F, Space, /, Ctrl-C, F2; un click pe un mesaj temporar doar îl închide; F4: Apply (dialog deschis,
+  `[I] 10/300`), Apply cu `(` (eroare, dialog deschis), Cancel după Apply (filtrul aplicat rămâne), OK cu `(` (eroare, deschis),
+  OK (`[I] 111/300`). Build dinamic și static.
 
 ---
 
@@ -327,6 +393,9 @@ examples/profiles/example.ini
 - Expresiile regulate fără diferență între litere mari/mici tratează doar literele ASCII (căutarea de text simplu tratează și
   literele latine, românești, grecești, chirilice).
 - Căutarea citește tot istoricul la fiecare pas (merge până la limita de 100000 de linii, dar nu instantaneu).
+- LogView: bara de derulare numără linii, nu rânduri rupte; căutarea găsește prima potrivire din fiecare linie (F3 trece la
+  linia următoare); repornirea unei surse cu `tail -n N` arată din nou acele N linii; regex-urile din căutarea în istoric
+  (ECMAScript) și din LogView (POSIX, ca `grep -E`) diferă în detalii (ex. `\d` doar în ECMAScript).
 
 ---
 
@@ -344,3 +413,4 @@ examples/profiles/example.ini
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
 | Alerte (`far2l-extended`) | E4 | alerte de activitate / cuvânt cheie / liniște (liniștea numărată de la pornire), marcaj în titlu, contor în bara de jos, Ctrl-B K și G, chei în profil |
+| LogView (`far2l-extended`) | E5 | Ctrl-B D: ieșirea filtrată a unei comenzi, surse partajate, include/exclude, pauză, linii rupte, căutare, cursor de linie, selecție în clipboard/editor, salvare, meniul F9, bară de stare cu click, setări cu Apply, alerte, profiluri |

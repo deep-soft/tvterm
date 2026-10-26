@@ -79,6 +79,22 @@ static bool &filterField(EventFilter &filter, const std::string &key)
     return filter.messages;
 }
 
+static std::string unquote(const std::string &value)
+// "text" -> text: the quotes keep spaces at the start or the end.
+{
+    if (value.size() >= 2 && value.front() == '"' && value.back() == '"')
+        return value.substr(1, value.size() - 2);
+    return value;
+}
+
+static std::string quoteIfNeeded(const std::string &value)
+{
+    bool needed = !value.empty() &&
+                  ( isspace((unsigned char) value.front()) || isspace((unsigned char) value.back()) ||
+                    value.front() == '"' );
+    return needed ? "\"" + value + "\"" : value;
+}
+
 static bool parsePos(const std::string &value, WindowProfile &term)
 // Format: 'x y width height', in percent of the desktop. Commas, spaces
 // and '%' signs are all accepted as separators.
@@ -142,12 +158,14 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             std::string name = lower(trim(line.substr(1, line.find(']') - 1)));
             if (name == "profile")
                 section = InProfile;
-            else if (name == "terminal" || name == "editor" || name == "eventviewer" || name == "event-viewer")
+            else if ( name == "terminal" || name == "editor" || name == "eventviewer" ||
+                      name == "event-viewer" || name == "logview" || name == "log-view" )
             {
                 section = InWindow;
                 profile.windows.emplace_back();
                 profile.windows.back().kind = name == "terminal" ? WindowProfile::Terminal :
                                               name == "editor"   ? WindowProfile::Editor :
+                                              name == "logview" || name == "log-view" ? WindowProfile::LogView :
                                                                    WindowProfile::EventViewer;
             }
             else
@@ -165,6 +183,14 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
         }
         std::string key = lower(trim(line.substr(0, eq)));
         std::string value = trim(line.substr(eq + 1));
+        auto parseCount = [&] (int min, int max, int &out, const char *hint) {
+            char *end;
+            long n = strtol(value.c_str(), &end, 10);
+            if (value.empty() || *end || n < min || n > max)
+                warn("invalid " + key + " '" + value + "' (" + hint + ")");
+            else
+                out = (int) n;
+        };
 
         if (section == InProfile)
         {
@@ -195,14 +221,41 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             WindowProfile &win = profile.windows.back();
             bool isTerm = win.kind == WindowProfile::Terminal;
             bool isEditor = win.kind == WindowProfile::Editor;
-            const char *sectionName = isTerm ? "[terminal]" : isEditor ? "[editor]" : "[eventviewer]";
+            bool isLog = win.kind == WindowProfile::LogView;
+            bool hasAlerts = isTerm || isLog;
+            const char *sectionName = isTerm ? "[terminal]" : isEditor ? "[editor]" :
+                                      isLog ? "[logview]" : "[eventviewer]";
             if (key == "pos")
             {
                 if (!parsePos(value, win))
                     warn("invalid pos '" + value + "' (use: x y width height, in percent)");
             }
-            else if (isTerm && key == "title")
+            else if ((isTerm || isLog) && key == "title")
                 win.title = value;
+            else if (isLog && key == "command")
+                win.command = value;
+            else if (isLog && key == "include")
+                win.logInclude = unquote(value);
+            else if (isLog && key == "exclude")
+                win.logExclude = unquote(value);
+            else if (isLog && key == "ignore-case")
+            {
+                if (!parseBool(value, win.logIgnoreCase))
+                    warn("invalid ignore-case '" + value + "' (use yes or no)");
+            }
+            else if (isLog && key == "wrap")
+            {
+                if (!parseBool(value, win.logWrap))
+                    warn("invalid wrap '" + value + "' (use yes or no)");
+            }
+            else if (isLog && key == "max-lines")
+            {
+                int n = win.logMaxLines;
+                parseCount(0, 1000000, n, "0: default from tvterm.ini, or 100 to 1000000");
+                win.logMaxLines = n > 0 && n < 100 ? 100 : n;
+            }
+            else if (isLog && key == "auto-restart")
+                parseCount(0, 86400, win.logAutoRestart, "seconds, 0: off");
             else if (isTerm && key == "dir")
                 win.dir = expandHome(value);
             else if (isTerm && key == "command")
@@ -212,14 +265,14 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 if (!parseBool(value, win.keepOpen))
                     warn("invalid keep-open '" + value + "' (use yes or no)");
             }
-            else if (isTerm && key == "alert-activity")
+            else if (hasAlerts && key == "alert-activity")
             {
                 if (!parseBool(value, win.alertActivity))
                     warn("invalid alert-activity '" + value + "' (use yes or no)");
             }
-            else if (isTerm && key == "alert-keywords")
+            else if (hasAlerts && key == "alert-keywords")
                 win.alertKeywords = value;
-            else if (isTerm && key == "alert-silence")
+            else if (hasAlerts && key == "alert-silence")
             {
                 char *end;
                 long n = strtol(value.c_str(), &end, 10);
@@ -230,7 +283,7 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (isEditor && key == "file")
                 win.file = expandHome(value);
-            else if (!isTerm && !isEditor && isFilterKey(key))
+            else if (win.kind == WindowProfile::EventViewer && isFilterKey(key))
             {
                 if (!parseBool(value, filterField(win.filter, key)))
                     warn("invalid " + key + " '" + value + "' (use yes or no)");
@@ -320,6 +373,27 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 file << "\n[editor]\n";
                 if (!win.file.empty())
                     file << "file = " << win.file << "\n";
+                break;
+            case WindowProfile::LogView:
+                file << "\n[logview]\n";
+                if (!win.title.empty())
+                    file << "title = " << win.title << "\n";
+                file << "command = " << win.command << "\n";
+                if (!win.logInclude.empty())
+                    file << "include = " << quoteIfNeeded(win.logInclude) << "\n";
+                if (!win.logExclude.empty())
+                    file << "exclude = " << quoteIfNeeded(win.logExclude) << "\n";
+                file << "ignore-case = " << (win.logIgnoreCase ? "yes" : "no") << "\n"
+                     << "wrap = " << (win.logWrap ? "yes" : "no") << "\n"
+                     << "max-lines = " << win.logMaxLines << "\n";
+                if (win.logAutoRestart > 0)
+                    file << "auto-restart = " << win.logAutoRestart << "\n";
+                if (win.alertActivity)
+                    file << "alert-activity = yes\n";
+                if (!win.alertKeywords.empty())
+                    file << "alert-keywords = " << win.alertKeywords << "\n";
+                if (win.alertSilence > 0)
+                    file << "alert-silence = " << win.alertSilence << "\n";
                 break;
             case WindowProfile::EventViewer:
             {

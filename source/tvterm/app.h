@@ -39,6 +39,7 @@ struct TVTermApp : public TApplication
     void newEditor();
     void openEditor();
     void toggleEventViewer();
+    void newLogView();
     void loadProfile();
     void saveProfile();
     void windowList();

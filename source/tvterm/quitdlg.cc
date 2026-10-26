@@ -15,6 +15,7 @@
 #include "procinfo.h"
 #include "winlist.h"
 #include "wnd.h"
+#include "logview.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 
@@ -80,7 +81,7 @@ public:
         insert(sb);
         list = new TermListViewer(r, sb);
         insert(list);
-        insert(new TLabel(TRect(r.a.x, r.a.y - 1, r.a.x + 30, r.a.y), "~T~erminals", list));
+        insert(new TLabel(TRect(r.a.x, r.a.y - 1, r.a.x + 30, r.a.y), "~W~indows", list));
         int x = (size.x - 38) / 2, y = size.y - 3;
         insert(new TButton(TRect(x, y, x + 10, y + 2), "~Q~uit", cmOK, bfDefault)); x += 12;
         insert(new TButton(TRect(x, y, x + 12, y + 2), "~G~o to", cmQuitGoTo, bfNormal)); x += 14;
@@ -169,10 +170,20 @@ bool confirmQuit(TDeskTop &deskTop)
 {
     using namespace quitdlg;
     std::vector<TermItem> terms;
+    size_t logs = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
         if (auto *term = dynamic_cast<TerminalWindow *>(w))
+        {
             if (isConnected(term))
                 terms.push_back(describe(*term));
+        }
+        else if (auto *log = dynamic_cast<LogViewWindow *>(w))
+            if (log->isSourceRunning())
+            {
+                const char *title = log->getTitle(100);
+                terms.push_back({w, title && *title ? title : "Log", "log: " + log->getOptions().command, true});
+                ++logs;
+            }
     if (terms.empty())
         return true;
     // Terminals running a program first; otherwise, desktop order.
@@ -192,10 +203,22 @@ bool confirmQuit(TDeskTop &deskTop)
         items.push_back(" " + padRight(t.title, titleWidth) + "  " + t.what);
 
     char summary[256];
-    snprintf(summary, sizeof(summary),
-        "%zu terminal%s open, %zu running a program.\n"
-        "Programs receive SIGHUP and usually stop. Quit anyway?",
-        terms.size(), terms.size() == 1 ? " is" : "s are", busy);
+    size_t termCount = terms.size() - logs;
+    if (logs == 0)
+        snprintf(summary, sizeof(summary),
+            "%zu terminal%s open, %zu running a program.\n"
+            "Programs receive SIGHUP and usually stop. Quit anyway?",
+            termCount, termCount == 1 ? " is" : "s are", busy);
+    else if (termCount == 0)
+        snprintf(summary, sizeof(summary),
+            "%zu Log View%s reading the output of a command.\n"
+            "The commands receive SIGHUP and stop. Quit anyway?",
+            logs, logs == 1 ? " is" : "s are");
+    else
+        snprintf(summary, sizeof(summary),
+            "%zu terminal%s (%zu running a program), %zu Log View%s.\n"
+            "Programs receive SIGHUP and usually stop. Quit anyway?",
+            termCount, termCount == 1 ? "" : "s", busy - logs, logs, logs == 1 ? "" : "s");
 
     int listHeight = (int) terms.size();
     int maxListHeight = deskTop.size.y - 10;

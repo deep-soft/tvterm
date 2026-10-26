@@ -50,17 +50,18 @@ E1. Add history mode (scroll, search, save), word/line selection and a settings 
 E2. Add version information (--version) and an About dialog
 E3. Add filters to the Event Viewer
 E4. Add alerts: activity, keywords and silence
+E5. Add Log View: filtered output of a command
 
 ---
 
-## 2. Features (all tested by the user in the real setup)
+## 2. Features (all tested by the user in the real setup, unless marked otherwise)
 
 ### Menu (Ctrl-B)
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
 `R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
-`L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
+`D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, D, I, X, Y, Z (`M` opens More...).
+Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 
 ### History (scrollback) — `far2l-extended`
 - Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
@@ -145,7 +146,50 @@ Free menu letters: B, C, D, I, X, Y, Z (`M` opens More...).
   the window is hidden; `TerminalWindow::checkAlerts` does the matching (keywords split between two reads are found).
 - Real test (CentOS 7.9): activity and keywords worked; silence was first armed only by output, so a `tail -f`
   on a quiet log never alerted until new lines came → changed: silence is counted from the start of the terminal
-  (not yet tested in the real setup).
+  (tested by the user in the real setup).
+
+### Log View — `far2l-extended` (not yet tested in the real setup)
+- **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
+  **exclude** (one regular expression each, POSIX extended like `grep -E`; alternatives with `|`, e.g. `dstport=(993|465|587) `;
+  trailing spaces are kept), ignore case, wrap long lines, max lines (0: `[logview] max-lines` from tvterm.ini, default 50000),
+  restart after N seconds (0: no). Invalid values are reported in the dialog, which stays open with the focus on the field.
+  **F4** on an open window: the same dialog (modal) with **OK / Apply / Cancel**; Apply applies the settings and keeps the
+  dialog open (to see the effect of the filters); Cancel closes it and drops only what was not applied.
+- A Log View is a window, not a terminal: it shows the lines written by the command. As many as needed; windows with
+  **the same command share one source** (one process, one buffer; the buffer keeps the largest number of lines asked for).
+  A line passes if it matches the include expression (or there is none) and not the exclude one. **New filters apply to
+  the whole buffer** (50000 FortiGate lines: about 0.1 s).
+- The source runs with `$SHELL -c command` (like terminal commands) in a pseudo-terminal (`TERM=dumb`, 512 columns), so
+  programs such as awk write each line at once (in a pipe they keep 4 KB). Escape sequences, `\r` and other control
+  characters are removed; tabs are kept (shown up to the next multiple of 8). Lines longer than 64 KB are cut; a line
+  without `\n` is shown after 1 s without data. Read in the idle time (no threads, at most 4 MB per pass).
+  When the command ends: `-- source ended (exit N) --` (yellow), a note in the Event Viewer, `(ended)` in the title;
+  **R** restarts it (`-- source restarted --`), or automatically after N seconds. Closing the last window that uses a
+  source sends SIGHUP to its process group (SIGKILL after 2 s, without blocking).
+- Title: `Log: <title> [I] [E] shown/total`, `[F-]` with the filters off, `(ended)`, `[PAUSE +N]` while paused, `[+N]` when
+  scrolled up and new lines came, the alert mark first (`[!reject] Log: ...`).
+- Keys (window focused; also in its menu, **F9** or right click; the status line shows the main ones, and a click on one of
+  them works like its key: F9, F4, I, E, F, Space, /, Ctrl-C, F2): F4 settings, I / E
+  the dialog on include / exclude, F filters on/off, D duplicate (same source, filters copied, title + ` (2)`), R restart,
+  Space pause/continue, W wrapped lines / horizontal scrolling (←→, 8 columns), X clear this window (not the source),
+  `/` search (plain text or regular expression; the match is black on yellow), F3 or n older, Shift-F3 or N newer, F2 or s save,
+  Ctrl-C (or Ctrl-Ins) copy, Ctrl-E to a new editor, Ctrl-A added at the end of an open editor (chosen from a list; the Log View
+  keeps the focus) — the three use the selection or, without one, the cursor line —, mouse wheel, Esc clears the selection,
+  then the match.
+- **Cursor line** (black on cyan, only in the focused window): Up/Down/PgUp/PgDn/Home/End move it, the view scrolls only to
+  keep it on the screen; a click puts it on a line; a search puts it on the match; with new filters it stays on the same line
+  (if hidden: the nearest one before it); with W, all the rows of the line. **With the cursor on the last line, new lines are
+  followed**; higher, the view stays (`[+N]` counts the new lines), End follows again. The mouse wheel and the scroll bar move
+  only the view: at the end, following starts again and the cursor goes to the last line.
+- Selection: whole lines; click, drag, Shift+click, Shift+Up/Down/PgUp/PgDn/Home/End (from the cursor line); Up/Down without
+  Shift clear it. Double click copies a word. The clipboard gets
+  the lines without the last line break (pasting into a shell does not run anything). Save: the lines shown, or the selection.
+- Alerts (Ctrl-B K, same keys as for terminals) on the lines that pass the filters; nothing in the first 3 s after the source
+  starts (e.g. `tail -n 5000`). The alert code is shared through the `AlertTarget` interface (terminal and Log View).
+- Window List (`Log`), Rename (Ctrl-B T), quit dialog (lists the Log Views with their command), profiles:
+  `[logview]` with `title`, `command`, `include`, `exclude` (in quotes when they start/end with spaces), `ignore-case`, `wrap`,
+  `max-lines`, `auto-restart`, `alert-*`, `pos`. An invalid expression in a profile: reported, the window opens without it.
+  Paused state, selection and F (filters off) are not saved.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -212,15 +256,21 @@ source/tvterm/             the application
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
-  alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, AlertStatusLine (a TVTermStatusLine with the alert counter);
-                           logic in wnd.cc (TerminalWindow::checkAlerts)
+  alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, AlertStatusLine (a TVTermStatusLine with the alert counter),
+                           AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
+                           and logview.cc (LogViewWindow::checkAlerts)
+  logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
+                           read in idle (LogSource::pollAll), stopped without blocking
+  logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
+                           LogViewInterior (drawing, mouse), the settings dialog (execLogViewDialog); POSIX regex (regcomp)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
-  histdlg.cc/.h            search and save dialogs of history mode
-  statline.cc/.h           status line that can show a message for a few seconds
+  histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
+  statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
+                           (keyCommand: a command per key, turned into the key event in putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
@@ -310,6 +360,23 @@ examples/profiles/example.ini
   re-arming, silence from the start of a terminal that never writes (also from a profile), output in the first seconds
   restarts the silence count, Ctrl-B G/K, tile without false alarms, saved profile, a temporary message hides the alert
   counter, CPU with a flooding terminal + a unit test of OutputTextFilter.
+- Log View tests (feat E5), with tmux (`tmux send-keys`, `capture-pane -p`, `-e` for colors) and generated FortiGate lines:
+  two windows on the same `tail -F` → one process; include with a trailing space (in quotes) + exclude = `grep -E | grep -Ev`
+  (60/200, 10047/50000; ignore case 9996/50000); new lines; log rotation (`tail -F` messages, then the new file); Space
+  (`[PAUSE +N]`), F (`[F-]`), PgUp + new lines (`[+N]`), End, W, X; search with highlight (`103` background) and "No older match";
+  Shift+Up → Ctrl-E (new editor), Ctrl-A (list, appended; saved file: 6 lines with LF); save (selection by default);
+  colors/`\r`/tab removed or expanded; exit code; auto-restart after 2 s; keyword alert, counter, Ctrl-B G, Ctrl-B K;
+  Ctrl-B D dialog; D duplicate (shared process); Save Profile As (quotes kept) and reload; quit dialog lists the Log Views
+  and the processes stop; invalid expression in a profile; `[logview] max-lines` from tvterm.ini (also an invalid value);
+  3 × 50000 lines (~38 MB) loaded in < 1 s, RSS ≈ 59 MB.
+  After the user's first test (E5 redone): mouse clicks sent as SGR sequences (`printf '\033[<0;X;Ym'`, the test shell is
+  `sh`); the colors read cell by cell from `capture-pane -e` (the cursor's background, 46, also colors the window frame);
+  cursor on the last line and followed, Up/Down (view fixed, `[+N]` = only the new lines; before, it counted all of them),
+  End; Shift+Up ×2 → 3 lines copied, Up → 1 line (the cursor's); Home, PgDn, Shift-End; click on a line + Up; wrapped line
+  (3 rows with the cursor); cursor kept with filters on/off/changed (hidden line → the one before); status line clicks: F9,
+  F4, I, F, Space, /, Ctrl-C, F2; a click on a temporary message only removes it; F4: Apply (dialog open, `[I] 10/300`), Apply
+  with `(` (error, dialog open), Cancel after Apply (applied filter kept), OK with `(` (error, open), OK (`[I] 111/300`).
+  Dynamic and static builds.
 
 ---
 
@@ -322,6 +389,9 @@ examples/profiles/example.ini
   default filters (the last ones are not remembered; profiles keep them).
 - Case-insensitive regular expressions only fold ASCII letters (plain text search also folds Latin, Romanian, Greek, Cyrillic).
 - History search reads the whole history on every step (fine up to the 100000 lines limit, but not instant).
+- Log View: the scroll bar counts lines, not wrapped rows; a search finds the first match of each line (F3 goes to the next
+  line); restarting a source with `tail -n N` shows those N lines again; the regular expressions of the history search
+  (ECMAScript) and of the Log View (POSIX, like `grep -E`) differ in details (e.g. `\d` only in ECMAScript).
 
 ---
 
@@ -339,3 +409,4 @@ examples/profiles/example.ini
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |
 | Alerts (`far2l-extended`) | E4 | activity / keyword / silence alerts (silence counted from the start), title mark, status line counter, Ctrl-B K and G, profile keys |
+| Log View (`far2l-extended`) | E5 | Ctrl-B D: filtered output of a command, shared sources, include/exclude, pause, wrap, search, cursor line, selection to clipboard/editor, save, F9 menu, clickable status line, settings with Apply, alerts, profiles |

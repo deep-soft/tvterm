@@ -76,14 +76,20 @@ struct DialogData
 
 } // namespace alertdlg
 
-void execAlertSettings(TerminalWindow &term)
+uint64_t newAlertOrder() noexcept
+{
+    static uint64_t lastAlertOrder = 0;
+    return ++lastAlertOrder;
+}
+
+void execAlertSettings(TWindow &window, AlertTarget &target)
 {
     using namespace alertdlg;
     TDialog *d = new TDialog(TRect(0, 0, 66, 17), "Alerts");
     d->options |= ofCentered;
 
-    const char *title = term.getTitle(100);
-    std::string heading = "Terminal: ";
+    const char *title = window.getTitle(100);
+    std::string heading = dynamic_cast<TerminalWindow *>(&window) ? "Terminal: " : "Window: ";
     heading += title && *title ? title : "(no title)";
     d->insert(new TStaticText(TRect(3, 2, 63, 3), heading));
 
@@ -100,12 +106,12 @@ void execAlertSettings(TerminalWindow &term)
     d->insert(new TLabel(TRect(2, 9, 63, 10), "~S~ilence: seconds without output (0: off):", silence));
 
     d->insert(new TStaticText(TRect(3, 12, 63, 13),
-        "Alerts appear only for terminals that are not selected."));
+        "Alerts appear only for windows that are not selected."));
     d->insert(new TButton(TRect(20, 14, 30, 16), "O~K~", cmOK, bfDefault));
     d->insert(new TButton(TRect(34, 14, 46, 16), "Cancel", cmCancel, bfNormal));
     activity->select();
 
-    const AlertSettings &cur = term.getAlertSettings();
+    const AlertSettings &cur = target.getAlertSettings();
     DialogData data {};
     data.activity = cur.activity ? 1 : 0;
     snprintf(data.keywords, sizeof(data.keywords), "%s", joinKeywords(cur.keywords).c_str());
@@ -142,25 +148,28 @@ void execAlertSettings(TerminalWindow &term)
         seconds = 0;
     }
     settings.silenceSeconds = (int) seconds;
-    term.setAlertSettings(std::move(settings));
+    target.setAlertSettings(std::move(settings));
 }
 
-static TerminalWindow *oldestAlert(TDeskTop &deskTop)
+static TWindow *oldestAlert(TDeskTop &deskTop)
 {
-    TerminalWindow *best = nullptr;
+    TWindow *best = nullptr;
+    uint64_t bestOrder = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
-        if (auto *term = dynamic_cast<TerminalWindow *>(w))
-            if ( term->getAlert() != TerminalWindow::Alert::None &&
-                 (!best || term->getAlertOrder() < best->getAlertOrder()) )
-                best = term;
+        if (auto *target = dynamic_cast<AlertTarget *>(w))
+            if (target->hasAlert() && (!best || target->getAlertOrder() < bestOrder))
+            {
+                best = w;
+                bestOrder = target->getAlertOrder();
+            }
     return best;
 }
 
 bool goToNextAlert(TDeskTop &deskTop)
 {
-    if (TerminalWindow *term = oldestAlert(deskTop))
+    if (TWindow *w = oldestAlert(deskTop))
     {
-        term->select();
+        w->select();
         return true;
     }
     return false;
@@ -170,8 +179,8 @@ size_t countAlerts(TDeskTop &deskTop)
 {
     size_t count = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
-        if (auto *term = dynamic_cast<TerminalWindow *>(w))
-            count += term->getAlert() != TerminalWindow::Alert::None;
+        if (auto *target = dynamic_cast<AlertTarget *>(w))
+            count += target->hasAlert();
     return count;
 }
 

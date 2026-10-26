@@ -13,6 +13,7 @@
 #include "winlist.h"
 #include "wnd.h"
 #include "evntview.h"
+#include "logview.h"
 
 #include <string.h>
 #include <string>
@@ -105,6 +106,7 @@ std::string describe(TWindow *w)
     const char *kind = dynamic_cast<TerminalWindow *>(w) ? "Term  " :
                        dynamic_cast<TEditWindow *>(w) ? "Editor" :
                        dynamic_cast<TEventViewer *>(w) ? "Events" :
+                       dynamic_cast<LogViewWindow *>(w) ? "Log   " :
                                                          "Window";
     const char *title = w->getTitle(100);
     std::string s = kind;
@@ -131,6 +133,14 @@ std::vector<TWindow *> getDeskTopWindows(TDeskTop &deskTop)
 
 bool renameTerminal(TWindow *window)
 {
+    if (auto *log = dynamic_cast<LogViewWindow *>(window))
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "%s", log->getOptions().title.c_str());
+        if (inputBox("Rename Log View", "~T~itle (empty: the command)", buf, 100) != cmCancel)
+            log->setCustomTitle(buf);
+        return true;
+    }
     auto *term = dynamic_cast<TerminalWindow *>(window);
     if (!term)
         return false;
@@ -184,7 +194,7 @@ void execWindowList(TDeskTop &deskTop)
                 return;
             case cmWinListRename:
                 if (!renameTerminal(w))
-                    messageBox("Only terminals can be renamed.", mfInformation | mfOKButton);
+                    messageBox("Only terminals and Log Views can be renamed.", mfInformation | mfOKButton);
                 break; // Show the list again.
             case cmWinListClose:
             {

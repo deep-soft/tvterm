@@ -155,13 +155,12 @@ void TerminalWindow::checkAlerts() noexcept
 
 void TerminalWindow::raiseAlert(Alert kind, const std::string &keyword) noexcept
 {
-    static uint64_t lastAlertOrder = 0;
     // A keyword is more important than silence, which is more important
     // than activity.
     if (kind <= alert)
         return;
     if (alert == Alert::None)
-        alertOrder = ++lastAlertOrder;
+        alertOrder = newAlertOrder();
     alert = kind;
     alertKeyword = keyword;
     if (frame)

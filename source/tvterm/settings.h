@@ -23,6 +23,8 @@ struct Settings
     std::string saveDir;    // Empty: the terminal's current directory.
     bool searchCaseSensitive {false};
     bool shiftClickSelect {true};
+    // [logview]
+    int logViewMaxLines {50000};
     // [keys]
     TKey keyPageUp {kbPgUp, kbShift | kbAltShift};
     TKey keyPageDown {kbPgDn, kbShift | kbAltShift};

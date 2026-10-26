@@ -30,6 +30,8 @@
 #include "histdlg.h"
 #include "about.h"
 #include "alerts.h"
+#include "logview.h"
+#include "logsrc.h"
 #include <tvterm/termopts.h>
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
@@ -287,6 +289,11 @@ void TVTermApp::editSettings()
 
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
+    // Items of windows that handle their own keys: a click sends the key
+    // (see TVTermStatusLine::keyCommand).
+    auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
+        return TVTermStatusLine::keyCommand(keyCode, mods, ch);
+    };
     r.b.y = r.a.y + 1;
     TStatusLine *statusLine = new AlertStatusLine(r,
         *new TStatusDef(hcDragging, hcDragging) +
@@ -311,6 +318,18 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, 0) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
+        // Log View: its keys are handled by the window.
+        *new TStatusDef(hcLogView, hcLogView) +
+            *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
+            *new TStatusItem("~F4~ Settings", kbNoKey, keyCmd(kbF4)) +
+            *new TStatusItem("~I~ Include", kbNoKey, keyCmd('i', 0, 'i')) +
+            *new TStatusItem("~E~ Exclude", kbNoKey, keyCmd('e', 0, 'e')) +
+            *new TStatusItem("~F~ Filters", kbNoKey, keyCmd('f', 0, 'f')) +
+            *new TStatusItem("~Space~ Pause", kbNoKey, keyCmd(' ', 0, ' ')) +
+            *new TStatusItem("~/~ Search", kbNoKey, keyCmd('/', 0, '/')) +
+            *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
+            *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
+            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
             *new TStatusItem("~M C K O T~ Filter", kbNoKey, 0) +
@@ -357,6 +376,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmNewEditor: newEditor(); break;
                 case cmOpenEditor: openEditor(); break;
                 case cmEventViewer: toggleEventViewer(); break;
+                case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
                 case cmSaveProfile: saveProfile(); break;
                 case cmWindowList: windowList(); break;
@@ -398,7 +418,8 @@ Boolean TVTermApp::valid(ushort command)
     {
         // Lists what runs in each terminal; the user may also go to one
         // of them instead of quitting.
-        if (getOpenTermCount() && !confirmQuit(*deskTop))
+        if ( (getOpenTermCount() || countRunningLogViews(*deskTop)) &&
+             !confirmQuit(*deskTop) )
             return False;
         // Let editor windows ask to save modified files.
     }
@@ -424,6 +445,8 @@ void TVTermApp::idle()
         else
             disableCommands(tileCmds);
     }
+    // Log Views take the new lines of their sources during the broadcast.
+    LogSource::pollAll();
     message(this, evBroadcast, cmCheckTerminalUpdates, nullptr);
     TVTermStatusLine::checkExpired();
     checkSettingsFile();
@@ -460,6 +483,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
+        *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'D', hcNoContext, "~D~") +
         *new TMenuItem("Load Profile...", cmLoadProfile, 'L', hcNoContext, "~L~") +
         *new TMenuItem("Save Profile As...", cmSaveProfile, 'A', hcNoContext, "~A~") +
         newLine() +
@@ -559,6 +583,13 @@ void TVTermApp::toggleEventViewer()
     }
 }
 
+void TVTermApp::newLogView()
+{
+    LogViewOptions options;
+    if (execLogViewDialog(options, true))
+        insertWindow(new LogViewWindow(deskTop->getExtent(), options));
+}
+
 void TVTermApp::getEvent(TEvent &event)
 {
     TApplication::getEvent(event);
@@ -598,7 +629,7 @@ bool TVTermApp::openProfile(const std::string &nameOrPath)
     {
         if (warnings.empty())
             pendingMessage = "Profile " + profile.path + " has no windows "
-                             "([terminal], [editor] or [eventviewer] sections).";
+                             "([terminal], [editor], [eventviewer] or [logview] sections).";
         return false;
     }
     openProfile(profile);
@@ -681,6 +712,40 @@ void TVTermApp::openProfile(const Profile &profile)
                 window = newEventViewer(r, win.filter);
                 break;
             }
+            case WindowProfile::LogView:
+            {
+                if (win.command.empty())
+                {
+                    note("profile " + profile.path + ": [logview] without a command, skipped");
+                    break;
+                }
+                TRect r = win.hasPos ? profileBounds(win, ext) : ext;
+                LogViewOptions o;
+                o.title = win.title;
+                o.command = win.command;
+                o.include = win.logInclude;
+                o.exclude = win.logExclude;
+                o.ignoreCase = win.logIgnoreCase;
+                o.wrap = win.logWrap;
+                o.maxLines = win.logMaxLines;
+                o.autoRestart = win.logAutoRestart;
+                auto *log = new LogViewWindow(r, o);
+                std::string error;
+                if (!log->setOptions(o, error))
+                {
+                    note("profile " + profile.path + ": [logview] '" + win.command + "': " + error);
+                    if (pendingMessage.empty())
+                        pendingMessage = "Problems in profile " + profile.path + ":\n[logview] '" +
+                                         win.command + "': " + error + "\n(the filter is not used)";
+                }
+                AlertSettings alerts;
+                alerts.activity = win.alertActivity;
+                alerts.keywords = parseKeywords(win.alertKeywords);
+                alerts.silenceSeconds = win.alertSilence;
+                log->setAlertSettings(std::move(alerts));
+                window = log;
+                break;
+            }
         }
         if (window)
             if (TWindow *inserted = insertWindow(window))
@@ -736,10 +801,11 @@ void TVTermApp::windowList()
 
 void TVTermApp::alertSettings()
 {
-    if (auto *term = dynamic_cast<TerminalWindow *>(deskTop->current))
-        execAlertSettings(*term);
+    auto *w = dynamic_cast<TWindow *>(deskTop->current);
+    if (auto *target = dynamic_cast<AlertTarget *>(deskTop->current))
+        execAlertSettings(*w, *target);
     else
-        messageBox("The current window is not a terminal.", mfInformation | mfOKButton);
+        messageBox("The current window is not a terminal or a Log View.", mfInformation | mfOKButton);
 }
 
 void TVTermApp::nextAlert()
@@ -752,7 +818,7 @@ void TVTermApp::renameTerm()
 {
     auto *w = dynamic_cast<TWindow *>(deskTop->current);
     if (!w || !renameTerminal(w))
-        messageBox("The current window is not a terminal.", mfInformation | mfOKButton);
+        messageBox("The current window is not a terminal or a Log View.", mfInformation | mfOKButton);
 }
 
 // Describing the current windows as a profile.
@@ -845,6 +911,26 @@ void TVTermApp::saveProfile()
                 else if (!win.file.empty() && edit->editor->modified)
                     ++modifiedFiles;
             }
+            setProfilePos(win, *w, ext);
+            profile.windows.push_back(std::move(win));
+        }
+        else if (auto *log = dynamic_cast<LogViewWindow *>(w))
+        {
+            const LogViewOptions &o = log->getOptions();
+            WindowProfile win;
+            win.kind = WindowProfile::LogView;
+            win.title = o.title;
+            win.command = o.command;
+            win.logInclude = o.include;
+            win.logExclude = o.exclude;
+            win.logIgnoreCase = o.ignoreCase;
+            win.logWrap = o.wrap;
+            win.logMaxLines = o.maxLines;
+            win.logAutoRestart = o.autoRestart;
+            const AlertSettings &alerts = log->getAlertSettings();
+            win.alertActivity = alerts.activity;
+            win.alertKeywords = joinKeywords(alerts.keywords);
+            win.alertSilence = alerts.silenceSeconds;
             setProfilePos(win, *w, ext);
             profile.windows.push_back(std::move(win));
         }

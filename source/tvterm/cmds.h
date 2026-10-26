@@ -32,6 +32,7 @@ enum : ushort
     cmShowNotes, // From the Event Viewer (infoPtr): show the kept messages.
     cmAlertSettings,
     cmNextAlert,
+    cmNewLogView,
 };
 
 enum : ushort
@@ -42,6 +43,7 @@ enum : ushort
     hcEditor,
     hcHistory,
     hcEventViewer,
+    hcLogView,
 };
 
 #endif // TVTERM_CMDS_H

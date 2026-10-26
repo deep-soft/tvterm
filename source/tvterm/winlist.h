@@ -11,8 +11,8 @@
 class TDeskTop;
 void execWindowList(TDeskTop &deskTop);
 
-// Asks for a new title for 'window', if it is a terminal.
-// Returns false if it is not a terminal.
+// Asks for a new title for 'window', if it is a terminal or a Log View.
+// Returns false otherwise.
 bool renameTerminal(TWindow *window);
 
 // Windows on the desktop, from front to back.

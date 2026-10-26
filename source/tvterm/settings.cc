@@ -164,7 +164,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Keys, Unknown } section = None;
+    enum { None, General, Scrollback, Keys, LogView, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -181,7 +181,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             std::string name = lower(trim(line.substr(1, line.find(']') - 1)));
             section = name == "general" ? General :
                       name == "scrollback" ? Scrollback :
-                      name == "keys" ? Keys : Unknown;
+                      name == "keys" ? Keys :
+                      name == "logview" ? LogView : Unknown;
             if (section == Unknown)
                 warn("unknown section [" + name + "]");
             continue;
@@ -238,6 +239,16 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             }
             else
                 warn("unknown key '" + key + "' in [scrollback]");
+        }
+        else if (section == LogView)
+        {
+            if (key == "max-lines")
+            {
+                if (!parseInt(value, 100, 1000000, settings.logViewMaxLines))
+                    invalid("100 to 1000000"), settings.logViewMaxLines = previous.logViewMaxLines;
+            }
+            else
+                warn("unknown key '" + key + "' in [logview]");
         }
         else if (section == Keys)
         {
@@ -304,6 +315,11 @@ std::string settingsTemplate()
         "#search-case-sensitive = no\n"
         "# Shift+click selects text even in programs that use the mouse (e.g. far2l).\n"
         "#shift-click-select = yes\n"
+        "\n"
+        "[logview]\n"
+        "# Lines kept by each Log View source (Ctrl-B D), 100 to 1000000; a window\n"
+        "# can ask for another number. About 1 KB per line of a firewall log.\n"
+        "#max-lines = " + std::to_string(d.logViewMaxLines) + "\n"
         "\n"
         "[keys]\n"
         "# Keys that scroll the history directly (outside of full-screen programs).\n"

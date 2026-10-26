@@ -2,6 +2,7 @@
 #define TVTERM_STATLINE_H
 
 #define Uses_TStatusLine
+#define Uses_TEvent
 #include <tvision/tv.h>
 
 #include <string>
@@ -23,6 +24,15 @@ public:
     static void checkExpired();
     // True while a message is shown.
     static bool hasMessage();
+
+    // A command for a status item that, when clicked, acts like pressing
+    // 'keyCode' (with 'mods', and 'ch' for printable keys): the key goes to
+    // the focused window, which handles it as usual. Used for the items of
+    // windows that handle their own keys (Log View, Event Viewer, History).
+    static ushort keyCommand(ushort keyCode, ushort mods = 0, char ch = 0);
+
+    void handleEvent(TEvent &event) override;
+    void putEvent(TEvent &event) override;
 };
 
 #endif // TVTERM_STATLINE_H

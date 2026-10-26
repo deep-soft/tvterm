@@ -10,7 +10,7 @@
 #include <string>
 #include <stdint.h>
 
-class TerminalWindow : public tvterm::BasicTerminalWindow
+class TerminalWindow : public tvterm::BasicTerminalWindow, public AlertTarget
 {
     using Super = tvterm::BasicTerminalWindow;
 
@@ -28,12 +28,12 @@ public:
 
     enum class Alert { None, Activity, Silence, Keyword };
 
-    const AlertSettings &getAlertSettings() const noexcept { return alertSettings; }
-    // Also clears the current alert.
-    void setAlertSettings(AlertSettings settings) noexcept;
+    // AlertTarget.
+    const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }
+    void setAlertSettings(AlertSettings settings) noexcept override;
+    bool hasAlert() const noexcept override { return alert != Alert::None; }
+    uint64_t getAlertOrder() const noexcept override { return alertOrder; }
     Alert getAlert() const noexcept { return alert; }
-    // Increases with each new alert, so that the oldest one can be found.
-    uint64_t getAlertOrder() const noexcept { return alertOrder; }
 
     void handleEvent(TEvent &ev) override;
     void setState(ushort aState, Boolean enable) override;

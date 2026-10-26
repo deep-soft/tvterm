@@ -21,15 +21,22 @@ struct EventFilter
 
 struct WindowProfile
 {
-    enum Kind { Terminal, Editor, EventViewer };
+    enum Kind { Terminal, Editor, EventViewer, LogView };
     Kind kind {Terminal};
 
-    // Terminal.
+    // Terminal (title and command: also Log View).
     std::string title;
     std::string dir;
     std::string command;
     bool keepOpen {true};
-    // Terminal alerts (see alerts.h).
+    // Log View (see logview.h).
+    std::string logInclude;
+    std::string logExclude;
+    bool logIgnoreCase {false};
+    bool logWrap {false};
+    int logMaxLines {0};
+    int logAutoRestart {0};
+    // Terminal and Log View alerts (see alerts.h).
     bool alertActivity {false};
     std::string alertKeywords; // Comma-separated.
     int alertSilence {0};      // Seconds; 0: disabled.
