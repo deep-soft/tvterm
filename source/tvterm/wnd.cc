@@ -30,6 +30,16 @@ void TerminalWindow::handleEvent(TEvent &ev)
     if ( ev.what == evBroadcast &&
          ev.message.command == cmGetOpenTerms && !isDisconnected() )
         *(size_t *) ev.message.infoPtr += 1;
+    else if ( ev.what == evCommand && ev.message.command == cmWindowList &&
+              (state & sfModal) )
+    {
+        // Input grabbed (status line click on Window List): release the
+        // input, then the application opens the list.
+        endModal(cmCancel);
+        putEvent(ev);
+        clearEvent(ev);
+        return;
+    }
     else if ( ev.what == evKeyDown && isDisconnected() &&
               !(state & (sfDragging | sfModal)) )
     {

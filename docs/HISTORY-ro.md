@@ -54,6 +54,7 @@ E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
+E8. Add a Window List item to the status lines
 
 ---
 
@@ -225,7 +226,9 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
-- **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
+- **Window List** (Ctrl-B J sau click pe `Window List` în bara de stare, E8: imediat după `Ctrl-B Open Menu` în barele de
+  terminal, LogView, Event Viewer și editor, la final în barele History, selecție și Grab Input; nu la mutare/redimensionare
+  și nici în meniu; fără tastă; în Grab Input click-ul eliberează întâi intrarea): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
 - **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză. Filtre: vezi mai sus.
 - **Ieșire** (Ctrl-B Q): confirmarea listează fiecare terminal deschis și ce rulează în el, întâi cele care rulează un program:
   comanda din prim-plan (ex. `tail -f /var/log/mail.log`, pipeline-uri ca `a | b`, `bash script.sh`), `bash, idle` pentru un shell liber,
@@ -392,6 +395,8 @@ examples/profiles/example.ini
 - Teste filtre on/off (E7): dialogul nou arată `[X] Filters on`; debifat + Apply → `[F-] 300/300`, dialogul rămâne deschis;
   Cancel o păstrează; F → `[I] 100/300`, iar F4 arată din nou `[X]`; D copiază `[F-]`; Save Profile As scrie `filters = no`;
   profil cu `filters = no` → `[F-]`, fără cheie → filtre active, `filters = maybe` → „invalid filters 'maybe'”, filtre active.
+- Teste element Window List (E8): click pe el în barele de terminal, LogView, Event Viewer, editor, History, selecție și
+  Grab Input deschide lista (Grab Input: `(Input Grab)` dispare din titlu); lățime 60 de coloane: fără blocare.
 
 ---
 
@@ -429,3 +434,4 @@ examples/profiles/example.ini
 | LogView (`far2l-extended`) | E5 | Ctrl-B D: ieșirea filtrată a unei comenzi, surse partajate, include/exclude, pauză, linii rupte, căutare, cursor de linie, selecție în clipboard/editor, salvare, meniul F9, bară de stare cu click, setări cu Apply, alerte, profiluri |
 | Bară de stare cu click (`far2l-extended`) | E6 | Event Viewer (un element pentru fiecare tastă) și modul istoric: click pe un element = tasta lui |
 | Filtre LogView în F4 (`far2l-extended`) | E7 | căsuța „Filters on” în F4 (sincronizată cu F), cheia `filters` în `[logview]`, copiată de D |
+| Window List în bara de stare (`far2l-extended`) | E8 | element `Window List` cu click după `Ctrl-B Open Menu` în toate barele, în afară de mutare/redimensionare și meniu |

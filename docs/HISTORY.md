@@ -53,6 +53,7 @@ E4. Add alerts: activity, keywords and silence
 E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
+E8. Add a Window List item to the status lines
 
 ---
 
@@ -225,7 +226,9 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
-- **Window List** (Ctrl-B J): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
+- **Window List** (Ctrl-B J, or a click on `Window List` in the status line, E8: right after `Ctrl-B Open Menu` in the
+  terminal, Log View, Event Viewer and editor lines, at the end of the History, selection and Grab Input lines; not while
+  moving/resizing or in the menu; no key; in Grab Input the click first releases the input): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
 - **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
   the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
@@ -390,6 +393,8 @@ examples/profiles/example.ini
 - Filters on/off tests (E7): new dialog shows `[X] Filters on`; unchecked + Apply → `[F-] 300/300`, dialog still open;
   Cancel keeps it; F → `[I] 100/300` and F4 shows `[X]` again; D copies `[F-]`; Save Profile As writes `filters = no`;
   a profile with `filters = no` → `[F-]`, without the key → filters on, `filters = maybe` → "invalid filters 'maybe'", filters on.
+- Window List item tests (E8): a click on it in the terminal, Log View, Event Viewer, editor, History, selection and Grab Input
+  lines opens the list (Grab Input: `(Input Grab)` gone from the title); 60 columns wide: no crash.
 
 ---
 
@@ -425,3 +430,4 @@ examples/profiles/example.ini
 | Log View (`far2l-extended`) | E5 | Ctrl-B D: filtered output of a command, shared sources, include/exclude, pause, wrap, search, cursor line, selection to clipboard/editor, save, F9 menu, clickable status line, settings with Apply, alerts, profiles |
 | Clickable status line (`far2l-extended`) | E6 | Event Viewer (one item per key) and History mode: a click on an item works like its key |
 | Log View filters in F4 (`far2l-extended`) | E7 | "Filters on" check box in F4 (synchronized with F), `filters` key in `[logview]`, copied by D |
+| Window List in the status line (`far2l-extended`) | E8 | clickable `Window List` item after `Ctrl-B Open Menu` in every status line except moving/resizing and the menu |

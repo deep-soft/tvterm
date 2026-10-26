@@ -290,7 +290,9 @@ void TVTermApp::editSettings()
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
     // Items of windows that handle their own keys: a click sends the key
-    // (see TVTermStatusLine::keyCommand).
+    // (see TVTermStatusLine::keyCommand). "Window List" (no key, like
+    // Ctrl-B J) follows "Ctrl-B Open Menu" in every bar except those of
+    // moving/resizing a window and of the open menu.
     auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
         return TVTermStatusLine::keyCommand(keyCode, mods, ch);
     };
@@ -304,11 +306,13 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Esc~ Cancel", kbNoKey, 0) +
         *new TStatusDef(hcInputGrabbed, hcInputGrabbed) +
             *new TStatusItem("~Alt-End~ Release Input", kbAltEnd, cmReleaseInput) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         *new TStatusDef(hcSelecting, hcSelecting) +
             *new TStatusItem("~Click & Drag~ Select Text", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         // History mode: the keys are handled by the terminal view.
         *new TStatusDef(hcHistory, hcHistory) +
             *new TStatusItem("~↑↓ PgUp PgDn Home End~ Scroll", kbNoKey, 0) +
@@ -319,6 +323,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, keyCmd(kbEsc)) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         // Log View: its keys are handled by the window.
         *new TStatusDef(hcLogView, hcLogView) +
             *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
@@ -331,6 +336,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
             *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
             *new TStatusItem("~M~ Moves", kbNoKey, keyCmd('m', 0, 'm')) +
@@ -341,16 +347,19 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
             *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
             *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
             *new TStatusItem("~Ctrl-B~ Open Menu" , kbCtrlB, cmMenu) +
+            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
             // Shift-Ins itself is handled by the terminal view (see
             // TerminalView::pasteOnShiftIns); this item is a hint and can be
             // clicked.
