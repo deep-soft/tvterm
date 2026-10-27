@@ -43,6 +43,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
 23. Paste and copy in the text fields of dialogs
+24. Keep profile positions inside the desktop
 
 ---
 
@@ -76,7 +77,10 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
 - `tvterm -p NAME` → `~/.config/tvterm/profiles/NAME.ini` (or `$XDG_CONFIG_HOME/...`); `tvterm -p /path/file.ini`; `tvterm --help`.
 - Sections: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = 1-based index),
   `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`).
-- `pos = x y width height` in **percent** of the desktop, decimals allowed.
+- `pos = x y width height` in **percent** of the desktop, decimals allowed. Save Profile writes positions inside the desktop
+  (a window moved partly off the screen is saved as moved back inside; rounded to one decimal so that x + width ≤ 100);
+  when loading, a position outside the desktop is moved inside it (and shrunk if larger) instead of being rejected (commit 24;
+  before: `invalid pos '84.9 0 15.4 72.7'`). The adjustment is kept in `Profile::notes`.
 - `keep-open = yes` (default): when the command ends or is stopped with Ctrl+C, a shell starts; `no`: the terminal stays "(Disconnected)" with its output visible.
 - Commands that run forever (`watch`, `tail -f`) must be stopped with Ctrl+C for the shell to appear.
 - `mailq` may not be in the PATH of non-root users → `/usr/sbin/mailq` or `postqueue -p`.
@@ -223,3 +227,4 @@ examples/profiles/example.ini
 | File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
 | tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |
 | Dialog clipboard | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C in dialog text fields, pasted text cleaned up |
+| Profile positions | 24 | positions saved inside the desktop; out-of-range positions moved inside when loading, not rejected |

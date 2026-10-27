@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <math.h>
 #include <sys/stat.h>
 #include <fstream>
 #include <sstream>
@@ -54,9 +55,13 @@ static bool parseBool(const std::string &value, bool &out)
     return false;
 }
 
-static bool parsePos(const std::string &value, WindowProfile &term)
+static std::string formatPercent(double v);
+
+static bool parsePos(const std::string &value, WindowProfile &term, std::string &notes)
 // Format: 'x y width height', in percent of the desktop. Commas, spaces
-// and '%' signs are all accepted as separators.
+// and '%' signs are all accepted as separators. A position that is (partly)
+// outside the desktop is moved inside it, and shrunk if it is larger, with a
+// line in 'notes' (older versions saved such positions as they were).
 {
     std::string v = value;
     for (char &c : v)
@@ -71,9 +76,26 @@ static bool parsePos(const std::string &value, WindowProfile &term)
     std::string rest;
     if (is >> rest)
         return false;
-    if ( n[0] < 0 || n[1] < 0 || n[2] <= 0 || n[3] <= 0 ||
-         n[0] + n[2] > 100.05 || n[1] + n[3] > 100.05 )
+    if (!(n[2] > 0) || !(n[3] > 0))
         return false;
+    double orig[4] = {n[0], n[1], n[2], n[3]};
+    for (int i = 0; i < 2; ++i)
+    {
+        double &pos = n[i], &size = n[i + 2];
+        if (size > 100)
+            size = 100;
+        if (pos < 0)
+            pos = 0;
+        if (pos + size > 100)
+            pos = 100 - size;
+    }
+    bool moved = false;
+    for (int i = 0; i < 4; ++i)
+        moved |= fabs(n[i] - orig[i]) > 0.05; // Rounding: not worth a note.
+    if (moved)
+        notes += "pos '" + value + "' is outside the desktop, using '" +
+                 formatPercent(n[0]) + " " + formatPercent(n[1]) + " " +
+                 formatPercent(n[2]) + " " + formatPercent(n[3]) + "'\n";
     term.x = n[0]; term.y = n[1]; term.w = n[2]; term.h = n[3];
     term.hasPos = true;
     return true;
@@ -170,7 +192,7 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             const char *sectionName = isTerm ? "[terminal]" : isEditor ? "[editor]" : "[eventviewer]";
             if (key == "pos")
             {
-                if (!parsePos(value, win))
+                if (!parsePos(value, win, profile.notes))
                     warn("invalid pos '" + value + "' (use: x y width height, in percent)");
             }
             else if (isTerm && key == "title")

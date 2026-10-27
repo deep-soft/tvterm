@@ -579,6 +579,23 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
     return term;
 }
 
+static void profilePercent(int pos, int size, int extPos, int extSize, double &outPos, double &outSize)
+// One axis of setProfilePos: the window is kept inside the desktop (moved,
+// and shrunk if it is larger), and the values are rounded to one decimal,
+// as they are written, so that position + size never exceeds 100.
+{
+    if (size > extSize)
+        size = extSize;
+    if (pos < extPos)
+        pos = extPos;
+    if (pos + size > extPos + extSize)
+        pos = extPos + extSize - size;
+    outPos = round(1000.0 * (pos - extPos) / extSize) / 10;
+    outSize = round(1000.0 * size / extSize) / 10;
+    if (outPos + outSize > 100)
+        outSize = (round(1000 - 10 * outPos)) / 10;
+}
+
 static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
 {
     int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
@@ -586,10 +603,8 @@ static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
     {
         TRect r = w.getBounds();
         win.hasPos = true;
-        win.x = 100.0 * (r.a.x - ext.a.x) / width;
-        win.y = 100.0 * (r.a.y - ext.a.y) / height;
-        win.w = 100.0 * (r.b.x - r.a.x) / width;
-        win.h = 100.0 * (r.b.y - r.a.y) / height;
+        profilePercent(r.a.x, r.b.x - r.a.x, ext.a.x, width, win.x, win.w);
+        profilePercent(r.a.y, r.b.y - r.a.y, ext.a.y, height, win.y, win.h);
     }
 }
 

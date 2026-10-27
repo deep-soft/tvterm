@@ -44,6 +44,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
 23. Paste and copy in the text fields of dialogs
+24. Keep profile positions inside the desktop
 
 ---
 
@@ -77,7 +78,10 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
 - `tvterm -p NUME` → `~/.config/tvterm/profiles/NUME.ini` (sau `$XDG_CONFIG_HOME/...`); `tvterm -p /cale/fisier.ini`; `tvterm --help`.
 - Secțiuni: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = index 1-based),
   `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`).
-- `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale.
+- `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale. Save Profile scrie pozițiile în interiorul Desktop-ului
+  (o fereastră mutată parțial în afara ecranului e salvată ca mutată înapoi înăuntru; rotunjire la o zecimală, cu x + lățime ≤ 100);
+  la încărcare, o poziție în afara Desktop-ului e mutată înăuntru (și micșorată dacă e mai mare), nu respinsă (commit 24;
+  înainte: `invalid pos '84.9 0 15.4 72.7'`). Ajustarea e reținută în `Profile::notes`.
 - `keep-open = yes` (implicit): după terminarea comenzii sau Ctrl+C, pornește shell-ul; `no`: rămâne „(Disconnected)” cu output vizibil.
 - Comenzi care rulează continuu (`watch`, `tail -f`) trebuie oprite cu Ctrl+C ca să apară shell-ul.
 - `mailq` poate lipsi din PATH pentru non-root → `/usr/sbin/mailq` sau `postqueue -p`.
@@ -226,3 +230,4 @@ examples/profiles/example.ini
 | Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |
 | Istoric tvision | 22 | `memmove` în istoricul câmpurilor (cauza „Illegal instruction” din dialogurile de fișiere pe Alpine) |
 | Clipboard în dialoguri | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C în câmpurile din dialoguri, textul lipit curățat |
+| Poziții în profiluri | 24 | poziții salvate în interiorul Desktop-ului; cele în afară, mutate în interior la încărcare, nu respinse |

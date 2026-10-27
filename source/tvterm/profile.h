@@ -34,6 +34,9 @@ struct Profile
     Layout layout {Auto};
     int focus {0}; // 1-based index of the window to focus; 0: the last one.
     std::vector<WindowProfile> windows;
+    // Things changed while loading that are not errors (e.g. a position
+    // moved inside the desktop), one per line.
+    std::string notes;
 };
 
 // Directory where profiles are looked up by name:
