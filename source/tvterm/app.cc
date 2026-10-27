@@ -660,6 +660,10 @@ bool TVTermApp::openProfile(const std::string &nameOrPath)
                              "([terminal], [editor], [eventviewer] or [logview] sections).";
         return false;
     }
+    // Not errors, so not in the message box (e.g. positions moved inside
+    // the desktop, see parsePos).
+    for (size_t start = 0, end; (end = profile.notes.find('\n', start)) != std::string::npos; start = end + 1)
+        note("profile " + profile.path + ": " + profile.notes.substr(start, end - start));
     openProfile(profile);
     loadedProfile = profile.path;
     return true;

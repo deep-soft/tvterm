@@ -59,6 +59,7 @@ E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
+E9. Show adjusted profile positions in the Event Viewer
 
 ---
 
@@ -234,7 +235,8 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - `pos = x y width height` in **percent** of the desktop, decimals allowed. Save Profile writes positions inside the desktop
   (a window moved partly off the screen is saved as moved back inside; rounded to one decimal so that x + width ≤ 100);
   when loading, a position outside the desktop is moved inside it (and shrunk if larger) instead of being rejected (commit 24;
-  before: `invalid pos '84.9 0 15.4 72.7'`). The adjustment is kept in `Profile::notes`.
+  before: `invalid pos '84.9 0 15.4 72.7'`). The adjustment is kept in `Profile::notes`;
+  in `far2l-extended` it is shown in the Event Viewer (E9): `profile <path>: pos '…' is outside the desktop, using '…'`.
 - `keep-open = yes` (default): when the command ends or is stopped with Ctrl+C, a shell starts; `no`: the terminal stays "(Disconnected)" with its output visible.
 - Commands that run forever (`watch`, `tail -f`) must be stopped with Ctrl+C for the shell to appear.
 - `mailq` may not be in the PATH of non-root users → `/usr/sbin/mailq` or `postqueue -p`.
@@ -471,3 +473,4 @@ examples/profiles/example.ini
 | Clickable status line (`far2l-extended`) | E6 | Event Viewer (one item per key) and History mode: a click on an item works like its key |
 | Log View filters in F4 (`far2l-extended`) | E7 | "Filters on" check box in F4 (synchronized with F), `filters` key in `[logview]`, copied by D |
 | Window List in the status line (`far2l-extended`) | E8 | clickable `Window List` item after `Ctrl-B Open Menu` in every status line except moving/resizing and the menu |
+| Profile position notes (`far2l-extended`) | E9 | a position moved inside the desktop when loading a profile is reported in the Event Viewer |

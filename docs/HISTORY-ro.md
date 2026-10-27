@@ -60,6 +60,7 @@ E5. Add Log View: filtered output of a command
 E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
+E9. Show adjusted profile positions in the Event Viewer
 
 ---
 
@@ -234,7 +235,8 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale. Save Profile scrie pozițiile în interiorul Desktop-ului
   (o fereastră mutată parțial în afara ecranului e salvată ca mutată înapoi înăuntru; rotunjire la o zecimală, cu x + lățime ≤ 100);
   la încărcare, o poziție în afara Desktop-ului e mutată înăuntru (și micșorată dacă e mai mare), nu respinsă (commit 24;
-  înainte: `invalid pos '84.9 0 15.4 72.7'`). Ajustarea e reținută în `Profile::notes`.
+  înainte: `invalid pos '84.9 0 15.4 72.7'`). Ajustarea e reținută în `Profile::notes`;
+  în `far2l-extended` apare în Event Viewer (E9): `profile <cale>: pos '…' is outside the desktop, using '…'`.
 - `keep-open = yes` (implicit): după terminarea comenzii sau Ctrl+C, pornește shell-ul; `no`: rămâne „(Disconnected)” cu output vizibil.
 - Comenzi care rulează continuu (`watch`, `tail -f`) trebuie oprite cu Ctrl+C ca să apară shell-ul.
 - `mailq` poate lipsi din PATH pentru non-root → `/usr/sbin/mailq` sau `postqueue -p`.
@@ -475,3 +477,4 @@ examples/profiles/example.ini
 | Bară de stare cu click (`far2l-extended`) | E6 | Event Viewer (un element pentru fiecare tastă) și modul istoric: click pe un element = tasta lui |
 | Filtre LogView în F4 (`far2l-extended`) | E7 | căsuța „Filters on” în F4 (sincronizată cu F), cheia `filters` în `[logview]`, copiată de D |
 | Window List în bara de stare (`far2l-extended`) | E8 | element `Window List` cu click după `Ctrl-B Open Menu` în toate barele, în afară de mutare/redimensionare și meniu |
+| Note pentru pozițiile din profil (`far2l-extended`) | E9 | o poziție mutată în interiorul Desktop-ului la încărcarea unui profil apare în Event Viewer |
