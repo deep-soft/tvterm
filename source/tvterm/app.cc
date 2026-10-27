@@ -35,6 +35,7 @@
 #include "logsrc.h"
 #include <tvterm/termopts.h>
 #include <tvterm/termview.h>
+#include "dlgclip.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -378,6 +379,17 @@ TDeskTop *TVTermApp::initDeskTop(TRect r)
 
 void TVTermApp::handleEvent(TEvent &event)
 {
+    // Instead of TApplication's: the Event Viewer and editors stay in place.
+    if (event.what == evCommand && event.message.command == cmCascade)
+    {
+        getDeskTop()->cascadeWindows(getTileRect());
+        clearEvent(event);
+    }
+    else if (event.what == evCommand && event.message.command == cmTile)
+    {
+        getDeskTop()->tileHorizontal(getTileRect());
+        clearEvent(event);
+    }
     TApplication::handleEvent(event);
     bool handled = true;
     switch (event.what)
@@ -453,9 +465,7 @@ void TVTermApp::idle()
     }
     {
         // Enable or disable the cmTile and cmCascade commands.
-        auto isTileable =
-            [] (TView *p, void *) -> Boolean { return p->options & ofTileable; };
-        if (deskTop->firstThat(isTileable, nullptr))
+        if (getDeskTop()->hasTileable())
             enableCommands(tileCmds);
         else
             disableCommands(tileCmds);
@@ -612,6 +622,9 @@ void TVTermApp::getEvent(TEvent &event)
     if (event.what != evNothing)
         if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
             viewer->print(event);
+    // Clipboard keys and pasted text in the text fields of dialogs.
+    if (event.what == evKeyDown)
+        dlgclip::handleKeyEvent(*this, event);
 }
 
 static std::string firstLines(const std::string &text, int maxLines)
@@ -775,7 +788,7 @@ void TVTermApp::openProfile(const Profile &profile)
     {
         case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); break;
         case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
-        case Profile::Cascade: deskTop->cascade(getTileRect()); break;
+        case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); break;
         default: break;
     }
 
@@ -904,6 +917,23 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
     return term;
 }
 
+static void profilePercent(int pos, int size, int extPos, int extSize, double &outPos, double &outSize)
+// One axis of setProfilePos: the window is kept inside the desktop (moved,
+// and shrunk if it is larger), and the values are rounded to one decimal,
+// as they are written, so that position + size never exceeds 100.
+{
+    if (size > extSize)
+        size = extSize;
+    if (pos < extPos)
+        pos = extPos;
+    if (pos + size > extPos + extSize)
+        pos = extPos + extSize - size;
+    outPos = round(1000.0 * (pos - extPos) / extSize) / 10;
+    outSize = round(1000.0 * size / extSize) / 10;
+    if (outPos + outSize > 100)
+        outSize = (round(1000 - 10 * outPos)) / 10;
+}
+
 static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
 {
     int width = ext.b.x - ext.a.x, height = ext.b.y - ext.a.y;
@@ -911,10 +941,8 @@ static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
     {
         TRect r = w.getBounds();
         win.hasPos = true;
-        win.x = 100.0 * (r.a.x - ext.a.x) / width;
-        win.y = 100.0 * (r.a.y - ext.a.y) / height;
-        win.w = 100.0 * (r.b.x - r.a.x) / width;
-        win.h = 100.0 * (r.b.y - r.a.y) / height;
+        profilePercent(r.a.x, r.b.x - r.a.x, ext.a.x, width, win.x, win.w);
+        profilePercent(r.a.y, r.b.y - r.a.y, ext.a.y, height, win.y, win.h);
     }
 }
 

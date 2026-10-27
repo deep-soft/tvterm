@@ -43,6 +43,9 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
+23. Paste and copy in the text fields of dialogs
+24. Keep profile positions inside the desktop
+25. Tile and Cascade leave the Event Viewer and editors in place
 
 ### Commits on `far2l-extended`
 
@@ -67,6 +70,10 @@ E8. Add a Window List item to the status lines
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
 Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
+- **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
+  stay where they are. The others use the desktop minus the rectangle enclosing those: if it touches an edge, the area on the
+  opposite side (e.g. on the right → everything on the left); otherwise the largest free area (left, right, above, below);
+  none open → the whole desktop, as before. Also for the `layout` of profiles. Code: `TVTermDesk::freeArea` (`desk.cc`).
 
 ### History (scrollback) — `far2l-extended`
 - Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
@@ -212,13 +219,22 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   - far2l vertical blocks are preserved (the `FAR_VerticalBlock_Unicode` marker is kept by tvterm, tied to the text).
 - **Shift-Ins** in a terminal: pastes through tvterm **only** if the program does not use far2l's extensions, and not in Grab Input mode.
 - **Bracketed paste**: pasted text is sent at once, enclosed in `ESC[200~ … ESC[201~` if the program asks for it; control characters (ESC) are removed.
+- **Text fields in dialogs** (Rename, Keywords, file names, …; commit 23): Shift-Ins / Ctrl-V paste from the system clipboard,
+  Ctrl-Ins / Ctrl-C copy the selected text (without a selection, Ctrl-C does nothing, as before). Ctrl-V no longer toggles
+  the overwrite mode (Ins still does). Pasted text (also from the outer terminal, e.g. PuTTY's right click) is cleaned up:
+  valid UTF-8 only; line breaks, tabs and runs of spaces → one space; spaces at both ends removed; control characters (ESC, NUL, C1),
+  bidirectional and zero-width characters removed; only the first 64 KiB are looked at; cut at the field's length on a character
+  boundary. Before, the field used tvision's internal clipboard (empty on a server) and nothing was pasted.
 - **Debug log**: `TVTERM_CLIPBOARD_LOG=/tmp/tvterm-clip.log tvterm`.
 
 ### Profiles
 - `tvterm -p NAME` → `~/.config/tvterm/profiles/NAME.ini` (or `$XDG_CONFIG_HOME/...`); `tvterm -p /path/file.ini`; `tvterm --help`.
 - Sections: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = 1-based index),
   `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`, filters: `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages`).
-- `pos = x y width height` in **percent** of the desktop, decimals allowed.
+- `pos = x y width height` in **percent** of the desktop, decimals allowed. Save Profile writes positions inside the desktop
+  (a window moved partly off the screen is saved as moved back inside; rounded to one decimal so that x + width ≤ 100);
+  when loading, a position outside the desktop is moved inside it (and shrunk if larger) instead of being rejected (commit 24;
+  before: `invalid pos '84.9 0 15.4 72.7'`). The adjustment is kept in `Profile::notes`.
 - `keep-open = yes` (default): when the command ends or is stopped with Ctrl+C, a shell starts; `no`: the terminal stays "(Disconnected)" with its output visible.
 - Commands that run forever (`watch`, `tail -f`) must be stopped with Ctrl+C for the shell to appear.
 - `mailq` may not be in the PATH of non-root users → `/usr/sbin/mailq` or `postqueue -p`.
@@ -281,6 +297,7 @@ source/tvterm/             the application
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
+  dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
@@ -362,6 +379,8 @@ examples/profiles/example.ini
   - pyte may raise exceptions when tvterm exits → wrap `st.feed` in try/except.
   - far2l leaves sessions in the background (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` between tests.
   - far2l 2.6 in extensions mode: its title contains `TTY|F`.
+- Clipboard without far2l: a fake `xclip` in `PATH` (reads/writes a file) + `DISPLAY=:99` → tvision uses it for
+  TClipboard (dialog fields: Shift-Ins, Ctrl-V, Ctrl-Ins, Ctrl-C). `tmux paste-buffer -p` = bracketed paste from the outer terminal.
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
@@ -441,6 +460,9 @@ examples/profiles/example.ini
 | Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
 | File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
 | tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |
+| Dialog clipboard | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C in dialog text fields, pasted text cleaned up |
+| Profile positions | 24 | positions saved inside the desktop; out-of-range positions moved inside when loading, not rejected |
+| Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

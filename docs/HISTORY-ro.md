@@ -44,6 +44,9 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
+23. Paste and copy in the text fields of dialogs
+24. Keep profile positions inside the desktop
+25. Tile and Cascade leave the Event Viewer and editors in place
 
 ### Commit-uri pe `far2l-extended`
 
@@ -68,6 +71,10 @@ E8. Add a Window List item to the status lines
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
 Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
+- **Tile / Cascade** (commit 25): aranjează doar terminalele (și celelalte ferestre aranjabile); Event Viewer și ferestrele de editor
+  rămân pe loc. Celelalte folosesc Desktop-ul minus dreptunghiul care le cuprinde: lipit de o margine → zona de pe partea opusă
+  (ex. în dreapta → toată partea din stânga); altfel, cea mai mare zonă liberă (stânga, dreapta, sus, jos); fără ele deschise →
+  tot Desktop-ul, ca înainte. Și pentru `layout` din profiluri. Cod: `TVTermDesk::freeArea` (`desk.cc`).
 
 ### Istoric (scrollback) — `far2l-extended`
 - Fiecare terminal păstrează până la `lines` (implicit 10000) linii ieșite de pe ecran. Doar ecranul normal are istoric:
@@ -212,13 +219,22 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   - Blocuri verticale far2l păstrate (marcaj `FAR_VerticalBlock_Unicode` ținut în tvterm, legat de text).
 - **Shift-Ins** în terminal: lipește prin tvterm, **doar** dacă programul nu folosește extensiile far2l și nu în Grab Input.
 - **Bracketed paste**: textul lipit e trimis dintr-o bucată, încadrat `ESC[200~ … ESC[201~` dacă programul cere; caracterele de control (ESC) sunt eliminate.
+- **Câmpurile de text din dialoguri** (Rename, Keywords, nume de fișiere, …; commit 23): Shift-Ins / Ctrl-V lipesc din clipboard-ul
+  sistemului, Ctrl-Ins / Ctrl-C copiază textul selectat (fără selecție, Ctrl-C nu face nimic, ca înainte). Ctrl-V nu mai comută
+  modul de suprascriere (Ins îl comută în continuare). Textul lipit (și cel venit din terminalul exterior, ex. click dreapta în PuTTY)
+  e curățat: doar UTF-8 valid; rândurile noi, tab-urile și spațiile multiple → un spațiu; spațiile de la capete eliminate; caracterele
+  de control (ESC, NUL, C1), de direcție (bidi) și de lățime zero eliminate; se procesează doar primii 64 KiB; tăiere la lungimea
+  câmpului, la granița unui caracter. Înainte, câmpul folosea clipboard-ul intern tvision (gol pe server) și nu se lipea nimic.
 - **Jurnal depanare**: `TVTERM_CLIPBOARD_LOG=/tmp/tvterm-clip.log tvterm`.
 
 ### Profiluri
 - `tvterm -p NUME` → `~/.config/tvterm/profiles/NUME.ini` (sau `$XDG_CONFIG_HOME/...`); `tvterm -p /cale/fisier.ini`; `tvterm --help`.
 - Secțiuni: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = index 1-based),
   `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`, filtre: `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages`).
-- `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale.
+- `pos = x y lățime înălțime` în **procente** din desktop, cu zecimale. Save Profile scrie pozițiile în interiorul Desktop-ului
+  (o fereastră mutată parțial în afara ecranului e salvată ca mutată înapoi înăuntru; rotunjire la o zecimală, cu x + lățime ≤ 100);
+  la încărcare, o poziție în afara Desktop-ului e mutată înăuntru (și micșorată dacă e mai mare), nu respinsă (commit 24;
+  înainte: `invalid pos '84.9 0 15.4 72.7'`). Ajustarea e reținută în `Profile::notes`.
 - `keep-open = yes` (implicit): după terminarea comenzii sau Ctrl+C, pornește shell-ul; `no`: rămâne „(Disconnected)” cu output vizibil.
 - Comenzi care rulează continuu (`watch`, `tail -f`) trebuie oprite cu Ctrl+C ca să apară shell-ul.
 - `mailq` poate lipsi din PATH pentru non-root → `/usr/sbin/mailq` sau `postqueue -p`.
@@ -282,6 +298,7 @@ source/tvterm/             aplicația
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
+  dlgclip.cc/.h            clipboard în câmpurile din dialoguri (TInputLine cu focus; apelat din TVTermApp::getEvent)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, nume de taste, șablon, FileStamp
   histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric; openTextSave (dialogul de salvare pentru LogView)
@@ -363,6 +380,8 @@ examples/profiles/example.ini
   - pyte poate arunca excepții la ieșirea tvterm → `st.feed` în try/except.
   - far2l lasă sesiuni în fundal (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` între teste.
   - far2l 2.6 în modul extensii: titlul conține `TTY|F`.
+- Clipboard fără far2l: un `xclip` fals în `PATH` (citește/scrie un fișier) + `DISPLAY=:99` → tvision îl folosește pentru
+  TClipboard (câmpurile din dialoguri: Shift-Ins, Ctrl-V, Ctrl-Ins, Ctrl-C). `tmux paste-buffer -p` = bracketed paste din terminalul exterior.
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
   bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
   dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
@@ -445,6 +464,9 @@ examples/profiles/example.ini
 | Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
 | Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |
 | Istoric tvision | 22 | `memmove` în istoricul câmpurilor (cauza „Illegal instruction” din dialogurile de fișiere pe Alpine) |
+| Clipboard în dialoguri | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C în câmpurile din dialoguri, textul lipit curățat |
+| Poziții în profiluri | 24 | poziții salvate în interiorul Desktop-ului; cele în afară, mutate în interior la încărcare, nu respinse |
+| Tile / Cascade | 25 | Event Viewer și editoarele rămân pe loc; celelalte ferestre folosesc zona lăsată liberă |
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
