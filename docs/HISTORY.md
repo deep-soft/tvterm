@@ -44,6 +44,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 22. Fix overlapping memcpy in tvision's input line history
 23. Paste and copy in the text fields of dialogs
 24. Keep profile positions inside the desktop
+25. Tile and Cascade leave the Event Viewer and editors in place
 
 ---
 
@@ -53,6 +54,10 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 `N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `R` Resize/Move ·
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `More...` (change dir, tile, cascade, Grab Input) · `U` Suspend · `Q` Exit.
+- **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
+  stay where they are. The others use the desktop minus the rectangle enclosing those: if it touches an edge, the area on the
+  opposite side (e.g. on the right → everything on the left); otherwise the largest free area (left, right, above, below);
+  none open → the whole desktop, as before. Also for the `layout` of profiles. Code: `TVTermDesk::freeArea` (`desk.cc`).
 Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
 
 ### Clipboard (main goal; works in every direction)
@@ -228,3 +233,4 @@ examples/profiles/example.ini
 | tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |
 | Dialog clipboard | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C in dialog text fields, pasted text cleaned up |
 | Profile positions | 24 | positions saved inside the desktop; out-of-range positions moved inside when loading, not rejected |
+| Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |

@@ -151,6 +151,17 @@ TDeskTop *TVTermApp::initDeskTop(TRect r)
 
 void TVTermApp::handleEvent(TEvent &event)
 {
+    // Instead of TApplication's: the Event Viewer and editors stay in place.
+    if (event.what == evCommand && event.message.command == cmCascade)
+    {
+        getDeskTop()->cascadeWindows(getTileRect());
+        clearEvent(event);
+    }
+    else if (event.what == evCommand && event.message.command == cmTile)
+    {
+        getDeskTop()->tileHorizontal(getTileRect());
+        clearEvent(event);
+    }
     TApplication::handleEvent(event);
     bool handled = true;
     switch (event.what)
@@ -215,9 +226,7 @@ void TVTermApp::idle()
     }
     {
         // Enable or disable the cmTile and cmCascade commands.
-        auto isTileable =
-            [] (TView *p, void *) -> Boolean { return p->options & ofTileable; };
-        if (deskTop->firstThat(isTileable, nullptr))
+        if (getDeskTop()->hasTileable())
             enableCommands(tileCmds);
         else
             disableCommands(tileCmds);
@@ -470,7 +479,7 @@ void TVTermApp::openProfile(const Profile &profile)
     {
         case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); break;
         case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
-        case Profile::Cascade: deskTop->cascade(getTileRect()); break;
+        case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); break;
         default: break;
     }
 
