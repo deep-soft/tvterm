@@ -46,6 +46,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 23. Paste and copy in the text fields of dialogs
 24. Keep profile positions inside the desktop
 25. Tile and Cascade leave the Event Viewer and editors in place
+26. Tile and Cascade use the largest area beside the fixed windows
 
 ---
 
@@ -56,9 +57,12 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `L` Load Profile · `A` Save Profile As · `More...` (change dir, tile, cascade, Grab Input) · `U` Suspend · `Q` Exit.
 - **Tile / Cascade** (commit 25): aranjează doar terminalele (și celelalte ferestre aranjabile); Event Viewer și ferestrele de editor
-  rămân pe loc. Celelalte folosesc Desktop-ul minus dreptunghiul care le cuprinde: lipit de o margine → zona de pe partea opusă
-  (ex. în dreapta → toată partea din stânga); altfel, cea mai mare zonă liberă (stânga, dreapta, sus, jos); fără ele deschise →
-  tot Desktop-ul, ca înainte. Și pentru `layout` din profiluri. Cod: `TVTermDesk::freeArea` (`desk.cc`).
+  rămân pe loc. Celelalte folosesc cel mai mare dreptunghi care nu atinge niciuna dintre ele, fiecare fereastră fixă luată separat
+  (commit 26; commit-ul 25 folosea dreptunghiul care le cuprindea pe toate, iar cu un editor stânga sus și Event Viewer în dreapta
+  acesta acoperea tot Desktop-ul → terminalele erau aranjate peste ele). Fără ferestre fixe deschise sau cu dreptunghiul liber sub
+  20 de coloane × 6 rânduri → tot Desktop-ul, ca înainte. Spațiul liber în formă de L nu se împarte în mai multe zone.
+  Și pentru `layout` din profiluri. Cod: `TVTermDesk::freeArea` (`desk.cc`; `noFreeArea` spune apelantului că s-a folosit tot
+  Desktop-ul).
 Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More).
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
@@ -237,3 +241,4 @@ examples/profiles/example.ini
 | Clipboard în dialoguri | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C în câmpurile din dialoguri, textul lipit curățat |
 | Poziții în profiluri | 24 | poziții salvate în interiorul Desktop-ului; cele în afară, mutate în interior la încărcare, nu respinse |
 | Tile / Cascade | 25 | Event Viewer și editoarele rămân pe loc; celelalte ferestre folosesc zona lăsată liberă |
+| Zona pentru Tile | 26 | cel mai mare dreptunghi lângă ferestrele fixe, fiecare luată separat (editorul stânga sus nu mai e acoperit) |

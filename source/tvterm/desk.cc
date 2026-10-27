@@ -3,6 +3,8 @@
 
 #include "desk.h"
 
+#include <algorithm>
+
 TVTermDesk::TVTermDesk(const TRect &bounds) :
     TDeskInit(&TDeskTop::initBackground),
     TDeskTop(bounds)
@@ -69,44 +71,68 @@ bool TVTermDesk::hasTileable()
 
 TRect TVTermDesk::freeArea(const TRect &bounds)
 {
-    TRect fixed;
-    bool any = false;
+    std::vector<TRect> fixed;
     for (TView *p : tvtermdesk::children(*this))
         if (isFixed(p))
         {
             TRect r = p->getBounds();
             r.intersect(bounds);
-            if (tvtermdesk::isEmpty(r))
-                continue;
-            if (any)
-                fixed.Union(r);
-            else
-                fixed = r, any = true;
+            if (!tvtermdesk::isEmpty(r))
+                fixed.push_back(r);
         }
-    return any ? freeArea(bounds, fixed) : bounds;
+    noFreeArea = false;
+    if (fixed.empty())
+        return bounds;
+    TRect r = freeArea(bounds, fixed);
+    if (r.b.x - r.a.x < minFreeWidth || r.b.y - r.a.y < minFreeHeight)
+    {
+        noFreeArea = true;
+        return bounds;
+    }
+    return r;
 }
 
-TRect TVTermDesk::freeArea(const TRect &b, const TRect &f)
+TRect TVTermDesk::freeArea(const TRect &b, const std::vector<TRect> &fixed)
 {
     using namespace tvtermdesk;
-    TRect left(b.a.x, b.a.y, f.a.x, b.b.y),
-          right(f.b.x, b.a.y, b.b.x, b.b.y),
-          top(b.a.x, b.a.y, b.b.x, f.a.y),
-          bottom(b.a.x, f.b.y, b.b.x, b.b.y);
-    // Candidates: the side opposite to each edge the fixed windows touch;
-    // if they touch none, every side.
-    std::vector<TRect> sides;
-    if (f.a.x <= b.a.x) sides.push_back(right);
-    if (f.b.x >= b.b.x) sides.push_back(left);
-    if (f.a.y <= b.a.y) sides.push_back(bottom);
-    if (f.b.y >= b.b.y) sides.push_back(top);
-    if (sides.empty())
-        sides = {left, right, top, bottom};
-    TRect best = b;
+    // The largest rectangle inside 'b' that overlaps none of the fixed
+    // windows. Its edges are edges of 'b' or of the fixed windows, so it is
+    // enough to try those (there are only a few windows).
+    std::vector<int> xs {b.a.x, b.b.x}, ys {b.a.y, b.b.y};
+    for (const TRect &f : fixed)
+    {
+        xs.push_back(f.a.x); xs.push_back(f.b.x);
+        ys.push_back(f.a.y); ys.push_back(f.b.y);
+    }
+    std::sort(xs.begin(), xs.end());
+    xs.erase(std::unique(xs.begin(), xs.end()), xs.end());
+    std::sort(ys.begin(), ys.end());
+    ys.erase(std::unique(ys.begin(), ys.end()), ys.end());
+    TRect best(b.a.x, b.a.y, b.a.x, b.a.y);
     long bestArea = 0;
-    for (const TRect &r : sides)
-        if (area(r) > bestArea)
-            best = r, bestArea = area(r);
+    for (size_t x1 = 0; x1 < xs.size(); ++x1)
+        for (size_t x2 = x1 + 1; x2 < xs.size(); ++x2)
+            for (size_t y1 = 0; y1 < ys.size(); ++y1)
+                for (size_t y2 = y1 + 1; y2 < ys.size(); ++y2)
+                {
+                    TRect r(xs[x1], ys[y1], xs[x2], ys[y2]);
+                    long a = area(r);
+                    if (a <= bestArea)
+                        continue;
+                    bool free = true;
+                    for (const TRect &f : fixed)
+                    {
+                        TRect i = r;
+                        i.intersect(f);
+                        if (!isEmpty(i))
+                        {
+                            free = false;
+                            break;
+                        }
+                    }
+                    if (free)
+                        best = r, bestArea = a;
+                }
     return best;
 }
 

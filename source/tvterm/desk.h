@@ -30,14 +30,17 @@ public:
     // Whether there is a window that Tile or Cascade would arrange.
     bool hasTileable();
 
-    // The part of 'bounds' to arrange the other windows in: 'bounds'
-    // without the rectangle that encloses the fixed windows. If that
-    // rectangle touches an edge of 'bounds', the area on the opposite side
-    // (e.g. the windows are on the right: everything on their left);
-    // otherwise, the largest area on any side. 'bounds' itself when there
-    // are no fixed windows, or no room is left.
+    // The part of 'bounds' to arrange the other windows in: the largest
+    // rectangle that overlaps none of the fixed windows (each one counted
+    // separately). 'bounds' itself when there are no fixed windows, or when
+    // that rectangle is smaller than minFreeWidth x minFreeHeight (then
+    // noFreeArea is set, so that the caller can say so).
     TRect freeArea(const TRect &bounds);
-    static TRect freeArea(const TRect &bounds, const TRect &fixed);
+    static TRect freeArea(const TRect &bounds, const std::vector<TRect> &fixed);
+    static constexpr short minFreeWidth = 20, minFreeHeight = 6;
+    // Set by the last Tile or Cascade: the fixed windows left no room, so the
+    // whole desktop was used.
+    bool noFreeArea {false};
 
 };
 
