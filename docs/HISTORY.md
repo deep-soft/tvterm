@@ -42,6 +42,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
+23. Paste and copy in the text fields of dialogs
 
 ---
 
@@ -63,6 +64,12 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   - far2l vertical blocks are preserved (the `FAR_VerticalBlock_Unicode` marker is kept by tvterm, tied to the text).
 - **Shift-Ins** in a terminal: pastes through tvterm **only** if the program does not use far2l's extensions, and not in Grab Input mode.
 - **Bracketed paste**: pasted text is sent at once, enclosed in `ESC[200~ … ESC[201~` if the program asks for it; control characters (ESC) are removed.
+- **Text fields in dialogs** (Rename, Keywords, file names, …; commit 23): Shift-Ins / Ctrl-V paste from the system clipboard,
+  Ctrl-Ins / Ctrl-C copy the selected text (without a selection, Ctrl-C does nothing, as before). Ctrl-V no longer toggles
+  the overwrite mode (Ins still does). Pasted text (also from the outer terminal, e.g. PuTTY's right click) is cleaned up:
+  valid UTF-8 only; line breaks, tabs and runs of spaces → one space; spaces at both ends removed; control characters (ESC, NUL, C1),
+  bidirectional and zero-width characters removed; only the first 64 KiB are looked at; cut at the field's length on a character
+  boundary. Before, the field used tvision's internal clipboard (empty on a server) and nothing was pasted.
 - **Debug log**: `TVTERM_CLIPBOARD_LOG=/tmp/tvterm-clip.log tvterm`.
 
 ### Profiles
@@ -121,6 +128,7 @@ source/tvterm/             the application
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer
+  dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
@@ -183,6 +191,8 @@ examples/profiles/example.ini
   - pyte may raise exceptions when tvterm exits → wrap `st.feed` in try/except.
   - far2l leaves sessions in the background (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` between tests.
   - far2l 2.6 in extensions mode: its title contains `TTY|F`.
+- Clipboard without far2l: a fake `xclip` in `PATH` (reads/writes a file) + `DISPLAY=:99` → tvision uses it for
+  TClipboard (dialog fields: Shift-Ins, Ctrl-V, Ctrl-Ins, Ctrl-C). `tmux paste-buffer -p` = bracketed paste from the outer terminal.
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
@@ -212,3 +222,4 @@ examples/profiles/example.ini
 | Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
 | File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
 | tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |
+| Dialog clipboard | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C in dialog text fields, pasted text cleaned up |

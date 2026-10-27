@@ -43,6 +43,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
 21. Fix the doubled path in the profile file dialogs
 22. Fix overlapping memcpy in tvision's input line history
+23. Paste and copy in the text fields of dialogs
 
 ---
 
@@ -64,6 +65,12 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
   - Blocuri verticale far2l păstrate (marcaj `FAR_VerticalBlock_Unicode` ținut în tvterm, legat de text).
 - **Shift-Ins** în terminal: lipește prin tvterm, **doar** dacă programul nu folosește extensiile far2l și nu în Grab Input.
 - **Bracketed paste**: textul lipit e trimis dintr-o bucată, încadrat `ESC[200~ … ESC[201~` dacă programul cere; caracterele de control (ESC) sunt eliminate.
+- **Câmpurile de text din dialoguri** (Rename, Keywords, nume de fișiere, …; commit 23): Shift-Ins / Ctrl-V lipesc din clipboard-ul
+  sistemului, Ctrl-Ins / Ctrl-C copiază textul selectat (fără selecție, Ctrl-C nu face nimic, ca înainte). Ctrl-V nu mai comută
+  modul de suprascriere (Ins îl comută în continuare). Textul lipit (și cel venit din terminalul exterior, ex. click dreapta în PuTTY)
+  e curățat: doar UTF-8 valid; rândurile noi, tab-urile și spațiile multiple → un spațiu; spațiile de la capete eliminate; caracterele
+  de control (ESC, NUL, C1), de direcție (bidi) și de lățime zero eliminate; se procesează doar primii 64 KiB; tăiere la lungimea
+  câmpului, la granița unui caracter. Înainte, câmpul folosea clipboard-ul intern tvision (gol pe server) și nu se lipea nimic.
 - **Jurnal depanare**: `TVTERM_CLIPBOARD_LOG=/tmp/tvterm-clip.log tvterm`.
 
 ### Profiluri
@@ -123,6 +130,7 @@ source/tvterm/             aplicația
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer
+  dlgclip.cc/.h            clipboard în câmpurile din dialoguri (TInputLine cu focus; apelat din TVTermApp::getEvent)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
 deps/tvision-fixes.cmake   corecturi tvision: histlist.cpp copiat în directorul de build, memcpy → memmove (submodulul curat)
@@ -185,6 +193,8 @@ examples/profiles/example.ini
   - pyte poate arunca excepții la ieșirea tvterm → `st.feed` în try/except.
   - far2l lasă sesiuni în fundal (`/tmp/far2l_<uid>_*`) → `pkill -9 far2l; rm -rf /tmp/far2l_0_0` între teste.
   - far2l 2.6 în modul extensii: titlul conține `TTY|F`.
+- Clipboard fără far2l: un `xclip` fals în `PATH` (citește/scrie un fișier) + `DISPLAY=:99` → tvision îl folosește pentru
+  TClipboard (câmpurile din dialoguri: Shift-Ins, Ctrl-V, Ctrl-Ins, Ctrl-C). `tmux paste-buffer -p` = bracketed paste din terminalul exterior.
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
   bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
   dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
@@ -215,3 +225,4 @@ examples/profiles/example.ini
 | Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
 | Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |
 | Istoric tvision | 22 | `memmove` în istoricul câmpurilor (cauza „Illegal instruction” din dialogurile de fișiere pe Alpine) |
+| Clipboard în dialoguri | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C în câmpurile din dialoguri, textul lipit curățat |

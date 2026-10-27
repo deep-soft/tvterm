@@ -26,6 +26,7 @@
 #include "winlist.h"
 #include "procinfo.h"
 #include "quitdlg.h"
+#include "dlgclip.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -344,6 +345,9 @@ void TVTermApp::getEvent(TEvent &event)
     if (event.what != evNothing)
         if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
             viewer->print(event);
+    // Clipboard keys and pasted text in the text fields of dialogs.
+    if (event.what == evKeyDown)
+        dlgclip::handleKeyEvent(*this, event);
 }
 
 static std::string firstLines(const std::string &text, int maxLines)
