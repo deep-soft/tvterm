@@ -227,6 +227,16 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 settings.wordChars = value;
             else if (key == "save-dir")
                 settings.saveDir = expandHome(value);
+            else if (key == "save-name")
+            {
+                std::string v = lower(value);
+                if (v == "date-first")
+                    settings.saveDateFirst = true;
+                else if (v == "name-first")
+                    settings.saveDateFirst = false;
+                else
+                    invalid("use date-first or name-first"), settings.saveDateFirst = previous.saveDateFirst;
+            }
             else if (key == "search-case-sensitive")
             {
                 if (!parseBool(value, settings.searchCaseSensitive))
@@ -311,6 +321,11 @@ std::string settingsTemplate()
         "#word-chars = " + d.wordChars + "\n"
         "# Directory proposed when saving the history; empty: the terminal's current directory.\n"
         "#save-dir = ~/logs\n"
+        "# File name proposed when saving (history, screen, Log View):\n"
+        "# name-first: tvterm-<title>-YYYY-MM-DD-hhmm.txt\n"
+        "# date-first: YYYY-MM-DD-hhmm-tvterm-<title>.txt\n"
+        "# The dialog can switch it; the last choice is kept until tvterm exits.\n"
+        "#save-name = name-first\n"
         "# Default of the 'Case sensitive' option when searching.\n"
         "#search-case-sensitive = no\n"
         "# Shift+click selects text even in programs that use the mouse (e.g. far2l).\n"

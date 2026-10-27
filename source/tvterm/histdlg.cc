@@ -147,7 +147,16 @@ static std::string timeStamp()
     return stamp;
 }
 
-static std::string defaultSavePath(tvterm::TerminalView &view, const std::string &saveDir)
+static std::string saveDirFor(tvterm::TerminalView &view, const std::string &saveDir)
+// Directory proposed for saving the history, without a final '/'.
+{
+    std::string dir = saveDir.empty() ? terminalDir(view) : saveDir;
+    if (!dir.empty() && dir.back() == '/')
+        dir.pop_back();
+    return dir;
+}
+
+static TStringView windowTitle(tvterm::TerminalView &view)
 {
     TStringView title;
     if (auto *w = dynamic_cast<TerminalWindow *>(view.owner))
@@ -156,14 +165,137 @@ static std::string defaultSavePath(tvterm::TerminalView &view, const std::string
         if (title.empty())
             title = w->getTerminalTitle();
     }
-    char stamp[32] = "";
-    time_t now = time(nullptr);
-    if (struct tm *tm = localtime(&now))
-        strftime(stamp, sizeof(stamp), "%Y-%m-%d-%H%M", tm);
-    std::string dir = saveDir.empty() ? terminalDir(view) : saveDir;
-    if (!dir.empty() && dir.back() == '/')
-        dir.pop_back();
-    return dir + "/tvterm-" + sanitize(title) + "-" + stamp + ".txt";
+    return title;
+}
+
+static std::string proposedName(const std::string &name, const std::string &stamp, bool dateFirst)
+// 'name' is already sanitized.
+{
+    return dateFirst ? stamp + "-tvterm-" + name + ".txt"
+                     : "tvterm-" + name + "-" + stamp + ".txt";
+}
+
+// Choice made in the "File name" group the last time something was saved
+// in this session (-1: none yet). A change of 'save-name' in tvterm.ini
+// replaces it.
+static int sessionDateFirst = -1;
+static bool sessionSetting = false;
+
+static bool initialDateFirst()
+{
+    bool setting = TVTermApp::settings().saveDateFirst;
+    if (sessionDateFirst >= 0 && sessionSetting == setting)
+        return sessionDateFirst == 1;
+    sessionDateFirst = -1;
+    return setting;
+}
+
+static void rememberDateFirst(bool dateFirst)
+{
+    sessionDateFirst = dateFirst ? 1 : 0;
+    sessionSetting = TVTermApp::settings().saveDateFirst;
+}
+
+// Buttons of the "File name" group.
+enum { orderDateFirst = 0, orderNameFirst = 1 };
+
+class OrderButtons : public TRadioButtons
+{
+public:
+    using TRadioButtons::TRadioButtons;
+    uint32_t current() const { return value; }
+};
+
+class SaveDialog : public TDialog
+// When "File name" changes, the File field gets the other form of the
+// proposed name, but only while it still holds the proposed name.
+{
+public:
+    TInputLine *input {nullptr};
+    OrderButtons *order {nullptr};
+    std::string dir, name, stamp;
+    uint32_t shown {orderNameFirst};
+
+    SaveDialog(const TRect &bounds, TStringView title) noexcept :
+        TWindowInit(&TDialog::initFrame),
+        TDialog(bounds, title)
+    {
+    }
+
+    std::string proposal(uint32_t o) const
+    {
+        return dir + "/" + proposedName(name, stamp, o == orderDateFirst);
+    }
+
+    void handleEvent(TEvent &ev) override
+    {
+        TDialog::handleEvent(ev);
+        if (!input || !order || order->current() == shown)
+            return;
+        std::string before = proposal(shown);
+        shown = order->current();
+        if (before == input->data)
+        {
+            std::string after = proposal(shown);
+            char buf[MAXPATH] {};
+            strncpy(buf, after.c_str(), sizeof(buf) - 1);
+            input->setData(buf);
+            input->drawView();
+        }
+    }
+};
+
+static bool runSaveDialog( const char *title, const std::string &dir, TStringView name,
+                           TSItem *whatItems, bool hasSelection, const char *note,
+                           ushort &what, std::string &path )
+// The Save dialog shared by the history and the Log View. 'dir' has no
+// final '/'. On Save: 'path' = the typed path (absolute, '~' expanded;
+// a relative one is taken from 'dir'), 'what' = the "What to save" choice.
+{
+    struct
+    {
+        char path[MAXPATH];
+        ushort order; // orderDateFirst or orderNameFirst.
+        ushort what;  // 0: everything, 1: selection only.
+    } data {};
+
+    SaveDialog *d = new SaveDialog(TRect(0, 0, 70, 16), title);
+    d->options |= ofCentered;
+    d->dir = dir;
+    d->name = sanitize(name);
+    d->stamp = timeStamp();
+    d->shown = initialDateFirst() ? orderDateFirst : orderNameFirst;
+    data.order = (ushort) d->shown;
+    data.what = what;
+    std::string proposed = d->proposal(d->shown);
+    strncpy(data.path, proposed.c_str(), sizeof(data.path) - 1);
+
+    d->input = new TInputLine(TRect(3, 3, 67, 4), sizeof(data.path));
+    d->insert(d->input);
+    d->insert(new TLabel(TRect(2, 2, 20, 3), "~F~ile", d->input));
+    d->order = new OrderButtons(TRect(3, 6, 67, 8),
+        new TSItem("~D~ate first",
+        new TSItem("Na~m~e first", nullptr)));
+    d->insert(d->order);
+    d->insert(new TLabel(TRect(2, 5, 20, 6), "File ~n~ame", d->order));
+    TRadioButtons *whatButtons = new TRadioButtons(TRect(3, 9, 67, 11), whatItems);
+    if (!hasSelection)
+        whatButtons->setButtonState(2, False);
+    d->insert(whatButtons);
+    d->insert(new TLabel(TRect(2, 8, 20, 9), "~W~hat to save", whatButtons));
+    d->insert(new TStaticText(TRect(3, 11, 67, 12), note));
+    d->insert(new TButton(TRect(21, 13, 33, 15), "~S~ave", cmOK, bfDefault));
+    d->insert(new TButton(TRect(37, 13, 49, 15), "Cancel", cmCancel, bfNormal));
+    d->selectNext(False);
+    if (execDlg(d, &data) == cmCancel)
+        return false;
+
+    rememberDateFirst(data.order == orderDateFirst);
+    what = data.what;
+    path = expandHome(sanitizePathInput(data.path));
+    if (!path.empty() && path[0] != '/')
+        path = dir + "/" + path;
+    return true;
 }
 
 // TDialog only closes itself on the standard commands.
@@ -246,43 +378,17 @@ void openHistorySave(tvterm::TerminalView &view)
     bool hasSelection = view.hasSelection();
     std::string saveDir = TVTermApp::settings().saveDir;
 
-    struct
-    {
-        char path[MAXPATH];
-        ushort what; // 0: everything, 1: selection only.
-    } data {};
-    std::string proposed = defaultSavePath(view, saveDir);
-    strncpy(data.path, proposed.c_str(), sizeof(data.path) - 1);
-
-    TDialog *d = new TDialog(TRect(0, 0, 70, 13), screenOnly ? "Save screen" : "Save history");
-    d->options |= ofCentered;
-    TInputLine *input = new TInputLine(TRect(3, 3, 67, 4), sizeof(data.path));
-    d->insert(input);
-    d->insert(new TLabel(TRect(2, 2, 20, 3), "~F~ile", input));
-    TRadioButtons *what = new TRadioButtons(TRect(3, 6, 67, 8),
-        new TSItem(screenOnly ? "~V~isible screen (full-screen program: no history)"
-                              : "~A~ll history and screen",
-        new TSItem("Se~l~ection only", nullptr)));
-    if (!hasSelection)
-        what->setButtonState(2, False);
-    d->insert(what);
-    d->insert(new TLabel(TRect(2, 5, 20, 6), "~W~hat to save", what));
-    d->insert(new TStaticText(TRect(3, 8, 67, 9), "Plain text (UTF-8), without colors."));
-    d->insert(new TButton(TRect(21, 10, 33, 12), "~S~ave", cmOK, bfDefault));
-    d->insert(new TButton(TRect(37, 10, 49, 12), "Cancel", cmCancel, bfNormal));
-    d->selectNext(False);
-    if (execDlg(d, &data) == cmCancel)
+    ushort what = 0;
+    std::string path;
+    if (!runSaveDialog( screenOnly ? "Save screen" : "Save history",
+                        saveDirFor(view, saveDir), windowTitle(view),
+                        new TSItem(screenOnly ? "~V~isible screen (full-screen program: no history)"
+                                              : "~A~ll history and screen",
+                        new TSItem("Se~l~ection only", nullptr)),
+                        hasSelection, "Plain text (UTF-8), without colors.", what, path ))
         return;
-
-    std::string path = expandHome(histdlg::sanitizePathInput(data.path));
     if (path.empty())
         return;
-    if (path[0] != '/')
-    {
-        // Relative to the proposed directory.
-        size_t slash = proposed.rfind('/');
-        path = proposed.substr(0, slash + 1) + path;
-    }
 
     bool append = false;
     if (access(path.c_str(), F_OK) == 0)
@@ -295,7 +401,7 @@ void openHistorySave(tvterm::TerminalView &view)
 
     std::string text;
     bool onlyScreen = false;
-    view.getHistoryText(text, data.what == 1 && hasSelection, onlyScreen);
+    view.getHistoryText(text, what == 1 && hasSelection, onlyScreen);
 
     size_t slash = path.rfind('/');
     if (slash != std::string::npos && slash > 0)
@@ -330,40 +436,15 @@ void openTextSave( const char *dialogTitle, const std::string &name, bool hasSel
     }
     if (!dir.empty() && dir.back() == '/')
         dir.pop_back();
-    std::string proposed = dir + "/tvterm-" + sanitize(name) + "-" + timeStamp() + ".txt";
-
-    struct
-    {
-        char path[MAXPATH];
-        ushort what; // 0: everything, 1: selection only.
-    } data {};
-    strncpy(data.path, proposed.c_str(), sizeof(data.path) - 1);
-    data.what = hasSelection ? 1 : 0;
-
-    TDialog *d = new TDialog(TRect(0, 0, 70, 13), dialogTitle);
-    d->options |= ofCentered;
-    TInputLine *input = new TInputLine(TRect(3, 3, 67, 4), sizeof(data.path));
-    d->insert(input);
-    d->insert(new TLabel(TRect(2, 2, 20, 3), "~F~ile", input));
-    TRadioButtons *what = new TRadioButtons(TRect(3, 6, 67, 8),
-        new TSItem("~A~ll the lines shown",
-        new TSItem("Se~l~ection only", nullptr)));
-    if (!hasSelection)
-        what->setButtonState(2, False);
-    d->insert(what);
-    d->insert(new TLabel(TRect(2, 5, 20, 6), "~W~hat to save", what));
-    d->insert(new TStaticText(TRect(3, 8, 67, 9), "Plain text (UTF-8), one line per line shown."));
-    d->insert(new TButton(TRect(21, 10, 33, 12), "~S~ave", cmOK, bfDefault));
-    d->insert(new TButton(TRect(37, 10, 49, 12), "Cancel", cmCancel, bfNormal));
-    d->selectNext(False);
-    if (execDlg(d, &data) == cmCancel)
+    ushort what = hasSelection ? 1 : 0;
+    std::string path;
+    if (!runSaveDialog( dialogTitle, dir, name,
+                        new TSItem("~A~ll the lines shown",
+                        new TSItem("Se~l~ection only", nullptr)),
+                        hasSelection, "Plain text (UTF-8), one line per line shown.", what, path ))
         return;
-
-    std::string path = expandHome(sanitizePathInput(data.path));
     if (path.empty())
         return;
-    if (path[0] != '/')
-        path = dir + "/" + path;
 
     bool append = false;
     if (access(path.c_str(), F_OK) == 0)
@@ -374,7 +455,7 @@ void openTextSave( const char *dialogTitle, const std::string &name, bool hasSel
         append = choice == cmAppend;
     }
 
-    std::string text = getText(data.what == 1 && hasSelection);
+    std::string text = getText(what == 1 && hasSelection);
     size_t slash = path.rfind('/');
     if (slash != std::string::npos && slash > 0)
         makeDirs(path.substr(0, slash));

@@ -100,6 +100,12 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   e relativ la acel director. Tot (istoric + ecran) sau doar selecția. Text simplu UTF-8, fără spații la capăt, cu liniile rupte
   lipite, fără liniile goale de la început/sfârșit. Fișier existent: Overwrite / Append / Cancel.
   Rezultatul apare în bara de stare și în Event Viewer.
+- **Numele fișierului** (E11; același dialog salvează și din Log View): grupul `File name` între câmpul File și „What to save”,
+  `Date first` (`YYYY-MM-DD-hhmm-tvterm-<titlu>.txt`, ordonate după dată în orice listă de fișiere) sau `Name first` (forma de
+  mai sus). Comutarea reface imediat câmpul File, doar cât timp conține încă numele propus (un nume editat rămâne neatins);
+  directorul rămâne. Alegerea de pornire vine din `save-name` din `tvterm.ini` (implicit `name-first`); alegerea de la ultima
+  salvare e ținută minte până la ieșirea din tvterm (Cancel nu o schimbă), cu excepția cazului când `save-name` se schimbă
+  între timp. tvterm nu rescrie niciodată `tvterm.ini`.
 - **Mouse**: dublu click selectează un cuvânt (litere, cifre, `word-chars`; orice caracter non-ASCII contează ca literă),
   triplu click toată linia logică (cu sfârșitul de linie); tragerea după aceea extinde pe cuvinte/linii. **Shift+click**
   forțează selecția în programele care folosesc mouse-ul (far2l), dacă `shift-click-select = yes`. Copierea, ca până acum (Ctrl-C).
@@ -140,7 +146,7 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 
 ### Fișierul de setări (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (sau `$XDG_CONFIG_HOME/tvterm/`), secțiuni `[general]` (`profile`, `auto-reload`),
-  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
+  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `save-name` (E11), `search-case-sensitive`, `shift-click-select`),
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, ex. `Ctrl-F5`, `none`). Documentat în `examples/tvterm.ini`.
 - **Profil implicit**: `profile = NUME` se deschide când tvterm pornește fără `-p`; `-p ALTUL` are prioritate; `-p none` pornește fără el.
   Dacă lipsește sau are erori: se deschide un terminal normal, iar motivul apare în Event Viewer și în bara de stare.
@@ -501,3 +507,4 @@ examples/profiles/example.ini
 | Window List în bara de stare (`far2l-extended`) | E8 | element `Window List` cu click după `Ctrl-B Open Menu` în toate barele, în afară de mutare/redimensionare și meniu |
 | Note pentru pozițiile din profil (`far2l-extended`) | E9 | o poziție mutată în interiorul Desktop-ului la încărcarea unui profil apare în Event Viewer |
 | Corecturi după testul 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` și `WinList` în barele de stare; Alerts `K~e~ywords`, dialogurile de salvare `Se~l~ection only`; notă în Event Viewer când Tile nu are loc |
+| Numele fișierului salvat (`far2l-extended`) | E11 | „File name: Date first / Name first” în dialogurile de salvare (istoric, ecran, Log View), `save-name` în `tvterm.ini` |

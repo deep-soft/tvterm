@@ -13,8 +13,9 @@ void openHistorySearch(tvterm::TerminalView &view);
 void openHistorySave(tvterm::TerminalView &view);
 
 // The same Save dialog, for other windows (Log View). 'name' is part of the
-// proposed file name ('tvterm-<name>-YYYY-MM-DD-hhmm.txt', in 'save-dir' or
-// in the current directory). 'getText(selectionOnly)' returns the text.
+// proposed file name ('tvterm-<name>-YYYY-MM-DD-hhmm.txt' or, with "Date
+// first", 'YYYY-MM-DD-hhmm-tvterm-<name>.txt'; in 'save-dir' or in the
+// current directory). 'getText(selectionOnly)' returns the text.
 void openTextSave( const char *dialogTitle, const std::string &name, bool hasSelection,
                    const std::function<std::string(bool)> &getText );
 

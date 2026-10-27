@@ -21,6 +21,7 @@ struct Settings
     int wheelLines {3};
     std::string wordChars {"-._/@:~+%="};
     std::string saveDir;    // Empty: the terminal's current directory.
+    bool saveDateFirst {false}; // save-name: date-first (true) or name-first.
     bool searchCaseSensitive {false};
     bool shiftClickSelect {true};
     // [logview]

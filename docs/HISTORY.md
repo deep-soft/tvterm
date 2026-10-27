@@ -99,6 +99,12 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   a relative name is relative to that directory. Everything (history + screen) or the selection only. Plain UTF-8 text,
   trailing spaces removed, wrapped lines joined, empty lines at the start/end left out. Existing file: Overwrite / Append / Cancel.
   The result goes to the status line and the Event Viewer.
+- **File name** (E11; the same dialog saves from the Log View): a `File name` group between the File field and "What to save",
+  `Date first` (`YYYY-MM-DD-hhmm-tvterm-<title>.txt`, sorted by date in any file list) or `Name first` (the form above).
+  Switching rewrites the File field at once, only while it still holds the proposed name (an edited name is left alone);
+  the directory stays. The starting choice comes from `save-name` in `tvterm.ini` (default `name-first`); the choice of the
+  last Save is kept until tvterm exits (Cancel does not change it), unless `save-name` changes in the meantime.
+  `tvterm.ini` is never rewritten by tvterm.
 - **Mouse**: double click selects a word (letters, digits, `word-chars`; non-ASCII counts as a letter), triple click the
   whole logical line (with the line break); dragging afterwards extends by words/lines. **Shift+click** forces the
   selection in programs that use the mouse (far2l), if `shift-click-select = yes`. Copying works as before (Ctrl-C).
@@ -139,7 +145,7 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 
 ### Settings file (`tvterm.ini`) — `far2l-extended`
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
-  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `search-case-sensitive`, `shift-click-select`),
+  `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `save-name` (E11), `search-case-sensitive`, `shift-click-select`),
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
 - **Default profile**: `profile = NAME` is opened when tvterm starts without `-p`; `-p OTHER` wins; `-p none` starts without it.
   If it is missing or has errors: a normal terminal opens, the reason goes to the Event Viewer and the status line.
@@ -495,3 +501,4 @@ examples/profiles/example.ini
 | Window List in the status line (`far2l-extended`) | E8 | clickable `Window List` item after `Ctrl-B Open Menu` in every status line except moving/resizing and the menu |
 | Profile position notes (`far2l-extended`) | E9 | a position moved inside the desktop when loading a profile is reported in the Event Viewer |
 | Fixes after the test of 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` and `WinList` in the status lines; Alerts `K~e~ywords`, save dialogs `Se~l~ection only`; Event Viewer note when Tile has no room |
+| Save file name (`far2l-extended`) | E11 | "File name: Date first / Name first" in the Save dialogs (history, screen, Log View), `save-name` in `tvterm.ini` |
