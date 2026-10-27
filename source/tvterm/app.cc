@@ -292,8 +292,8 @@ void TVTermApp::editSettings()
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
     // Items of windows that handle their own keys: a click sends the key
-    // (see TVTermStatusLine::keyCommand). "Window List" (no key, like
-    // Ctrl-B J) follows "Ctrl-B Open Menu" in every bar except those of
+    // (see TVTermStatusLine::keyCommand). "WinList" (Window List, no
+    // key, like Ctrl-B J) follows "Ctrl-B Menu" in every bar except those of
     // moving/resizing a window and of the open menu.
     auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
         return TVTermStatusLine::keyCommand(keyCode, mods, ch);
@@ -308,13 +308,13 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Esc~ Cancel", kbNoKey, 0) +
         *new TStatusDef(hcInputGrabbed, hcInputGrabbed) +
             *new TStatusItem("~Alt-End~ Release Input", kbAltEnd, cmReleaseInput) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcSelecting, hcSelecting) +
             *new TStatusItem("~Click & Drag~ Select Text", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // History mode: the keys are handled by the terminal view.
         *new TStatusDef(hcHistory, hcHistory) +
             *new TStatusItem("~↑↓ PgUp PgDn Home End~ Scroll", kbNoKey, 0) +
@@ -325,7 +325,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, keyCmd(kbEsc)) +
             *new TStatusItem(0 , kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Log View: its keys are handled by the window.
         *new TStatusDef(hcLogView, hcLogView) +
             *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
@@ -337,8 +337,8 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~/~ Search", kbNoKey, keyCmd('/', 0, '/')) +
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
-            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
             *new TStatusItem("~M~ Moves", kbNoKey, keyCmd('m', 0, 'm')) +
@@ -348,20 +348,20 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~T~ Messages", kbNoKey, keyCmd('t', 0, 't')) +
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
-            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
             *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +
-            *new TStatusItem("~Ctrl-B~ Open Menu", kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
-            *new TStatusItem("~Ctrl-B~ Open Menu" , kbCtrlB, cmMenu) +
-            *new TStatusItem("Window List", kbNoKey, cmWindowList) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
             // Shift-Ins itself is handled by the terminal view (see
             // TerminalView::pasteOnShiftIns); this item is a hint and can be
             // clicked.
@@ -377,17 +377,25 @@ TDeskTop *TVTermApp::initDeskTop(TRect r)
     return new TVTermDesk(r);
 }
 
+void TVTermApp::noteNoFreeArea()
+{
+    if (getDeskTop()->noFreeArea)
+        note("no free area beside the fixed windows, using the whole desktop");
+}
+
 void TVTermApp::handleEvent(TEvent &event)
 {
     // Instead of TApplication's: the Event Viewer and editors stay in place.
     if (event.what == evCommand && event.message.command == cmCascade)
     {
         getDeskTop()->cascadeWindows(getTileRect());
+        noteNoFreeArea();
         clearEvent(event);
     }
     else if (event.what == evCommand && event.message.command == cmTile)
     {
         getDeskTop()->tileHorizontal(getTileRect());
+        noteNoFreeArea();
         clearEvent(event);
     }
     TApplication::handleEvent(event);
@@ -417,8 +425,8 @@ void TVTermApp::handleEvent(TEvent &event)
                     break;
                 case cmAlertSettings: alertSettings(); break;
                 case cmNextAlert: nextAlert(); break;
-                case cmTileCols: getDeskTop()->tileVertical(getTileRect()); break;
-                case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
+                case cmTileCols: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
+                case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
                 default:
                     handled = false;
                     break;
@@ -790,9 +798,9 @@ void TVTermApp::openProfile(const Profile &profile)
         layout = anyPos || windows.size() < 2 ? Profile::Manual : Profile::TileColumns;
     switch (layout)
     {
-        case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); break;
-        case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); break;
-        case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); break;
+        case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
+        case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
+        case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); noteNoFreeArea(); break;
         default: break;
     }
 

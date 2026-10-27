@@ -99,7 +99,7 @@ void execAlertSettings(TWindow &window, AlertTarget &target)
 
     auto *keywords = new TInputLine(TRect(3, 7, 63, 8), sizeof(DialogData::keywords) - 1);
     d->insert(keywords);
-    d->insert(new TLabel(TRect(2, 6, 63, 7), "~K~eywords (comma-separated, case-insensitive):", keywords));
+    d->insert(new TLabel(TRect(2, 6, 63, 7), "K~e~ywords (comma-separated, case-insensitive):", keywords));
 
     auto *silence = new TInputLine(TRect(3, 10, 11, 11), sizeof(DialogData::silence) - 1);
     d->insert(silence);

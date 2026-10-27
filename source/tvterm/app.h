@@ -44,6 +44,8 @@ struct TVTermApp : public TApplication
     // Asks whether to close the open windows before loading a profile.
     // Returns false if the profile should not be loaded.
     bool closeWindowsBeforeLoad();
+    // After Tile / Cascade: a note if the fixed windows left no room.
+    void noteNoFreeArea();
     void saveProfile();
     void windowList();
     void renameTerm();

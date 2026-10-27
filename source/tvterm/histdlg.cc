@@ -262,7 +262,7 @@ void openHistorySave(tvterm::TerminalView &view)
     TRadioButtons *what = new TRadioButtons(TRect(3, 6, 67, 8),
         new TSItem(screenOnly ? "~V~isible screen (full-screen program: no history)"
                               : "~A~ll history and screen",
-        new TSItem("~S~election only", nullptr)));
+        new TSItem("Se~l~ection only", nullptr)));
     if (!hasSelection)
         what->setButtonState(2, False);
     d->insert(what);
@@ -347,7 +347,7 @@ void openTextSave( const char *dialogTitle, const std::string &name, bool hasSel
     d->insert(new TLabel(TRect(2, 2, 20, 3), "~F~ile", input));
     TRadioButtons *what = new TRadioButtons(TRect(3, 6, 67, 8),
         new TSItem("~A~ll the lines shown",
-        new TSItem("~S~election only", nullptr)));
+        new TSItem("Se~l~ection only", nullptr)));
     if (!hasSelection)
         what->setButtonState(2, False);
     d->insert(what);

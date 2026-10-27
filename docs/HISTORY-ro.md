@@ -63,6 +63,7 @@ E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
 E9. Show adjusted profile positions in the Event Viewer
+E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
 
 ---
 
@@ -258,7 +259,16 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
-- **Window List** (Ctrl-B J sau click pe `Window List` în bara de stare, E8: imediat după `Ctrl-B Open Menu` în barele de
+- **Numele din bara de stare** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (cu 7 coloane mai puțin,
+  deci contorul `Alerts: N (Ctrl-B G)`, desenat peste capătul din dreapta, îl acoperă mai rar).
+- **Literele rapide din dialoguri** (E10): două elemente ale aceluiași dialog nu mai au aceeași literă. Alerts: `K~e~ywords`
+  (Alt-K era luat de `O~K~`, care câștiga); dialogurile de salvare din History / Log View: `Se~l~ection only` (Alt-S era și
+  `~S~ave`). Verificate: Alerts, setările Log View (F4), dialogurile de căutare și salvare, Add to editor, Window List,
+  Quit / Close windows, Rename, About.
+- **Tile / Cascade fără loc** (E10): când ferestrele fixe nu lasă un dreptunghi de cel puțin 20 × 6 și se folosește tot
+  Desktop-ul (commit 26), în Event Viewer apare nota „no free area beside the fixed windows, using the whole desktop”
+  (`TVTermApp::noteNoFreeArea`, și pentru `layout` din profiluri).
+- **Window List** (Ctrl-B J sau click pe `WinList` în bara de stare, E8: imediat după `Ctrl-B Menu` în barele de
   terminal, LogView, Event Viewer și editor, la final în barele History, selecție și Grab Input; nu la mutare/redimensionare
   și nici în meniu; fără tastă; în Grab Input click-ul eliberează întâi intrarea): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
 - **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză. Filtre: vezi mai sus.
@@ -490,3 +500,4 @@ examples/profiles/example.ini
 | Filtre LogView în F4 (`far2l-extended`) | E7 | căsuța „Filters on” în F4 (sincronizată cu F), cheia `filters` în `[logview]`, copiată de D |
 | Window List în bara de stare (`far2l-extended`) | E8 | element `Window List` cu click după `Ctrl-B Open Menu` în toate barele, în afară de mutare/redimensionare și meniu |
 | Note pentru pozițiile din profil (`far2l-extended`) | E9 | o poziție mutată în interiorul Desktop-ului la încărcarea unui profil apare în Event Viewer |
+| Corecturi după testul 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` și `WinList` în barele de stare; Alerts `K~e~ywords`, dialogurile de salvare `Se~l~ection only`; notă în Event Viewer când Tile nu are loc |

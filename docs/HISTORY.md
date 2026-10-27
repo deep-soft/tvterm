@@ -62,6 +62,7 @@ E6. Make the status line items of the Event Viewer and History mode clickable
 E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
 E9. Show adjusted profile positions in the Event Viewer
+E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
 
 ---
 
@@ -257,7 +258,15 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
-- **Window List** (Ctrl-B J, or a click on `Window List` in the status line, E8: right after `Ctrl-B Open Menu` in the
+- **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
+  `Alerts: N (Ctrl-B G)` counter drawn over the right end covers it less often).
+- **Dialog hot keys** (E10): no two items of a dialog share a letter. Alerts: `K~e~ywords` (Alt-K was taken by `O~K~`, which
+  won); History / Log View save dialogs: `Se~l~ection only` (Alt-S was also `~S~ave`). Checked: Alerts, Log View settings (F4),
+  find and save dialogs, Add to editor, Window List, Quit / Close windows, Rename, About.
+- **Tile / Cascade without room** (E10): when the fixed windows leave no rectangle of at least 20 × 6 and the whole desktop is
+  used (commit 26), the Event Viewer gets the note "no free area beside the fixed windows, using the whole desktop"
+  (`TVTermApp::noteNoFreeArea`, also for the `layout` of profiles).
+- **Window List** (Ctrl-B J, or a click on `WinList` in the status line, E8: right after `Ctrl-B Menu` in the
   terminal, Log View, Event Viewer and editor lines, at the end of the History, selection and Grab Input lines; not while
   moving/resizing or in the menu; no key; in Grab Input the click first releases the input): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
@@ -485,3 +494,4 @@ examples/profiles/example.ini
 | Log View filters in F4 (`far2l-extended`) | E7 | "Filters on" check box in F4 (synchronized with F), `filters` key in `[logview]`, copied by D |
 | Window List in the status line (`far2l-extended`) | E8 | clickable `Window List` item after `Ctrl-B Open Menu` in every status line except moving/resizing and the menu |
 | Profile position notes (`far2l-extended`) | E9 | a position moved inside the desktop when loading a profile is reported in the Event Viewer |
+| Fixes after the test of 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` and `WinList` in the status lines; Alerts `K~e~ywords`, save dialogs `Se~l~ection only`; Event Viewer note when Tile has no room |
