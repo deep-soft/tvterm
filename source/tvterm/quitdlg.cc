@@ -70,9 +70,9 @@ public:
 
     TermListViewer *list;
 
-    QuitDialog(const TRect &bounds, const std::string &summary) noexcept :
+    QuitDialog(const TRect &bounds, const std::string &summary, bool closing) noexcept :
         TWindowInit(&initFrame),
-        TDialog(bounds, "Quit")
+        TDialog(bounds, closing ? "Close windows" : "Quit")
     {
         options |= ofCentered;
         insert(new TStaticText(TRect(2, 2, size.x - 2, 4), summary));
@@ -83,7 +83,7 @@ public:
         insert(list);
         insert(new TLabel(TRect(r.a.x, r.a.y - 1, r.a.x + 30, r.a.y), "~W~indows", list));
         int x = (size.x - 38) / 2, y = size.y - 3;
-        insert(new TButton(TRect(x, y, x + 10, y + 2), "~Q~uit", cmOK, bfDefault)); x += 12;
+        insert(new TButton(TRect(x, y, x + 10, y + 2), closing ? "~C~lose" : "~Q~uit", cmOK, bfDefault)); x += 12;
         insert(new TButton(TRect(x, y, x + 12, y + 2), "~G~o to", cmQuitGoTo, bfNormal)); x += 14;
         insert(new TButton(TRect(x, y, x + 12, y + 2), "Cancel", cmCancel, bfNormal));
         list->select();
@@ -166,7 +166,7 @@ static std::string padRight(const std::string &text, int width)
 
 } // namespace quitdlg
 
-bool confirmQuit(TDeskTop &deskTop)
+bool confirmQuit(TDeskTop &deskTop, bool closing)
 {
     using namespace quitdlg;
     std::vector<TermItem> terms;
@@ -204,21 +204,22 @@ bool confirmQuit(TDeskTop &deskTop)
 
     char summary[256];
     size_t termCount = terms.size() - logs;
+    const char *question = closing ? "Close them" : "Quit";
     if (logs == 0)
         snprintf(summary, sizeof(summary),
             "%zu terminal%s open, %zu running a program.\n"
-            "Programs receive SIGHUP and usually stop. Quit anyway?",
-            termCount, termCount == 1 ? " is" : "s are", busy);
+            "Programs receive SIGHUP and usually stop. %s anyway?",
+            termCount, termCount == 1 ? " is" : "s are", busy, question);
     else if (termCount == 0)
         snprintf(summary, sizeof(summary),
             "%zu Log View%s reading the output of a command.\n"
-            "The commands receive SIGHUP and stop. Quit anyway?",
-            logs, logs == 1 ? " is" : "s are");
+            "The commands receive SIGHUP and stop. %s anyway?",
+            logs, logs == 1 ? " is" : "s are", question);
     else
         snprintf(summary, sizeof(summary),
             "%zu terminal%s (%zu running a program), %zu Log View%s.\n"
-            "Programs receive SIGHUP and usually stop. Quit anyway?",
-            termCount, termCount == 1 ? "" : "s", busy - logs, logs, logs == 1 ? "" : "s");
+            "Programs receive SIGHUP and usually stop. %s anyway?",
+            termCount, termCount == 1 ? "" : "s", busy - logs, logs, logs == 1 ? "" : "s", question);
 
     int listHeight = (int) terms.size();
     int maxListHeight = deskTop.size.y - 10;
@@ -228,7 +229,7 @@ bool confirmQuit(TDeskTop &deskTop)
     if (r.b.x > deskTop.size.x) r.b.x = deskTop.size.x;
     if (r.b.y > deskTop.size.y) r.b.y = deskTop.size.y;
 
-    auto *d = new QuitDialog(r, summary);
+    auto *d = new QuitDialog(r, summary, closing);
     d->list->setItems(std::move(items));
     d->list->focusItem(0);
     TView *p = TProgram::application->validView(d);

@@ -46,6 +46,8 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 23. Paste and copy in the text fields of dialogs
 24. Keep profile positions inside the desktop
 25. Tile and Cascade leave the Event Viewer and editors in place
+26. Tile and Cascade use the largest area beside the fixed windows
+27. Ask whether to close the open windows when loading a profile
 
 ### Commits on `far2l-extended`
 
@@ -72,9 +74,12 @@ E9. Show adjusted profile positions in the Event Viewer
 Reload settings, About) · `U` Suspend · `Q` Exit.
 Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
-  stay where they are. The others use the desktop minus the rectangle enclosing those: if it touches an edge, the area on the
-  opposite side (e.g. on the right → everything on the left); otherwise the largest free area (left, right, above, below);
-  none open → the whole desktop, as before. Also for the `layout` of profiles. Code: `TVTermDesk::freeArea` (`desk.cc`).
+  stay where they are. The others use the largest rectangle that overlaps none of them, each fixed window counted separately
+  (commit 26; commit 25 used the rectangle enclosing all of them, which with an editor at the top left and the Event Viewer on
+  the right covered the whole desktop → the terminals were arranged over both). No fixed window open, or the largest free
+  rectangle under 20 columns × 6 rows → the whole desktop, as before. An L-shaped free space is not split into several areas.
+  Also for the `layout` of profiles. Code: `TVTermDesk::freeArea` (`desk.cc`; `noFreeArea` tells the caller the whole desktop
+  was used).
 
 ### History (scrollback) — `far2l-extended`
 - Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
@@ -245,6 +250,10 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   The text of "Untitled" editors is not saved (the user is warned).
 - Load Profile / Save Profile As list the profiles directory with the wildcard `*.ini`; `..\` and directories work normally,
   and a typed name is relative to the directory shown (commit 21; before, the full path was doubled: "Invalid drive or directory").
+- Load Profile with windows open (commit 27): "Close the current windows first?" Yes / No / Cancel. Yes = the terminals (and the running Log Views) are
+  listed as when quitting (title "Close windows", button Close, Go to), editors with unsaved changes ask to save (Cancel stops the
+  load), then all windows close and the profile opens; No = the profile's windows are added to the open ones (as before);
+  Cancel = nothing is loaded. `confirmQuit(deskTop, closing)` in `quitdlg.cc`, `TVTermApp::closeWindowsBeforeLoad` in `app.cc`.
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
@@ -465,6 +474,8 @@ examples/profiles/example.ini
 | Dialog clipboard | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C in dialog text fields, pasted text cleaned up |
 | Profile positions | 24 | positions saved inside the desktop; out-of-range positions moved inside when loading, not rejected |
 | Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |
+| Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
+| Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

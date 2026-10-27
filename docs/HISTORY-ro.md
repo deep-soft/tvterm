@@ -47,6 +47,8 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 23. Paste and copy in the text fields of dialogs
 24. Keep profile positions inside the desktop
 25. Tile and Cascade leave the Event Viewer and editors in place
+26. Tile and Cascade use the largest area beside the fixed windows
+27. Ask whether to close the open windows when loading a profile
 
 ### Commit-uri pe `far2l-extended`
 
@@ -73,9 +75,12 @@ E9. Show adjusted profile positions in the Event Viewer
 Reload settings, About) · `U` Suspend · `Q` Exit.
 Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - **Tile / Cascade** (commit 25): aranjează doar terminalele (și celelalte ferestre aranjabile); Event Viewer și ferestrele de editor
-  rămân pe loc. Celelalte folosesc Desktop-ul minus dreptunghiul care le cuprinde: lipit de o margine → zona de pe partea opusă
-  (ex. în dreapta → toată partea din stânga); altfel, cea mai mare zonă liberă (stânga, dreapta, sus, jos); fără ele deschise →
-  tot Desktop-ul, ca înainte. Și pentru `layout` din profiluri. Cod: `TVTermDesk::freeArea` (`desk.cc`).
+  rămân pe loc. Celelalte folosesc cel mai mare dreptunghi care nu atinge niciuna dintre ele, fiecare fereastră fixă luată separat
+  (commit 26; commit-ul 25 folosea dreptunghiul care le cuprindea pe toate, iar cu un editor stânga sus și Event Viewer în dreapta
+  acesta acoperea tot Desktop-ul → terminalele erau aranjate peste ele). Fără ferestre fixe deschise sau cu dreptunghiul liber sub
+  20 de coloane × 6 rânduri → tot Desktop-ul, ca înainte. Spațiul liber în formă de L nu se împarte în mai multe zone.
+  Și pentru `layout` din profiluri. Cod: `TVTermDesk::freeArea` (`desk.cc`; `noFreeArea` spune apelantului că s-a folosit tot
+  Desktop-ul).
 
 ### Istoric (scrollback) — `far2l-extended`
 - Fiecare terminal păstrează până la `lines` (implicit 10000) linii ieșite de pe ecran. Doar ecranul normal are istoric:
@@ -245,6 +250,11 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   Textul editoarelor „Untitled” nu se salvează (avertisment).
 - Load Profile / Save Profile As listează directorul de profiluri cu wildcard-ul `*.ini`; `..\` și directoarele merg normal,
   iar un nume tastat e relativ la directorul afișat (commit 21; înainte, calea completă apărea dublată: „Invalid drive or directory”).
+- Load Profile cu ferestre deschise (commit 27): „Close the current windows first?” Yes / No / Cancel. Yes = terminalele (și Log View-urile active) sunt
+  listate ca la ieșire (titlu „Close windows”, buton Close, Go to), editoarele cu modificări nesalvate întreabă de salvare (Cancel
+  oprește încărcarea), apoi toate ferestrele se închid și profilul se deschide; No = ferestrele profilului se adaugă lângă cele
+  deschise (ca înainte); Cancel = nu se încarcă nimic. `confirmQuit(deskTop, closing)` în `quitdlg.cc`,
+  `TVTermApp::closeWindowsBeforeLoad` în `app.cc`.
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
@@ -469,6 +479,8 @@ examples/profiles/example.ini
 | Clipboard în dialoguri | 23 | Shift-Ins / Ctrl-V / Ctrl-Ins / Ctrl-C în câmpurile din dialoguri, textul lipit curățat |
 | Poziții în profiluri | 24 | poziții salvate în interiorul Desktop-ului; cele în afară, mutate în interior la încărcare, nu respinse |
 | Tile / Cascade | 25 | Event Viewer și editoarele rămân pe loc; celelalte ferestre folosesc zona lăsată liberă |
+| Zona pentru Tile | 26 | cel mai mare dreptunghi lângă ferestrele fixe, fiecare luată separat (editorul stânga sus nu mai e acoperit) |
+| Load Profile | 27 | întreabă dacă se închid întâi ferestrele deschise (Yes / No / Cancel) |
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |
