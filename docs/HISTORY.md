@@ -41,6 +41,8 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 18. Split HISTORY into English (`HISTORY.md`) and Romanian (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
+21. Fix the doubled path in the profile file dialogs
+22. Fix overlapping memcpy in tvision's input line history
 
 ### Commits on `far2l-extended`
 
@@ -223,6 +225,8 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - **Save Profile As** (Ctrl-B A): saves all windows (stacking order, focus, fixed title, positions, actual current directory from `/proc/<pid>/cwd`,
   the command from the profile, or the foreground command found with `tcgetpgrp` + `/proc/<pgid>/cmdline`).
   The text of "Untitled" editors is not saved (the user is warned).
+- Load Profile / Save Profile As list the profiles directory with the wildcard `*.ini`; `..\` and directories work normally,
+  and a typed name is relative to the directory shown (commit 21; before, the full path was doubled: "Invalid drive or directory").
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
@@ -284,6 +288,7 @@ source/tvterm/             the application
                            (keyCommand: a command per key, turned into the key event in putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
+deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
 scripts/buildinfo.cmake    run at every build: writes <build dir>/buildinfo.cc (version, commit, branch, date, type)
@@ -316,6 +321,13 @@ examples/profiles/example.ini
   Ncurses"). Two verified solutions: (1) build on Ubuntu 24 (glibc + ncurses 6.4), which works on Ubuntu 12 and CentOS 7.9;
   (2) copy a new `xterm-256color` (e.g. from Alpine) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users).
   The system's old programs (ncurses 5.9) skip the new-format file and keep using theirs (`top`, `mc` verified).
+- **"Illegal instruction" in file dialogs (Alpine, commit 22):** tvision's input line history (`histlist.cpp`: `deleteString`,
+  `insertString`) moved entries with `memcpy` over overlapping memory (the DOS original used `movmem`). With `_FORTIFY_SOURCE`
+  on musl (fortify-headers), an overlapping `memcpy` stops the program with `ud2` = "Illegal instruction"; glibc does not check.
+  Trigger: a name chosen again in a dialog field with history after a longer one (e.g. Load Profile `a1.ini`, `longername.ini`,
+  `a1.ini`), or a full history (1024 bytes). The history is empty at startup, so the crash looked random.
+  `deps/tvision-fixes.cmake` uses a copy of `histlist.cpp` with `memmove` (configure message: "Applied tvision fix");
+  if upstream changes the file, the original is used. Not applied with `TVTERM_USE_SYSTEM_TVISION`.
 
 ### Known pitfalls
 - Upstream's `.gitignore` ignores **everything** except explicitly allowed directories; files without an extension must be allowed too
@@ -323,6 +335,8 @@ examples/profiles/example.ini
 - Sources are found with `GLOB` → after adding a new `.cc` file, run `cmake` again.
 - Unity build: `static` functions from different files can clash → own namespaces (`far2lext`, `far2lclip`).
 - `TFileDialog`: its `directory` field starts empty → typed names are relative to the current directory; tvterm sets it to the profiles directory.
+  The wildcard must be a bare pattern (`*.ini`): tvision joins it to the directory (bottom pane, Name field for a focused directory).
+  A full path there is doubled → the dialog is created with `fdNoLoadDir`, then `directory` is set and the list read (`profiledlg::newDialog`, `app.cc`).
 - win32-input code is guarded by `HAVE_VTERM_WIN32INPUT` (only with the bundled, patched libvterm).
 - `TDialog` only closes itself on standard commands (cmOK, cmCancel, cmYes, cmNo): custom buttons must use them.
 - `TGroup::current` hides globals named `current` inside `TVTermApp` methods.
@@ -410,6 +424,8 @@ examples/profiles/example.ini
 - Log View: the scroll bar counts lines, not wrapped rows; a search finds the first match of each line (F3 goes to the next
   line); restarting a source with `tail -n N` shows those N lines again; the regular expressions of the history search
   (ECMAScript) and of the Log View (POSIX, like `grep -E`) differ in details (e.g. `\d` only in ECMAScript).
+- tvision (for a PR to magiblot): `histlist.cpp` memcpy → memmove (fixed locally, commit 22); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
+  → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators.
 
 ---
 
@@ -423,6 +439,8 @@ examples/profiles/example.ini
 | Organization | 17–18 | docs/HISTORY.md, then split into HISTORY.md (English) and HISTORY-ro.md (Romanian); STATUS.md kept in the Claude Project |
 | Quit info | 19 | the quit confirmation lists what runs in each terminal, with Go to |
 | Ctrl keys | 20 | Ctrl+\ [ ] _ and keypad operators reach far2l and other programs |
+| File dialogs | 21 | profile dialogs: wildcard `*.ini` + directory set separately (no doubled path, `..\` works) |
+| tvision history | 22 | `memmove` in the input line history (cause of "Illegal instruction" in file dialogs on Alpine) |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

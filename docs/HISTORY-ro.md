@@ -42,6 +42,8 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 18. HISTORY împărțit în engleză (`HISTORY.md`) și română (`HISTORY-ro.md`)
 19. Show what runs in each terminal when quitting
 20. Pass Ctrl+\ [ ] _ and the keypad operators to programs
+21. Fix the doubled path in the profile file dialogs
+22. Fix overlapping memcpy in tvision's input line history
 
 ### Commit-uri pe `far2l-extended`
 
@@ -223,6 +225,8 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - **Save Profile As** (Ctrl-B A): salvează toate ferestrele (ordine, focus, titlu fix, poziții, directorul curent real din `/proc/<pid>/cwd`,
   comanda din profil sau comanda din prim-plan detectată prin `tcgetpgrp` + `/proc/<pgid>/cmdline`).
   Textul editoarelor „Untitled” nu se salvează (avertisment).
+- Load Profile / Save Profile As listează directorul de profiluri cu wildcard-ul `*.ini`; `..\` și directoarele merg normal,
+  iar un nume tastat e relativ la directorul afișat (commit 21; înainte, calea completă apărea dublată: „Invalid drive or directory”).
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
@@ -285,6 +289,7 @@ source/tvterm/             aplicația
                            (keyCommand: o comandă pentru fiecare tastă, transformată în eveniment de tastă în putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): mărime istoric, rotiță, caractere de cuvânt, taste, apeluri către aplicație
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
+deps/tvision-fixes.cmake   corecturi tvision: histlist.cpp copiat în directorul de build, memcpy → memmove (submodulul curat)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
 scripts/buildinfo.cmake    rulat la fiecare build: scrie <dir. build>/buildinfo.cc (versiune, commit, branch, dată, tip)
@@ -317,6 +322,13 @@ examples/profiles/example.ini
   Ncurses”). Două soluții verificate: (1) build pe Ubuntu 24 (glibc + ncurses 6.4), care merge pe Ubuntu 12 și CentOS 7.9;
   (2) un `xterm-256color` nou (ex. de pe Alpine) copiat în `~/.terminfo/x/` (un utilizator) sau `/etc/terminfo/x/` (toți).
   Programele vechi ale sistemului (ncurses 5.9) sar peste fișierul în format nou și îl folosesc pe al lor (verificat `top`, `mc`).
+- **„Illegal instruction” în dialogurile de fișiere (Alpine, commit 22):** istoricul câmpurilor din tvision (`histlist.cpp`:
+  `deleteString`, `insertString`) muta intrările cu `memcpy` peste zone care se suprapun (originalul DOS folosea `movmem`).
+  Cu `_FORTIFY_SOURCE` pe musl (fortify-headers), un `memcpy` cu suprapunere oprește programul cu `ud2` = „Illegal instruction”;
+  glibc nu verifică. Declanșator: un nume ales din nou într-un câmp cu istoric după unul mai lung (ex. Load Profile `a1.ini`,
+  `longername.ini`, `a1.ini`) sau istoricul plin (1024 de octeți). Istoricul e gol la pornire, de aceea blocarea părea aleatoare.
+  `deps/tvision-fixes.cmake` folosește o copie a `histlist.cpp` cu `memmove` (mesaj la configurare: „Applied tvision fix”);
+  dacă fișierul se schimbă upstream, se folosește originalul. Nu se aplică cu `TVTERM_USE_SYSTEM_TVISION`.
 
 ### Capcane cunoscute
 - `.gitignore` din upstream ignoră **tot** în afară de directoare permise explicit; fișierele fără extensie trebuie permise
@@ -324,6 +336,8 @@ examples/profiles/example.ini
 - Sursele sunt găsite cu `GLOB` → după adăugarea unui fișier `.cc` nou trebuie rulat din nou `cmake`.
 - Unity build: funcțiile `static` din fișiere diferite pot intra în conflict → namespace-uri proprii (`far2lext`, `far2lclip`).
 - `TFileDialog`: câmpul `directory` pornește gol → numele tastate sunt relative la directorul curent; tvterm îl setează la directorul profilurilor.
+  Wildcard-ul trebuie să fie doar un tipar (`*.ini`): tvision îl lipește la director (panoul de jos, câmpul Name pentru un director focusat).
+  O cale completă acolo apare dublată → dialogul e creat cu `fdNoLoadDir`, apoi se setează `directory` și se citește lista (`profiledlg::newDialog`, `app.cc`).
 - Cod win32-input protejat cu `HAVE_VTERM_WIN32INPUT` (doar cu libvterm-ul inclus, patch-uit).
 - `TDialog` se închide singur doar la comenzile standard (cmOK, cmCancel, cmYes, cmNo): butoanele proprii trebuie să le folosească.
 - `TGroup::current` ascunde variabilele globale numite `current` în metodele lui `TVTermApp`.
@@ -414,6 +428,8 @@ examples/profiles/example.ini
 - LogView: bara de derulare numără linii, nu rânduri rupte; căutarea găsește prima potrivire din fiecare linie (F3 trece la
   linia următoare); repornirea unei surse cu `tail -n N` arată din nou acele N linii; regex-urile din căutarea în istoric
   (ECMAScript) și din LogView (POSIX, ca `grep -E`) diferă în detalii (ex. `\d` doar în ECMAScript).
+- tvision (pentru un PR la magiblot): `histlist.cpp` memcpy → memmove (corectat local, commit 22); `TFileList::getText` adaugă `\` după ce copiază până la 255 de caractere într-un buffer de 256
+  → un octet în plus la un director cu numele de exact 255 de octeți; `hotKeyStr` (tinputli.cpp) primește pointer nul de la separatoarele meniului.
 
 ---
 
@@ -427,6 +443,8 @@ examples/profiles/example.ini
 | Organizare | 17–18 | docs/HISTORY.md, apoi împărțit în HISTORY.md (engleză) și HISTORY-ro.md (română); STATUS.md ținut în Project-ul Claude |
 | Info la ieșire | 19 | confirmarea de ieșire listează ce rulează în fiecare terminal, cu Go to |
 | Taste Ctrl | 20 | Ctrl+\ [ ] _ și operatorii de pe tastatura numerică ajung la far2l și la celelalte programe |
+| Dialoguri de fișiere | 21 | dialogurile de profil: wildcard `*.ini` + directorul setat separat (fără cale dublată, `..\` merge) |
+| Istoric tvision | 22 | `memmove` în istoricul câmpurilor (cauza „Illegal instruction” din dialogurile de fișiere pe Alpine) |
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |

@@ -11,6 +11,7 @@
 #define Uses_TDeskTop
 #define Uses_MsgBox
 #define Uses_TFileDialog
+#define Uses_TFileList
 #define Uses_TFileEditor
 #include <tvision/tv.h>
 
@@ -782,22 +783,38 @@ void TVTermApp::openProfile(const Profile &profile)
         windows[profile.focus - 1]->select();
 }
 
+namespace profiledlg
+{
+
+// A file dialog listing the *.ini files of 'dir' (the current directory if
+// 'dir' does not exist). TFileDialog keeps its wildcard exactly as given and
+// joins it to the listed directory: in the path shown at the bottom, and in
+// the Name field when a directory such as ..\ is focused. So the wildcard
+// must be a bare pattern; a full path there was doubled ("Invalid drive or
+// directory" after ..\). The directory is set separately instead.
+static TFileDialog *newDialog(const std::string &dir, const char *title,
+                              ushort options, uchar histId)
+{
+    if (dir.empty() || access(dir.c_str(), F_OK) != 0)
+        return new TFileDialog("*.ini", title, "~N~ame", options, histId);
+    TFileDialog *d = new TFileDialog("*.ini", title, "~N~ame",
+                                     options | fdNoLoadDir, histId);
+    std::string path = dir;
+    if (path.back() != '/')
+        path += '/';
+    // Names typed in the dialog are relative to 'directory'.
+    delete[] (char *) d->directory;
+    d->directory = newStr(path.c_str());
+    d->fileList->readDirectory(d->directory, d->wildCard);
+    return d;
+}
+
+} // namespace profiledlg
+
 void TVTermApp::loadProfile()
 {
-    std::string dir = profileDir();
-    bool hasDir = access(dir.c_str(), F_OK) == 0;
-    std::string wildCard = hasDir ? dir + "/*.ini" : std::string("*.ini");
     char fileName[MAXPATH];
-    strncpy(fileName, wildCard.c_str(), sizeof(fileName) - 1);
-    fileName[sizeof(fileName) - 1] = '\0';
-    TFileDialog *d = new TFileDialog(fileName, "Load profile", "~N~ame", fdOpenButton, 100);
-    if (hasDir)
-    {
-        // Names typed in the dialog are relative to 'directory', which
-        // otherwise is the current directory, not the one being listed.
-        delete[] (char *) d->directory;
-        d->directory = newStr((dir + "/").c_str());
-    }
+    TFileDialog *d = profiledlg::newDialog(profileDir(), "Load profile", fdOpenButton, 100);
     TView *p = validView(d);
     if (!p)
         return;
@@ -972,13 +989,7 @@ void TVTermApp::saveProfile()
     std::string dir = profileDir();
     makeDirs(dir);
     char fileName[MAXPATH];
-    snprintf(fileName, sizeof(fileName), "%s/*.ini", dir.c_str());
-    TFileDialog *d = new TFileDialog(fileName, "Save profile as", "~N~ame", fdOKButton, 101);
-    if (access(dir.c_str(), F_OK) == 0)
-    {
-        delete[] (char *) d->directory;
-        d->directory = newStr((dir + "/").c_str());
-    }
+    TFileDialog *d = profiledlg::newDialog(dir, "Save profile as", fdOKButton, 101);
     TView *p = validView(d);
     if (!p)
         return;
