@@ -46,6 +46,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 24. Keep profile positions inside the desktop
 25. Tile and Cascade leave the Event Viewer and editors in place
 26. Tile and Cascade use the largest area beside the fixed windows
+27. Ask whether to close the open windows when loading a profile
 
 ---
 
@@ -98,6 +99,10 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   The text of "Untitled" editors is not saved (the user is warned).
 - Load Profile / Save Profile As list the profiles directory with the wildcard `*.ini`; `..\` and directories work normally,
   and a typed name is relative to the directory shown (commit 21; before, the full path was doubled: "Invalid drive or directory").
+- Load Profile with windows open (commit 27): "Close the current windows first?" Yes / No / Cancel. Yes = the terminals are
+  listed as when quitting (title "Close windows", button Close, Go to), editors with unsaved changes ask to save (Cancel stops the
+  load), then all windows close and the profile opens; No = the profile's windows are added to the open ones (as before);
+  Cancel = nothing is loaded. `confirmQuit(deskTop, closing)` in `quitdlg.cc`, `TVTermApp::closeWindowsBeforeLoad` in `app.cc`.
 - Full documentation: `examples/profiles/example.ini`.
 
 ### Other
@@ -239,3 +244,4 @@ examples/profiles/example.ini
 | Profile positions | 24 | positions saved inside the desktop; out-of-range positions moved inside when loading, not rejected |
 | Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |
 | Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
+| Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |

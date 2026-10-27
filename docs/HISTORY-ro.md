@@ -47,6 +47,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 24. Keep profile positions inside the desktop
 25. Tile and Cascade leave the Event Viewer and editors in place
 26. Tile and Cascade use the largest area beside the fixed windows
+27. Ask whether to close the open windows when loading a profile
 
 ---
 
@@ -99,6 +100,11 @@ Litere libere în meniu: B, C, D, G, H, I, K, M, X, Y, Z (unele au rol în More)
   Textul editoarelor „Untitled” nu se salvează (avertisment).
 - Load Profile / Save Profile As listează directorul de profiluri cu wildcard-ul `*.ini`; `..\` și directoarele merg normal,
   iar un nume tastat e relativ la directorul afișat (commit 21; înainte, calea completă apărea dublată: „Invalid drive or directory”).
+- Load Profile cu ferestre deschise (commit 27): „Close the current windows first?” Yes / No / Cancel. Yes = terminalele sunt
+  listate ca la ieșire (titlu „Close windows”, buton Close, Go to), editoarele cu modificări nesalvate întreabă de salvare (Cancel
+  oprește încărcarea), apoi toate ferestrele se închid și profilul se deschide; No = ferestrele profilului se adaugă lângă cele
+  deschise (ca înainte); Cancel = nu se încarcă nimic. `confirmQuit(deskTop, closing)` în `quitdlg.cc`,
+  `TVTermApp::closeWindowsBeforeLoad` în `app.cc`.
 - Documentație completă: `examples/profiles/example.ini`.
 
 ### Altele
@@ -242,3 +248,4 @@ examples/profiles/example.ini
 | Poziții în profiluri | 24 | poziții salvate în interiorul Desktop-ului; cele în afară, mutate în interior la încărcare, nu respinse |
 | Tile / Cascade | 25 | Event Viewer și editoarele rămân pe loc; celelalte ferestre folosesc zona lăsată liberă |
 | Zona pentru Tile | 26 | cel mai mare dreptunghi lângă ferestrele fixe, fiecare luată separat (editorul stânga sus nu mai e acoperit) |
+| Load Profile | 27 | întreabă dacă se închid întâi ferestrele deschise (Yes / No / Cancel) |

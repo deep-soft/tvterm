@@ -526,8 +526,36 @@ void TVTermApp::loadProfile()
     if (result != cmCancel)
         p->getData(fileName);
     TObject::destroy(p);
-    if (result != cmCancel && !openProfile(std::string(fileName)) && pendingMessage.empty())
+    if (result == cmCancel || !closeWindowsBeforeLoad())
+        return;
+    if (!openProfile(std::string(fileName)) && pendingMessage.empty())
         pendingMessage = "No terminal was opened.";
+}
+
+bool TVTermApp::closeWindowsBeforeLoad()
+{
+    auto windows = getDeskTopWindows(*deskTop);
+    if (windows.empty())
+        return true;
+    ushort answer = messageBox(
+        "Close the current windows first?\n"
+        "(No: the profile's windows are added to them.)",
+        mfConfirmation | mfYesNoCancel);
+    if (answer == cmNo)
+        return true;
+    if (answer != cmYes)
+        return false;
+    // Lists what runs in the terminals, as when quitting.
+    if (getOpenTermCount() && !confirmQuit(*deskTop, true))
+        return false;
+    // Editors with unsaved changes ask first, before anything is closed:
+    // Cancel there keeps all the windows and loads nothing.
+    for (TWindow *w : windows)
+        if (!w->valid(cmClose))
+            return false;
+    for (TWindow *w : windows)
+        w->close();
+    return true;
 }
 
 void TVTermApp::windowList()
