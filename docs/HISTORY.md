@@ -124,6 +124,14 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   with the control character, as Windows does, and other programs the control byte (`0x1C`, `0x1B`, `0x1D`, `0x1F`).
   Keypad `* + - /` (scan codes 0x37, 0x4E, 0x4A, 0x35 + enhanced) get VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (they had `vk = 0`).
   In far2l: Ctrl+\ goes to `/`, Ctrl+[ / Ctrl+] insert the path of the left/right panel.
+- **Scrollback follows new output** (28): a terminal with scrollback could stop following its output and stay fixed higher up
+  (new lines added below, the scroll bar showing more lines underneath; back only with End or a key). Cause: a race between the
+  terminal thread and the UI thread. When the view updated its own scroll bar (`setParams`), Turbo Vision broadcast
+  `cmScrollBarChanged` as if the user had moved it, and tvterm sent the bar's value back to the emulator; by then the terminal
+  thread could have added lines, so the old value no longer meant "at the bottom". Seen with bursts of output (`tail -f`, alerts),
+  focused or not, while the scrollback was not yet full. Now the broadcast caused by `updateScrollBar` is ignored (flag
+  `updatingScrollBar`), and moving the scroll bar to the very bottom (click, drag, wheel) follows the output again.
+  The same code exists in magiblot `master` (candidate for the PR).
 
 ---
 
@@ -214,6 +222,10 @@ examples/profiles/example.ini
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
+- tmux harness notes (28): in a shell inside tvterm, `tmux send-keys Enter` may not run the command → send `C-j`.
+  `tmux send-keys` cannot deliver mouse events to tvterm; writing SGR sequences (`ESC[<0;x;yM` / `...m`, wheel `64`/`65`)
+  into the pane's tty with `ioctl(TIOCSTI)` works (`#{pane_tty}`; x/y 1-based). Scrollback race test: a script printing
+  bursts of lines with small delays, then a marker; the marker must be visible at the end (the base build got stuck 7/7).
 
 ---
 
@@ -245,3 +257,4 @@ examples/profiles/example.ini
 | Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |
 | Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
 | Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
+| Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |

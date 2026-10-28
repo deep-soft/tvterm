@@ -20,6 +20,9 @@ class TerminalView : public TView
 {
     const TVTermConstants &consts;
     TScrollBar *scrollBar {nullptr};
+    // Set while the view itself updates the scroll bar, so that the
+    // resulting cmScrollBarChanged broadcast is not mistaken for user input.
+    bool updatingScrollBar {false};
     bool ownerBufferChanged {false};
 
     SelectionRange selection {};
