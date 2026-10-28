@@ -5,6 +5,7 @@ cum se testează și ce capcane au apărut. Document de referință, actualizat 
 funcționalitate nouă. Starea curentă și pașii următori sunt în STATUS.md (în Project-ul Claude).
 
 Limba: română. Versiunea în engleză: [HISTORY.md](HISTORY.md); cele două se actualizează împreună.
+Cum se folosește tvterm acum (taste, setări, profiluri, exemple): [MANUAL-ro.md](MANUAL-ro.md) / [MANUAL.md](MANUAL.md).
 
 ## 1. Repository și branch-uri
 
@@ -64,6 +65,8 @@ E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
 E9. Show adjusted profile positions in the Event Viewer
 E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
+E11. Save dialogs: choose the file name form (date first or name first)
+E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 
 ---
 
@@ -263,6 +266,16 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   deschise (ca înainte); Cancel = nu se încarcă nimic. `confirmQuit(deskTop, closing)` în `quitdlg.cc`,
   `TVTermApp::closeWindowsBeforeLoad` în `app.cc`.
 - Documentație completă: `examples/profiles/example.ini`.
+
+### Manual — `far2l-extended`
+- `docs/MANUAL.md` (engleză) și `docs/MANUAL-ro.md` (română), sincronizate (E12): cum se folosește tvterm acum —
+  compilare și linia de comandă, meniul Ctrl-B, terminale și clipboard, istoric, editor, toate cheile din `tvterm.ini` cu
+  valorile implicite, profiluri, Event Viewer, alerte, Log View, exemple complete (Postfix și Dovecot, fail2ban, nginx, un
+  script `tail | awk`, multitail cu mai multe vederi pe logul unui firewall) și probleme cunoscute. Scris din surse (taste,
+  valori implicite, mesaje), nu din memorie; exemplele folosesc `192.0.2.x` / `example.com`.
+- HISTORY spune ce s-a schimbat și de ce; manualul spune cum funcționează acum. Fiecare patch următor actualizează
+  secțiunile din manual pe care le atinge când se schimbă ceva vizibil (taste, setări, chei de profil, afișare, mesaje);
+  corecturile interne intră doar în HISTORY.
 
 ### Altele
 - **Numele din bara de stare** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (cu 7 coloane mai puțin,
@@ -508,3 +521,4 @@ examples/profiles/example.ini
 | Note pentru pozițiile din profil (`far2l-extended`) | E9 | o poziție mutată în interiorul Desktop-ului la încărcarea unui profil apare în Event Viewer |
 | Corecturi după testul 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` și `WinList` în barele de stare; Alerts `K~e~ywords`, dialogurile de salvare `Se~l~ection only`; notă în Event Viewer când Tile nu are loc |
 | Numele fișierului salvat (`far2l-extended`) | E11 | „File name: Date first / Name first” în dialogurile de salvare (istoric, ecran, Log View), `save-name` în `tvterm.ini` |
+| Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: manualul de utilizare al comportamentului curent, cu exemple complete |

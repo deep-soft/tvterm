@@ -3,6 +3,7 @@
 Development history of the deep-soft/tvterm fork: what was implemented, how it works,
 how it is tested and which pitfalls were found. Reference document, updated with each new
 feature. Romanian version: [HISTORY-ro.md](HISTORY-ro.md); both are kept in sync.
+How to use tvterm today (keys, settings, profiles, examples): [MANUAL.md](MANUAL.md) / [MANUAL-ro.md](MANUAL-ro.md).
 
 Typical setup of this fork's main user: `Far (Windows) → putty4far2l → far2l (on the server) → tvterm → bash / far2l / mc`.
 The outer far2l restores the session when SSH drops; tvterm runs inside it.
@@ -63,6 +64,8 @@ E7. Log View: filters on/off in the settings dialog and in profiles
 E8. Add a Window List item to the status lines
 E9. Show adjusted profile positions in the Event Viewer
 E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
+E11. Save dialogs: choose the file name form (date first or name first)
+E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 
 ---
 
@@ -262,6 +265,16 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   load), then all windows close and the profile opens; No = the profile's windows are added to the open ones (as before);
   Cancel = nothing is loaded. `confirmQuit(deskTop, closing)` in `quitdlg.cc`, `TVTermApp::closeWindowsBeforeLoad` in `app.cc`.
 - Full documentation: `examples/profiles/example.ini`.
+
+### Manual — `far2l-extended`
+- `docs/MANUAL.md` (English) and `docs/MANUAL-ro.md` (Romanian), kept in sync (E12): how to use tvterm as it is now —
+  building and command line, the Ctrl-B menu, terminals and clipboard, history, editor, every `tvterm.ini` key with its
+  default, profiles, Event Viewer, alerts, Log View, complete examples (Postfix and Dovecot, fail2ban, nginx, a `tail | awk`
+  script, multitail with several views on a firewall log) and known problems. Written from the sources (keys, defaults,
+  messages), not from memory; the examples use `192.0.2.x` / `example.com`.
+- HISTORY says what changed and why; the manual says how things work now. Each later patch updates the manual sections
+  it touches when something visible changes (keys, settings, profile keys, display, messages); internal fixes go only
+  into HISTORY.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -502,3 +515,4 @@ examples/profiles/example.ini
 | Profile position notes (`far2l-extended`) | E9 | a position moved inside the desktop when loading a profile is reported in the Event Viewer |
 | Fixes after the test of 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` and `WinList` in the status lines; Alerts `K~e~ywords`, save dialogs `Se~l~ection only`; Event Viewer note when Tile has no room |
 | Save file name (`far2l-extended`) | E11 | "File name: Date first / Name first" in the Save dialogs (history, screen, Log View), `save-name` in `tvterm.ini` |
+| Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: user manual of the current behavior, with complete examples |
