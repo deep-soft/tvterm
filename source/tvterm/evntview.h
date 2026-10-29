@@ -22,6 +22,7 @@
 //               other events, tvterm's messages (see EventFilter);
 //               only new events are affected
 //   N           clear, then show again the messages kept by tvterm
+//   A           list the active alerts (oldest first)
 //   X           clear
 
 class TScrollBar;
@@ -54,6 +55,9 @@ public:
     // even while the viewer is stopped, unless hidden by the filter;
     // 'always': shown anyway (N key).
     void printNote(const std::string &text, bool always = false);
+    // Text shown as it is, even while stopped or with T- (e.g. the alert
+    // list, key A).
+    void printText(const std::string &text);
     void clear();
 
     const EventFilter &getFilter() const { return filter; }

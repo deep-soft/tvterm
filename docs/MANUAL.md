@@ -385,7 +385,8 @@ It opens on the right side (70 columns) when the screen is wider than 100 column
 
 It shows the Turbo Vision events (keys, mouse, commands; useful to check what a key sends) and **tvterm's messages**:
 settings problems, saved files, profile notes, ended Log View sources. Messages look like
-`tvterm: HH:MM:SS text`; the last 200 are kept, even while no Event Viewer is open, and the first two lines give
+`tvterm: hh:mm:ss text`, or `tvterm: YYYY-MM-DD hh:mm:ss text` for a message of another day (the date is added when the
+message is shown, so after midnight the older messages get it); the last 200 are kept, even while no Event Viewer is open, and the first two lines give
 the version and build.
 
 Keys, while it is focused (each one is also a status line item):
@@ -398,9 +399,10 @@ Keys, while it is focused (each one is also a status line item):
 | `O` | other events (commands) on/off |
 | `T` | tvterm's messages on/off |
 | `N` | clears the window and shows the kept messages again |
+| `A` | lists the active alerts ([chapter 9](#9-alerts)) |
 | `X` | clears the window |
 
-The title shows the filters: `Event Viewer [M- C+ K+ O+ T+]`. They apply to new events only; hidden events are still
+The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
 counted (`Received event #N` skips numbers). Profiles keep the filters (`[eventviewer]`).
 
 ---
@@ -413,16 +415,45 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
 | Kind | Dialog | Profile key | Mark in the title |
 |---|---|---|---|
 | activity: any new text | Any new text | `alert-activity = yes` | `[!]` |
-| keyword found in new text | Keywords | `alert-keywords = error, reject` | `[!error]` |
+| keyword found in a new line | Keywords | `alert-keywords = error, reject` | `[!error]` |
 | silence: no output for N seconds | Silence | `alert-silence = 60` | `[!silent]` |
 
-- Keywords: separated by commas, plain text (not regular expressions), case ignored for ASCII letters only; spaces at
-  their ends are dropped. Up to 255 characters in the dialog.
+- Keywords are plain text (not regular expressions), looked for in each new line; case is ignored for ASCII letters only;
+  spaces at the ends of each term are dropped. Up to 1023 characters in the dialog.
+
+  | Written | Meaning |
+  |---|---|
+  | `error, reject` | **comma** = alternative groups: a line with any of them |
+  | `192.168.88.4 + :993` | **`+`** = every term of the group must be in the same line (any order) |
+  | `!someuser@someserver` | **`!`** = exclusion: a line containing it raises no keyword alert, whatever group it matches; only as an element of its own, between commas |
+  | `!debug, !info` | only exclusions: any other new line raises the alert (mark `[!*]`) |
+  | `\!`, `\+`, `\,`, `\\`, `\ ` | `\` makes the next character plain text (`\ ` keeps a space at the end of a term) |
+
+  Example: `192.168.88.4 + :993, !someuser@someserver`. An exclusion inside a group with `+` (`a + !b`, `!a + b`) or
+  an empty term (`c++`: write `c\+\+`) is refused by the dialog with a message (the dialog stays open); in a profile it
+  is reported as a profile problem and the other keywords are used.
+- The mark shows the group found, without spaces around `+` and shortened to 24 characters (`[!192.168.88.4+:993]`); a
+  group with `[` or `]` is put in quotes (`] Ban` → `[!"] Ban"]`).
+- In a terminal, a line still being written (e.g. a prompt without Enter) is checked after 0.5 s without new output,
+  so an exclusion arriving a moment later on the same line still counts.
 - Silence is counted from the start of the window (or from setting the alert), then from the last output and from
   leaving the window. After a silence alert, new output arms it again.
 - Priority: keyword > silence > activity. A keyword found inside a window title or escape sequence does not count.
 - The mark also appears in the Window List and the quit dialog; the status line shows `Alerts: N (Ctrl-B G)`.
   **Ctrl-B G** goes to the oldest alert. Selecting the window clears its alert.
+- **A** in the Event Viewer lists the active alerts (those counted by `Alerts: N`), oldest first (the order of Ctrl-B G):
+  the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword time),
+  the mark and the window title; for keywords also the group and the line (around the first term, about 150 bytes):
+
+  ```
+  --- Active alerts (2) ---
+  14:02:11 [!] Shell
+  14:05:40 [!192.168.88.4+:993] Log: FortiGate
+      group: 192.168.88.4 + :993
+      line:  date=2026-10-29 time=14:05:40 ... srcip=192.168.88.4 ... dstport=993 ...
+  ```
+
+  Without alerts: `--- No active alerts ---`. The times have the date (`YYYY-MM-DD hh:mm:ss`) when not from today.
 - No false alarms from redrawing: output is ignored for 3 s after a terminal starts, and for 1.5 s after a resize or
   after leaving the terminal. For a Log View, the first 3 s after its source starts (e.g. the lines of `tail -n 5000`).
 - Activity alerts are noisy with full-screen programs (far2l's clock): use keywords there.
@@ -556,7 +587,7 @@ pos = 50 67 50 33
 
 "MTA all", "MTA problems" and "Dovecot" share one `tail`. "Dovecot" shows the IMAP / POP3 logins; `auth failed`
 appears both in older (`Disconnected (auth failed, ...)`) and newer (`Login aborted: ... (auth failed, ...)`)
-versions. The keyword `] Ban` (the end of `[sshd]`, then `Ban`) does not match `Unban`. Selecting a queue ID in
+versions. The keyword `] Ban` (the end of `[sshd]`, then `Ban`) does not match `Unban`; its mark is `[!"] Ban"]`. Selecting a queue ID in
 "MTA all" and searching for it (`/`) shows the whole story of a message. Start it with `tvterm -p mail`, or set
 `profile = mail` in `tvterm.ini`.
 

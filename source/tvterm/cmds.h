@@ -33,6 +33,7 @@ enum : ushort
     cmAlertSettings,
     cmNextAlert,
     cmNewLogView,
+    cmShowAlerts, // From the Event Viewer (infoPtr): list the active alerts.
 };
 
 enum : ushort

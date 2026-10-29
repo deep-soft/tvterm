@@ -33,6 +33,7 @@ public:
     void setAlertSettings(AlertSettings settings) noexcept override;
     bool hasAlert() const noexcept override { return alert != Alert::None; }
     uint64_t getAlertOrder() const noexcept override { return alertOrder; }
+    AlertInfo getAlertInfo() noexcept override;
     Alert getAlert() const noexcept { return alert; }
 
     void handleEvent(TEvent &ev) override;
@@ -48,8 +49,10 @@ private:
 
     AlertSettings alertSettings;
     Alert alert {Alert::None};
-    std::string alertKeyword; // The keyword found, for Alert::Keyword.
+    // Alert::Keyword: the group found and the line.
+    std::string alertKeyword, alertGroup, alertLine;
     uint64_t alertOrder {0};
+    time_t alertTime {0}; // When the alert got its current kind.
     uint64_t lastOutputBytes {0};
     // Output received during this time is ignored, because it is most
     // likely a redraw (startup, resize, focus change).
@@ -59,14 +62,18 @@ private:
     // focus). Disarmed by a silence alert, armed again by new output.
     bool silenceArmed {true};
     Clock::time_point silenceSince;
-    // End of the previous output, so that keywords split between two
-    // reads are found.
-    std::string keywordTail;
+    // Keywords are looked for in whole lines. The last line of the output,
+    // if not ended yet, waits here for the rest; if nothing more comes
+    // for a while (e.g. a prompt), it is checked as it is.
+    std::string pendingLine;
+    Clock::time_point pendingSince;
+    bool pendingChecked {false};
     std::string titleBuf;
 
     TRect getMaxBounds();
     void checkAlerts() noexcept;
-    void raiseAlert(Alert kind, const std::string &keyword = {}) noexcept;
+    void checkKeywordLine(const std::string &line) noexcept;
+    void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
     void clearAlert() noexcept;
     void ignoreOutputFor(int ms) noexcept;
 };

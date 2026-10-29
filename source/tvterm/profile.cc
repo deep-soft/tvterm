@@ -1,4 +1,5 @@
 #include "profile.h"
+#include "alerts.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -172,6 +173,10 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
     while (std::getline(file, line))
     {
         ++lineNo;
+        // Keywords may end with an escaped space ('\ ').
+        std::string rawLine = line;
+        if (!rawLine.empty() && rawLine.back() == '\r')
+            rawLine.pop_back();
         line = trim(line);
         if (line.empty() || line[0] == '#' || line[0] == ';')
             continue;
@@ -298,7 +303,13 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                     warn("invalid alert-activity '" + value + "' (use yes or no)");
             }
             else if (hasAlerts && key == "alert-keywords")
-                win.alertKeywords = value;
+            {
+                KeywordRules rules;
+                std::string error;
+                if (!parseKeywords(rawLine.substr(rawLine.find('=') + 1), rules, error))
+                    warn("alert-keywords: " + error + " (the other keywords are used)");
+                win.alertKeywords = rules.text;
+            }
             else if (hasAlerts && key == "alert-silence")
             {
                 char *end;

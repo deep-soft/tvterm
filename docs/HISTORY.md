@@ -67,6 +67,7 @@ E9. Show adjusted profile positions in the Event Viewer
 E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
 E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
+E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 
 ---
 
@@ -141,6 +142,11 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
   Default: mouse movements hidden, everything else shown. Only new events are affected.
 - Hidden events are still counted: gaps in `Received event #N` show them.
+- **A** (E13): lists the active alerts (those counted by `Alerts: N`), oldest first (the order of Ctrl-B G): time, mark,
+  window title; for keyword alerts also the group found and the line (about 150 bytes around the first term).
+  Header `--- Active alerts (N) ---`, or `--- No active alerts ---`; shown even when paused or with T-. Status line item
+  `A Alerts`; title `Event Viewer [M- C+ K+ O+ T+] A: alerts`. The application builds the list (`listAlerts`, message
+  `cmShowAlerts` from the viewer); each `AlertTarget` gives an `AlertInfo` (time of the current kind, mark, title, group, line).
 - Buffer: 64000 bytes (about 220 events with all their lines), instead of 3840; Turbo Vision's `TTerminal` limits it to
   32000, so tvterm's `EventTerminal` replaces the buffer after construction (positions are 16-bit, up to 65535).
 - Profiles: `[eventviewer]` accepts `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
@@ -157,7 +163,8 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   More... > Edit settings creates the file (every key commented out) and opens it in the editor. Everything except
   `profile` applies at once (a smaller `lines` drops the oldest lines). Invalid values keep their previous value;
   removed keys (or a removed file) go back to the defaults.
-- **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: HH:MM:SS ...`,
+- **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: hh:mm:ss ...`
+  (`YYYY-MM-DD hh:mm:ss` for a message of another day, E13: the notes keep their `time_t` and are formatted when shown),
   even when it is paused; the last 200 are kept and shown when it is opened. Short messages appear in the status line for 5 s.
 
 ### Alerts — `far2l-extended`
@@ -179,6 +186,21 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - Real test (CentOS 7.9): activity and keywords worked; silence was first armed only by output, so a `tail -f`
   on a quiet log never alerted until new lines came → changed: silence is counted from the start of the terminal
   (tested by the user in the real setup).
+- **Keyword groups and exclusions (E13)**: comma = alternative groups; `+` = terms that must all be in the same line;
+  `!term` = global exclusion (only as an element of its own; a line containing it raises no keyword alert); only
+  exclusions → any other non-blank line (mark `[!*]`). `\` makes the next character literal (`\!` `\+` `\,` `\\` `\ `);
+  unescaped spaces at the ends of terms are dropped. `!` inside a group with `+`, or an empty term (`c++`), is an error:
+  the Alerts dialog shows a message and stays open; a profile reports it as a problem (line number) and uses the valid
+  elements. Old values (plain comma lists) keep their meaning, except those with `+` (write `\+`).
+  `KeywordRules` (alerts.h) keeps the text as typed (saved in profiles unchanged; the profile reader keeps an escaped
+  space at the end of the line) and the parsed groups/exclusions (lowercase ASCII).
+  Matching is now per **line**: Log View lines as before; in terminals, the filtered output is split at its line breaks,
+  a line not ended yet waits and is checked after 0.5 s without new output (prompts), so an exclusion that arrives a
+  moment later on the same line still counts (this replaces the old tail of `maxLen - 1` bytes).
+  Mark: the group with `+` and no spaces, shortened to 24 bytes (`…`, UTF-8 safe), in quotes when it contains `[` or `]`
+  (`] Ban` gave `[!] Ban]`, now `[!"] Ban"]`). Keywords field: 1023 characters (was 255).
+- Alert time (E13): each window keeps the wall-clock time at which its alert got its current kind (activity → keyword
+  updates it), shown by A in the Event Viewer.
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
@@ -530,3 +552,4 @@ examples/profiles/example.ini
 | Fixes after the test of 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` and `WinList` in the status lines; Alerts `K~e~ywords`, save dialogs `Se~l~ection only`; Event Viewer note when Tile has no room |
 | Save file name (`far2l-extended`) | E11 | "File name: Date first / Name first" in the Save dialogs (history, screen, Log View), `save-name` in `tvterm.ini` |
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: user manual of the current behavior, with complete examples |
+| Alert list (`far2l-extended`) | E13 | Event Viewer key A (active alerts with time, group, line); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` in messages; keywords with `+` groups, `!` exclusions, `\` escapes |

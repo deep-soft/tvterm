@@ -58,8 +58,9 @@ static FileStamp stamp;
 static std::chrono::steady_clock::time_point nextCheck;
 enum { checkIntervalMs = 2000 };
 
-// Messages for the Event Viewer, kept until one is opened.
-static std::deque<std::string> notes;
+// Messages for the Event Viewer, kept until one is opened, with their time
+// (shown as hh:mm:ss today, with the date on other days).
+static std::deque<std::pair<time_t, std::string>> notes;
 enum { maxNotes = 200 };
 
 // When tvterm started (for the uptime in the About dialog).
@@ -82,24 +83,20 @@ const Settings &TVTermApp::settings()
 void TVTermApp::note(const std::string &text)
 {
     // Timestamp, so that notes can be told apart.
-    char stamp[16] = "";
     time_t now = time(nullptr);
-    if (struct tm *tm = localtime(&now))
-        strftime(stamp, sizeof(stamp), "%H:%M:%S ", tm);
-    std::string line = stamp + text;
-    appsettings::notes.push_back(line);
+    appsettings::notes.emplace_back(now, text);
     while (appsettings::notes.size() > appsettings::maxNotes)
         appsettings::notes.pop_front();
     if (TProgram::deskTop)
         if (auto *viewer = (TEventViewer *) message(TProgram::deskTop, evBroadcast, cmFindEventViewer, nullptr))
-            viewer->printNote(line);
+            viewer->printNote(formatEventTime(now) + " " + text);
 }
 
 static void showNotes(TEventViewer &viewer, bool always)
 // The notes received so far (the last 'maxNotes').
 {
-    for (auto &line : appsettings::notes)
-        viewer.printNote(line, always);
+    for (auto &note : appsettings::notes)
+        viewer.printNote(formatEventTime(note.first) + " " + note.second, always);
 }
 
 static TEventViewer *newEventViewer(const TRect &bounds, const EventFilter &filter = EventFilter())
@@ -347,6 +344,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~O~ Other", kbNoKey, keyCmd('o', 0, 'o')) +
             *new TStatusItem("~T~ Messages", kbNoKey, keyCmd('t', 0, 't')) +
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
+            *new TStatusItem("~A~ Alerts", kbNoKey, keyCmd('a', 0, 'a')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
             *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
@@ -422,6 +420,10 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmShowNotes:
                     if (event.message.infoPtr)
                         showNotes(*(TEventViewer *) event.message.infoPtr, true);
+                    break;
+                case cmShowAlerts:
+                    if (event.message.infoPtr)
+                        ((TEventViewer *) event.message.infoPtr)->printText(listAlerts(*deskTop));
                     break;
                 case cmAlertSettings: alertSettings(); break;
                 case cmNextAlert: nextAlert(); break;
@@ -951,7 +953,7 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
 
     const AlertSettings &alerts = w.getAlertSettings();
     term.alertActivity = alerts.activity;
-    term.alertKeywords = joinKeywords(alerts.keywords);
+    term.alertKeywords = alerts.keywords.text;
     term.alertSilence = alerts.silenceSeconds;
 
     setProfilePos(term, w, ext);
@@ -1031,7 +1033,7 @@ void TVTermApp::saveProfile()
             win.logAutoRestart = o.autoRestart;
             const AlertSettings &alerts = log->getAlertSettings();
             win.alertActivity = alerts.activity;
-            win.alertKeywords = joinKeywords(alerts.keywords);
+            win.alertKeywords = alerts.keywords.text;
             win.alertSilence = alerts.silenceSeconds;
             setProfilePos(win, *w, ext);
             profile.windows.push_back(std::move(win));

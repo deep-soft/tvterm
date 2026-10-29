@@ -66,7 +66,7 @@ void TEventViewer::shutDown()
 }
 
 void TEventViewer::updateTitle()
-// "Event Viewer (Stopped) [M- C+ K+ O+ T+]"
+// "Event Viewer (Stopped) [M- C+ K+ O+ T+] A: alerts"
 {
     std::string text = stopped ? "Event Viewer (Stopped) [" : "Event Viewer [";
     const std::pair<char, bool> flags[] = {
@@ -80,7 +80,7 @@ void TEventViewer::updateTitle()
         text += f.first;
         text += f.second ? '+' : '-';
     }
-    text += ']';
+    text += "] A: alerts";
     delete[] (char *) title;
     title = newStr(text.c_str());
     if (frame)
@@ -116,7 +116,7 @@ static char ownKey(const TEvent &ev)
     char c = ev.keyDown.charScan.charCode;
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
-    return strchr("mckotnx", c) && c ? c : 0;
+    return strchr("mckotnax", c) && c ? c : 0;
 }
 
 } // namespace evntview
@@ -154,6 +154,19 @@ void TEventViewer::printNote(const std::string &text, bool always)
     }
 }
 
+void TEventViewer::printText(const std::string &text)
+{
+    if (out)
+    {
+        lock();
+        *out << text;
+        if (text.empty() || text.back() != '\n')
+            *out << '\n';
+        *out << std::flush;
+        unlock();
+    }
+}
+
 void TEventViewer::clear()
 {
     if (interior)
@@ -172,6 +185,10 @@ void TEventViewer::handleEvent(TEvent &ev)
             case 'o': filter.other = !filter.other; break;
             case 't': filter.messages = !filter.messages; break;
             case 'x': clear(); break;
+            case 'a':
+                // The application knows the windows (see listAlerts).
+                message(TProgram::application, evCommand, cmShowAlerts, this);
+                break;
             case 'n':
                 // The application keeps the messages (see TVTermApp::note).
                 clear();

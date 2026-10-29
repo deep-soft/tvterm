@@ -390,7 +390,8 @@ Se deschide în partea dreaptă (70 de coloane) când ecranul are peste 100 de c
 
 Arată evenimentele Turbo Vision (taste, mouse, comenzi; util ca să vezi ce trimite o tastă) și **mesajele tvterm**:
 probleme în setări, fișiere salvate, note despre profiluri, surse Log View terminate. Mesajele arată ca
-`tvterm: HH:MM:SS text`; ultimele 200 se păstrează și cât timp nu e deschis niciun Event Viewer, iar primele două linii
+`tvterm: hh:mm:ss text` sau `tvterm: YYYY-MM-DD hh:mm:ss text` pentru un mesaj din altă zi (data se adaugă la afișare,
+deci după miezul nopții mesajele mai vechi o primesc); ultimele 200 se păstrează și cât timp nu e deschis niciun Event Viewer, iar primele două linii
 dau versiunea și compilarea.
 
 Taste, cât e fereastra activă (fiecare e și element în bara de stare):
@@ -403,9 +404,10 @@ Taste, cât e fereastra activă (fiecare e și element în bara de stare):
 | `O` | alte evenimente (comenzi) pornit/oprit |
 | `T` | mesajele tvterm pornit/oprit |
 | `N` | golește fereastra și arată din nou mesajele păstrate |
+| `A` | listează alertele active ([capitolul 9](#9-alerte)) |
 | `X` | golește fereastra |
 
-Titlul arată filtrele: `Event Viewer [M- C+ K+ O+ T+]`. Se aplică doar evenimentelor noi; evenimentele ascunse sunt totuși
+Titlul arată filtrele și tasta A: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. Se aplică doar evenimentelor noi; evenimentele ascunse sunt totuși
 numărate (`Received event #N` sare numere). Profilurile păstrează filtrele (`[eventviewer]`).
 
 ---
@@ -418,16 +420,45 @@ Alertele anunță că s-a întâmplat ceva într-un terminal sau Log View la car
 | Tip | Dialog | Cheie în profil | Marcaj în titlu |
 |---|---|---|---|
 | activitate: orice text nou | Any new text | `alert-activity = yes` | `[!]` |
-| cuvânt cheie găsit în textul nou | Keywords | `alert-keywords = error, reject` | `[!error]` |
+| cuvânt cheie găsit într-o linie nouă | Keywords | `alert-keywords = error, reject` | `[!error]` |
 | liniște: fără ieșire N secunde | Silence | `alert-silence = 60` | `[!silent]` |
 
-- Cuvintele cheie: separate prin virgulă, text simplu (nu expresii regulate), fără diferență de majuscule doar pentru
-  literele ASCII; spațiile de la capete se elimină. Maximum 255 de caractere în dialog.
+- Cuvintele cheie sunt text simplu (nu expresii regulate), căutate în fiecare linie nouă; fără diferență de majuscule doar
+  pentru literele ASCII; spațiile de la capetele fiecărui termen se elimină. Maximum 1023 de caractere în dialog.
+
+  | Scris | Înseamnă |
+  |---|---|
+  | `error, reject` | **virgula** = grupuri alternative: o linie cu oricare dintre ele |
+  | `192.168.88.4 + :993` | **`+`** = toți termenii grupului trebuie să fie în aceeași linie (în orice ordine) |
+  | `!someuser@someserver` | **`!`** = excludere: o linie care îl conține nu dă alertă de cuvânt cheie, oricare grup s-ar potrivi; doar ca element separat, între virgule |
+  | `!debug, !info` | doar excluderi: orice altă linie nouă dă alertă (marcaj `[!*]`) |
+  | `\!`, `\+`, `\,`, `\\`, `\ ` | `\` face caracterul următor text simplu (`\ ` păstrează un spațiu la capătul unui termen) |
+
+  Exemplu: `192.168.88.4 + :993, !someuser@someserver`. O excludere într-un grup cu `+` (`a + !b`, `!a + b`) sau un termen
+  gol (`c++`: se scrie `c\+\+`) e refuzată de dialog cu un mesaj (dialogul rămâne deschis); într-un profil e raportată
+  ca problemă de profil, iar celelalte cuvinte cheie se folosesc.
+- Marcajul arată grupul găsit, fără spații în jurul lui `+` și scurtat la 24 de caractere (`[!192.168.88.4+:993]`); un
+  grup cu `[` sau `]` e pus între ghilimele (`] Ban` → `[!"] Ban"]`).
+- Într-un terminal, o linie încă nescrisă complet (de ex. un prompt fără Enter) e verificată după 0,5 s fără ieșire nouă,
+  deci o excludere care sosește o clipă mai târziu pe aceeași linie contează.
 - Liniștea se numără de la pornirea ferestrei (sau de la setarea alertei), apoi de la ultima ieșire și de la părăsirea
   ferestrei. După o alertă de liniște, ieșirea nouă o rearmează.
 - Prioritate: cuvânt cheie > liniște > activitate. Un cuvânt găsit în titlul ferestrei sau într-o secvență escape nu contează.
 - Marcajul apare și în Window List și în dialogul de ieșire; bara de stare arată `Alerts: N (Ctrl-B G)`.
   **Ctrl-B G** merge la cea mai veche alertă. Selectarea ferestrei îi șterge alerta.
+- **A** în Event Viewer listează alertele active (cele numărate de `Alerts: N`), de la cea mai veche (ordinea lui Ctrl-B G):
+  ora la care alerta a primit tipul actual (o alertă de activitate devenită de cuvânt cheie arată ora cuvântului cheie),
+  marcajul și titlul ferestrei; la cuvinte cheie și grupul și linia (în jurul primului termen, cam 150 de octeți):
+
+  ```
+  --- Active alerts (2) ---
+  14:02:11 [!] Shell
+  14:05:40 [!192.168.88.4+:993] Log: FortiGate
+      group: 192.168.88.4 + :993
+      line:  date=2026-10-29 time=14:05:40 ... srcip=192.168.88.4 ... dstport=993 ...
+  ```
+
+  Fără alerte: `--- No active alerts ---`. Orele au și data (`YYYY-MM-DD hh:mm:ss`) când nu sunt de azi.
 - Fără alarme false din redesenare: ieșirea se ignoră 3 s după pornirea unui terminal și 1,5 s după redimensionare sau
   după părăsirea terminalului. La Log View, primele 3 s după pornirea sursei (de ex. liniile din `tail -n 5000`).
 - Alertele de activitate sunt zgomotoase cu programele pe tot ecranul (ceasul din far2l): acolo folosește cuvinte cheie.
@@ -561,7 +592,8 @@ pos = 50 67 50 33
 
 „MTA all”, „MTA problems” și „Dovecot” folosesc același `tail`. „Dovecot” arată autentificările IMAP / POP3; `auth failed`
 apare atât în versiunile vechi (`Disconnected (auth failed, ...)`), cât și în cele noi
-(`Login aborted: ... (auth failed, ...)`). Cuvântul cheie `] Ban` (sfârșitul lui `[sshd]`, apoi `Ban`) nu prinde `Unban`.
+(`Login aborted: ... (auth failed, ...)`). Cuvântul cheie `] Ban` (sfârșitul lui `[sshd]`, apoi `Ban`) nu prinde `Unban`;
+marcajul lui e `[!"] Ban"]`.
 Un queue ID selectat în „MTA all” și căutat (`/`) arată tot drumul unui mesaj. Pornire: `tvterm -p mail`
 sau `profile = mail` în `tvterm.ini`.
 

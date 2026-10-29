@@ -79,6 +79,7 @@ public:
     void setAlertSettings(AlertSettings settings) noexcept override;
     bool hasAlert() const noexcept override { return alert != Alert::None; }
     uint64_t getAlertOrder() const noexcept override { return alertOrder; }
+    AlertInfo getAlertInfo() noexcept override;
 
     // Takes the new lines from the source. Called at every idle time.
     void update();
@@ -134,8 +135,10 @@ private:
     // Alerts.
     AlertSettings alertSettings;
     Alert alert {Alert::None};
-    std::string alertKeyword;
+    // Alert::Keyword: the group found and the line.
+    std::string alertKeyword, alertGroup, alertLine;
     uint64_t alertOrder {0};
+    time_t alertTime {0}; // When the alert got its current kind.
     bool silenceArmed {true};
     Clock::time_point silenceSince;
     Clock::time_point sourceStart;
@@ -149,7 +152,9 @@ private:
     void refilter();
     void dropOldLines();
     void checkAlerts(const std::deque<uint64_t> &newLines, size_t from);
-    void raiseAlert(Alert kind, const std::string &keyword = {}) noexcept;
+    void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
+    // The title without the alert mark.
+    std::string plainTitle() const;
     void clearAlert() noexcept;
 
     // Scrolling.

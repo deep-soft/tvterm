@@ -68,6 +68,7 @@ E9. Show adjusted profile positions in the Event Viewer
 E10. Shorter status line items, distinct dialog hot keys, a note when Tile has no room
 E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
+E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 
 ---
 
@@ -142,6 +143,11 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Titlul arată starea: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` înaintea parantezelor când e pe pauză).
   Implicit: mișcările de mouse ascunse, restul afișate. Filtrul se aplică doar evenimentelor noi.
 - Evenimentele ascunse se numără în continuare: golurile din `Received event #N` le arată.
+- **A** (E13): listează alertele active (cele numărate de `Alerts: N`), de la cea mai veche (ordinea lui Ctrl-B G): ora,
+  marcajul, titlul ferestrei; la alertele de cuvânt cheie și grupul găsit și linia (cam 150 de octeți în jurul primului
+  termen). Antet `--- Active alerts (N) ---` sau `--- No active alerts ---`; afișat și în pauză sau cu T-. Element în bara
+  de stare `A Alerts`; titlul `Event Viewer [M- C+ K+ O+ T+] A: alerts`. Lista o face aplicația (`listAlerts`, mesajul
+  `cmShowAlerts` trimis de fereastră); fiecare `AlertTarget` dă un `AlertInfo` (ora tipului actual, marcaj, titlu, grup, linie).
 - Buffer: 64000 de octeți (aproximativ 220 de evenimente cu toate liniile lor), în loc de 3840; `TTerminal` din Turbo Vision
   îl limitează la 32000, așa că `EventTerminal` din tvterm înlocuiește bufferul după construcție (poziții pe 16 biți, până la 65535).
 - Profiluri: `[eventviewer]` acceptă `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
@@ -158,7 +164,8 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   More... > Edit settings creează fișierul (toate cheile comentate) și îl deschide în editor. Totul în afară de `profile`
   se aplică imediat (un `lines` mai mic elimină cele mai vechi linii). Valorile invalide își păstrează valoarea anterioară;
   cheile șterse (sau fișierul șters) revin la valorile implicite.
-- **Mesaje**: mesajele tvterm (setări, fișiere salvate, erori de profil) apar în Event Viewer ca `tvterm: HH:MM:SS ...`,
+- **Mesaje**: mesajele tvterm (setări, fișiere salvate, erori de profil) apar în Event Viewer ca `tvterm: hh:mm:ss ...`
+  (`YYYY-MM-DD hh:mm:ss` pentru un mesaj din altă zi, E13: notele își păstrează `time_t` și sunt formatate la afișare),
   chiar și în pauză; ultimele 200 se păstrează și se afișează la deschidere. Mesajele scurte apar 5 s în bara de stare.
 
 ### Alerte — `far2l-extended`
@@ -180,6 +187,21 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Test real (CentOS 7.9): activitatea și cuvintele cheie au mers; liniștea era armată doar de ieșire, deci un `tail -f`
   pe un log liniștit nu dădea alertă până nu veneau linii noi → schimbat: liniștea se numără de la pornirea
   terminalului (testat de utilizator în lanțul real).
+- **Grupuri și excluderi la cuvintele cheie (E13)**: virgula = grupuri alternative; `+` = termeni care trebuie să fie toți
+  în aceeași linie; `!termen` = excludere globală (doar ca element separat; o linie care îl conține nu dă alertă de cuvânt
+  cheie); doar excluderi → orice altă linie care nu e goală (marcaj `[!*]`). `\` face caracterul următor literal
+  (`\!` `\+` `\,` `\\` `\ `); spațiile neprotejate de la capetele termenilor se elimină. `!` într-un grup cu `+` sau un
+  termen gol (`c++`) e eroare: dialogul Alerts arată un mesaj și rămâne deschis; profilul o raportează ca problemă (cu
+  numărul liniei) și folosește elementele valide. Valorile vechi (liste simple cu virgulă) își păstrează sensul, în afară
+  de cele cu `+` (se scrie `\+`). `KeywordRules` (alerts.h) păstrează textul așa cum a fost scris (salvat neschimbat în
+  profil; cititorul de profil păstrează un spațiu protejat de la capătul liniei) și grupurile/excluderile (litere ASCII mici).
+  Căutarea e acum **pe linie**: liniile din Log View ca înainte; în terminale, ieșirea filtrată se împarte la sfârșiturile
+  de linie, iar o linie neterminată așteaptă și se verifică după 0,5 s fără ieșire nouă (prompturi), deci o excludere care
+  sosește o clipă mai târziu pe aceeași linie contează (înlocuiește vechea coadă de `maxLen - 1` octeți).
+  Marcaj: grupul cu `+` fără spații, scurtat la 24 de octeți (`…`, fără a tăia caractere UTF-8), între ghilimele când
+  conține `[` sau `]` (`] Ban` dădea `[!] Ban]`, acum `[!"] Ban"]`). Câmpul Keywords: 1023 de caractere (era 255).
+- Ora alertei (E13): fiecare fereastră reține ora (ceasul real) la care alerta a primit tipul actual (activitate → cuvânt
+  cheie o actualizează), afișată de A în Event Viewer.
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** deschide un dialog: titlu (gol: comanda), **comanda** (cu lista comenzilor anterioare, ↓), **include** și
@@ -536,3 +558,4 @@ examples/profiles/example.ini
 | Corecturi după testul 23–25 (`far2l-extended`) | E10 | `Ctrl-B Menu` și `WinList` în barele de stare; Alerts `K~e~ywords`, dialogurile de salvare `Se~l~ection only`; notă în Event Viewer când Tile nu are loc |
 | Numele fișierului salvat (`far2l-extended`) | E11 | „File name: Date first / Name first” în dialogurile de salvare (istoric, ecran, Log View), `save-name` în `tvterm.ini` |
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: manualul de utilizare al comportamentului curent, cu exemple complete |
+| Lista alertelor (`far2l-extended`) | E13 | tasta A în Event Viewer (alertele active cu ora, grupul, linia); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` în mesaje; cuvinte cheie cu grupuri `+`, excluderi `!`, `\` |

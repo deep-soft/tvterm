@@ -74,13 +74,8 @@ const char *TerminalWindow::getTitle(short maxSize)
     const char *title = Super::getTitle(maxSize);
     if (alert == Alert::None)
         return title;
-    switch (alert)
-    {
-        case Alert::Activity: titleBuf = "[!] "; break;
-        case Alert::Silence: titleBuf = "[!silent] "; break;
-        case Alert::Keyword: titleBuf = "[!" + alertKeyword + "] "; break;
-        default: titleBuf.clear(); break;
-    }
+    titleBuf = alertMark((int) alert == (int) Alert::Keyword ? 3 :
+                         (int) alert == (int) Alert::Silence ? 2 : 1, alertKeyword);
     if (title)
         titleBuf += title;
     return titleBuf.c_str();
@@ -89,7 +84,7 @@ const char *TerminalWindow::getTitle(short maxSize)
 void TerminalWindow::setAlertSettings(AlertSettings settings) noexcept
 {
     alertSettings = std::move(settings);
-    keywordTail.clear();
+    pendingLine.clear();
     // Silence is counted from now, even if nothing is ever written.
     silenceArmed = true;
     silenceSince = Clock::now();
@@ -101,14 +96,7 @@ void TerminalWindow::ignoreOutputFor(int ms) noexcept
     auto until = Clock::now() + std::chrono::milliseconds(ms);
     if (until > ignoreOutputUntil)
         ignoreOutputUntil = until;
-    keywordTail.clear();
-}
-
-static std::string toLowerAscii(std::string s)
-{
-    for (char &c : s)
-        c = (char) tolower((unsigned char) c);
-    return s;
+    pendingLine.clear();
 }
 
 void TerminalWindow::checkAlerts() noexcept
@@ -130,29 +118,48 @@ void TerminalWindow::checkAlerts() noexcept
     if ( !alertSettings.enabled() || isDisconnected() ||
          (state & sfSelected) || now < ignoreOutputUntil )
     {
-        keywordTail.clear();
+        pendingLine.clear();
         return;
     }
 
     if (!text.empty())
     {
-        if (!alertSettings.keywords.empty())
+        if (!alertSettings.keywords.empty() && alert != Alert::Keyword)
         {
-            std::string haystack = keywordTail + toLowerAscii(std::move(text));
-            size_t maxLen = 0;
-            for (const auto &keyword : alertSettings.keywords)
+            pendingLine += text;
+            size_t start = 0, end;
+            while ( alert != Alert::Keyword &&
+                    (end = pendingLine.find('\n', start)) != std::string::npos )
             {
-                maxLen = std::max(maxLen, keyword.size());
-                if (alert != Alert::Keyword && haystack.find(toLowerAscii(keyword)) != std::string::npos)
-                    raiseAlert(Alert::Keyword, keyword);
+                checkKeywordLine(pendingLine.substr(start, end - start));
+                start = end + 1;
             }
-            size_t keep = std::min(haystack.size(), maxLen > 0 ? maxLen - 1 : 0);
-            keywordTail = haystack.substr(haystack.size() - keep);
-            text = std::move(haystack);
+            if (alert == Alert::Keyword)
+                pendingLine.clear();
+            else
+            {
+                pendingLine.erase(0, start);
+                // A very long line without an end (e.g. a progress bar).
+                if (pendingLine.size() > 16 * 1024)
+                {
+                    checkKeywordLine(pendingLine);
+                    pendingLine.clear();
+                }
+            }
+            pendingSince = now;
+            pendingChecked = false;
         }
         if ( alertSettings.activity &&
              text.find_first_not_of(" \n") != std::string::npos )
             raiseAlert(Alert::Activity);
+    }
+    else if ( !pendingLine.empty() && !pendingChecked && alert != Alert::Keyword &&
+              now - pendingSince >= std::chrono::milliseconds(500) )
+    {
+        // The line has not ended for a while (a prompt...): checked as it
+        // is, once. If it goes on later, the whole line is checked again.
+        pendingChecked = true;
+        checkKeywordLine(pendingLine);
     }
 
     if ( alertSettings.silenceSeconds > 0 && silenceArmed && !newOutput &&
@@ -163,7 +170,13 @@ void TerminalWindow::checkAlerts() noexcept
     }
 }
 
-void TerminalWindow::raiseAlert(Alert kind, const std::string &keyword) noexcept
+void TerminalWindow::checkKeywordLine(const std::string &line) noexcept
+{
+    if (const KeywordGroup *group = alertSettings.keywords.match(lowerAscii(line)))
+        raiseAlert(Alert::Keyword, group, line);
+}
+
+void TerminalWindow::raiseAlert(Alert kind, const KeywordGroup *group, const std::string &line) noexcept
 {
     // A keyword is more important than silence, which is more important
     // than activity.
@@ -172,7 +185,10 @@ void TerminalWindow::raiseAlert(Alert kind, const std::string &keyword) noexcept
     if (alert == Alert::None)
         alertOrder = newAlertOrder();
     alert = kind;
-    alertKeyword = keyword;
+    alertTime = time(nullptr);
+    alertKeyword = group ? group->shortLabel : std::string();
+    alertGroup = group ? group->label : std::string();
+    alertLine = group ? alertLineFragment(line, group) : std::string();
     if (frame)
         frame->drawView();
 }
@@ -183,9 +199,26 @@ void TerminalWindow::clearAlert() noexcept
     {
         alert = Alert::None;
         alertKeyword.clear();
+        alertGroup.clear();
+        alertLine.clear();
         if (frame)
             frame->drawView();
     }
+}
+
+AlertInfo TerminalWindow::getAlertInfo() noexcept
+{
+    AlertInfo info;
+    info.time = alertTime;
+    info.mark = alertMark((int) alert == (int) Alert::Keyword ? 3 :
+                          (int) alert == (int) Alert::Silence ? 2 : 1, alertKeyword);
+    while (!info.mark.empty() && info.mark.back() == ' ')
+        info.mark.pop_back();
+    const char *title = Super::getTitle(255);
+    info.title = title && *title ? title : "(no title)";
+    info.group = alertGroup;
+    info.line = alertLine;
+    return info;
 }
 
 void TerminalWindow::sizeLimits(TPoint &min, TPoint &max)

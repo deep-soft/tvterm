@@ -921,15 +921,8 @@ void LogViewWindow::checkAlerts(const std::deque<uint64_t> &lines, size_t from)
                 const LogLine &line = source->line(lines[i]);
                 if (line.marker)
                     continue;
-                for (const auto &keyword : alertSettings.keywords)
-                {
-                    int b, e;
-                    if (findPlain(line.text, keyword, false, 0, b, e))
-                    {
-                        raiseAlert(Alert::Keyword, keyword);
-                        break;
-                    }
-                }
+                if (const KeywordGroup *group = alertSettings.keywords.match(lowerAscii(line.text)))
+                    raiseAlert(Alert::Keyword, group, line.text);
             }
         if (alertSettings.activity)
             raiseAlert(Alert::Activity);
@@ -951,7 +944,7 @@ void LogViewWindow::setAlertSettings(AlertSettings settings) noexcept
     clearAlert();
 }
 
-void LogViewWindow::raiseAlert(Alert kind, const std::string &keyword) noexcept
+void LogViewWindow::raiseAlert(Alert kind, const KeywordGroup *group, const std::string &line) noexcept
 {
     using namespace logview;
     // Keyword > silence > activity.
@@ -960,7 +953,10 @@ void LogViewWindow::raiseAlert(Alert kind, const std::string &keyword) noexcept
     if (alert == Alert::None)
         alertOrder = newAlertOrder();
     alert = kind;
-    alertKeyword = keyword;
+    alertTime = time(nullptr);
+    alertKeyword = group ? group->shortLabel : std::string();
+    alertGroup = group ? group->label : std::string();
+    alertLine = group ? alertLineFragment(line, group) : std::string();
     updateTitle();
 }
 
@@ -971,8 +967,24 @@ void LogViewWindow::clearAlert() noexcept
     {
         alert = Alert::None;
         alertKeyword.clear();
+        alertGroup.clear();
+        alertLine.clear();
         updateTitle();
     }
+}
+
+AlertInfo LogViewWindow::getAlertInfo() noexcept
+{
+    using namespace logview;
+    AlertInfo info;
+    info.time = alertTime;
+    info.mark = alertMark((int) alert, alertKeyword);
+    while (!info.mark.empty() && info.mark.back() == ' ')
+        info.mark.pop_back();
+    info.title = plainTitle();
+    info.group = alertGroup;
+    info.line = alertLine;
+    return info;
 }
 
 void LogViewWindow::setState(ushort aState, Boolean enable)
@@ -1009,16 +1021,7 @@ size_t LogViewWindow::newLineCount() const
 const char *LogViewWindow::getTitle(short)
 {
     using namespace logview;
-    std::string text;
-    switch (alert)
-    {
-        case Alert::Activity: text = "[!] "; break;
-        case Alert::Silence: text = "[!silent] "; break;
-        case Alert::Keyword: text = "[!" + alertKeyword + "] "; break;
-        default: break;
-    }
-    text += "Log: ";
-    text += options.title.empty() ? options.command : options.title;
+    std::string text = alertMark((int) alert, alertKeyword) + plainTitle();
     bool anyFilter = !options.include.empty() || !options.exclude.empty();
     if (anyFilter && !options.filters)
         text += " [F-]";
@@ -1043,6 +1046,12 @@ const char *LogViewWindow::getTitle(short)
         text += " [+" + std::to_string(n) + "]";
     titleBuf = std::move(text);
     return titleBuf.c_str();
+}
+
+std::string LogViewWindow::plainTitle() const
+{
+    using namespace logview;
+    return "Log: " + (options.title.empty() ? options.command : options.title);
 }
 
 void LogViewWindow::updateTitle()
