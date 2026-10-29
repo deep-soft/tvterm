@@ -27,6 +27,7 @@
 #include "procinfo.h"
 #include "quitdlg.h"
 #include "dlgclip.h"
+#include "dircompl.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -323,7 +324,7 @@ void TVTermApp::newEditor()
 void TVTermApp::openEditor()
 {
     char fileName[MAXPATH] = "*";
-    TFileDialog *d = new TFileDialog("*", "Open file", "~N~ame", fdOpenButton, 100);
+    TFileDialog *d = new TVTermFileDialog("*", "Open file", "~N~ame", fdOpenButton, 100);
     TView *p = validView(d);
     if (!p)
         return;
@@ -500,9 +501,9 @@ static TFileDialog *newDialog(const std::string &dir, const char *title,
                               ushort options, uchar histId)
 {
     if (dir.empty() || access(dir.c_str(), F_OK) != 0)
-        return new TFileDialog("*.ini", title, "~N~ame", options, histId);
-    TFileDialog *d = new TFileDialog("*.ini", title, "~N~ame",
-                                     options | fdNoLoadDir, histId);
+        return new TVTermFileDialog("*.ini", title, "~N~ame", options, histId);
+    TFileDialog *d = new TVTermFileDialog("*.ini", title, "~N~ame",
+                                          options | fdNoLoadDir, histId);
     std::string path = dir;
     if (path.back() != '/')
         path += '/';

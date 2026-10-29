@@ -47,6 +47,8 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 25. Tile and Cascade leave the Event Viewer and editors in place
 26. Tile and Cascade use the largest area beside the fixed windows
 27. Ask whether to close the open windows when loading a profile
+28. Keep the scrollback following new output
+29. Complete directory names in the Name field of file dialogs
 
 ---
 
@@ -132,6 +134,19 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   focused or not, while the scrollback was not yet full. Now the broadcast caused by `updateScrollBar` is ignored (flag
   `updatingScrollBar`), and moving the scroll bar to the very bottom (click, drag, wheel) follows the output again.
   The same code exists in magiblot `master` (candidate for the PR).
+- **Directory completion in file dialogs** (29): in the Name field of Open file, Save file as, Load Profile and Save Profile As,
+  a list of the matching directories opens by itself below the field while a path is typed: the subdirectories of the part
+  before the last `/` whose names begin with the text after it (`/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`). Only
+  directories; hidden ones only after a typed `.`; names compared case sensitively; links to directories included. A path
+  without `/` is taken from the directory shown in the dialog, `~/` from `$HOME`; no list for an empty field or `*` / `?` after
+  the last `/`. Keys: Down (list open) moves into the list; Up/Down/PgUp/PgDn/Home/End move in it; Enter (or a double click)
+  adds the directory with `/` to the field and lists its subdirectories; Up on the first row goes back to the field; Esc closes
+  the list (a second Esc closes the dialog); Tab closes it and moves to the next field; any other key goes back to the field.
+  With the list closed everything works as before (Down opens the field's history, Enter opens/changes directory); the list of
+  files below does not change while typing. The cursor stays in the field also while moving in the list, so the field's history
+  records only what it recorded before (moving the focus into the list had added every intermediate text). At most 10 rows,
+  with a scroll bar when there are more. Text pasted into the field (commit 23) also refreshes the list. `TVTermFileDialog`
+  (`dircompl.cc`) replaces `TFileDialog` in tvterm; tvision is not changed.
 
 ---
 
@@ -155,6 +170,7 @@ source/tvterm/             the application
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
+  dircompl.cc/.h           directory completion in the Name field of file dialogs (TVTermFileDialog, dircompl::Completion)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
@@ -226,6 +242,11 @@ examples/profiles/example.ini
   `tmux send-keys` cannot deliver mouse events to tvterm; writing SGR sequences (`ESC[<0;x;yM` / `...m`, wheel `64`/`65`)
   into the pane's tty with `ioctl(TIOCSTI)` works (`#{pane_tty}`; x/y 1-based). Scrollback race test: a script printing
   bursts of lines with small delays, then a marker; the marker must be visible at the end (the base build got stuck 7/7).
+- Directory completion (29): `dircompl::matches` checked by a small C++ test linked with `dircompl.cc` and `libtvision.a`
+  (prefix, case, hidden, relative / `~/` / absolute paths, links, wildcards, limit). In tmux, characters typed in one
+  `send-keys` arrive together and count as a paste; the first burst into a field whose text is selected (e.g. `*` when the
+  dialog opens) keeps only the first character, also before 29 → characters are sent one at a time. The field's history
+  (Down with the list closed) must not contain intermediate texts.
 
 ---
 
@@ -258,3 +279,4 @@ examples/profiles/example.ini
 | Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
 | Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
 | Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |
+| Directory completion | 29 | a list of the matching directories below the Name field of the file dialogs (Down, Enter, Esc, Tab) |

@@ -5,6 +5,7 @@
 #include <tvision/tv.h>
 
 #include "dlgclip.h"
+#include "dircompl.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -175,6 +176,9 @@ bool handleKeyEvent(TApplication &app, TEvent &ev) noexcept
         // 'line' is still focused: readPaste does not dispatch events.
         insertText(*line, sanitize(text, line->maxLen > 0 ? line->maxLen : 0));
         ev.what = evNothing;
+        // The dialog may react to the new text (directory completion).
+        if (line->owner)
+            message(line->owner, evBroadcast, dircompl::cmInputLinePasted, line);
         return true;
     }
     switch (ev.keyDown.keyCode)
