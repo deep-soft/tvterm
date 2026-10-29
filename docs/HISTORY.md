@@ -50,6 +50,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 26. Tile and Cascade use the largest area beside the fixed windows
 27. Ask whether to close the open windows when loading a profile
 28. Keep the scrollback following new output
+29. Complete directory names in the Name field of file dialogs
 
 ### Commits on `far2l-extended`
 
@@ -393,6 +394,20 @@ Free menu letters: B, C, I, J, X, Y, Z (`M` opens More...).
   focused or not, while the scrollback was not yet full. Now the broadcast caused by `updateScrollBar` is ignored (flag
   `updatingScrollBar`), and moving the scroll bar to the very bottom (click, drag, wheel) follows the output again.
   The same code exists in magiblot `master` (candidate for the PR).
+- **Directory completion in file dialogs** (29): in the Name field of Open file, Save file as, Load Profile and Save Profile As,
+  a list of the matching directories opens by itself below the field while a path is typed: the subdirectories of the part
+  before the last `/` whose names begin with the text after it (`/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`). Only
+  directories; hidden ones only after a typed `.`; names compared case sensitively; links to directories included. A path
+  without `/` is taken from the directory shown in the dialog, `~/` from `$HOME`; no list for an empty field or `*` / `?` after
+  the last `/`. Keys: Down (list open) moves into the list; Up/Down/PgUp/PgDn/Home/End move in it; Enter (or a double click)
+  adds the directory with `/` to the field and lists its subdirectories; Up on the first row goes back to the field; Esc closes
+  the list (a second Esc closes the dialog); Tab closes it and moves to the next field; any other key goes back to the field.
+  With the list closed everything works as before (Down opens the field's history, Enter opens/changes directory); the list of
+  files below does not change while typing. The cursor stays in the field also while moving in the list, so the field's history
+  records only what it recorded before (moving the focus into the list had added every intermediate text). At most 10 rows,
+  with a scroll bar when there are more. Text pasted into the field (commit 23) also refreshes the list. `TVTermFileDialog`
+  (`dircompl.cc`) replaces `TFileDialog` in tvterm; tvision is not changed. On `far2l-extended` (with the merge of 29) also in
+  the File field of the Save dialog of the history and the Log View (`histdlg.cc`, relative to the proposed directory).
 
 ---
 
@@ -427,6 +442,7 @@ source/tvterm/             the application
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
+  dircompl.cc/.h           directory completion in the Name field of file dialogs (TVTermFileDialog, dircompl::Completion)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
@@ -519,6 +535,11 @@ examples/profiles/example.ini
   `tmux send-keys` cannot deliver mouse events to tvterm; writing SGR sequences (`ESC[<0;x;yM` / `...m`, wheel `64`/`65`)
   into the pane's tty with `ioctl(TIOCSTI)` works (`#{pane_tty}`; x/y 1-based). Scrollback race test: a script printing
   bursts of lines with small delays, then a marker; the marker must be visible at the end (the base build got stuck 7/7).
+- Directory completion (29): `dircompl::matches` checked by a small C++ test linked with `dircompl.cc` and `libtvision.a`
+  (prefix, case, hidden, relative / `~/` / absolute paths, links, wildcards, limit). In tmux, characters typed in one
+  `send-keys` arrive together and count as a paste; the first burst into a field whose text is selected (e.g. `*` when the
+  dialog opens) keeps only the first character, also before 29 → characters are sent one at a time. The field's history
+  (Down with the list closed) must not contain intermediate texts.
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -624,6 +645,7 @@ examples/profiles/example.ini
 | Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
 | Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
 | Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |
+| Directory completion | 29 | a list of the matching directories below the Name field of the file dialogs (Down, Enter, Esc, Tab) |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

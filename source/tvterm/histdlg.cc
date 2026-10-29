@@ -15,6 +15,7 @@
 #include <tvision/compat/borland/dir.h>
 
 #include "histdlg.h"
+#include "dircompl.h"
 #include "app.h"
 #include "wnd.h"
 #include "settings.h"
@@ -219,6 +220,9 @@ public:
     std::string dir, name, stamp;
     uint32_t shown {orderNameFirst};
 
+    // Directory completion in the File field (attached once 'input' exists).
+    dircompl::Completion completion;
+
     SaveDialog(const TRect &bounds, TStringView title) noexcept :
         TWindowInit(&TDialog::initFrame),
         TDialog(bounds, title)
@@ -231,6 +235,11 @@ public:
     }
 
     void handleEvent(TEvent &ev) override
+    {
+        completion.handleEvent(ev, [this](TEvent &e) { handleOwnEvent(e); });
+    }
+
+    void handleOwnEvent(TEvent &ev)
     {
         TDialog::handleEvent(ev);
         if (!input || !order || order->current() == shown)
@@ -289,6 +298,8 @@ static bool runSaveDialog( const char *title, const std::string &dir, TStringVie
     d->insert(new TStaticText(TRect(3, 11, 67, 12), note));
     d->insert(new TButton(TRect(21, 13, 33, 15), "~S~ave", cmOK, bfDefault));
     d->insert(new TButton(TRect(37, 13, 49, 15), "Cancel", cmCancel, bfNormal));
+    // Last, so that the list opens on top of the other fields.
+    d->completion.attach(d, d->input, [d] { return d->dir; });
     d->selectNext(False);
     if (execDlg(d, &data) == cmCancel)
         return false;

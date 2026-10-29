@@ -51,6 +51,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 26. Tile and Cascade use the largest area beside the fixed windows
 27. Ask whether to close the open windows when loading a profile
 28. Keep the scrollback following new output
+29. Complete directory names in the Name field of file dialogs
 
 ### Commit-uri pe `far2l-extended`
 
@@ -397,6 +398,20 @@ Litere libere în meniu: B, C, I, J, X, Y, Z (`M` deschide More...).
   cu fereastra selectată sau nu, cât timp istoricul nu era plin. Acum anunțul produs de `updateScrollBar` e ignorat (indicatorul
   `updatingScrollBar`), iar bara de derulare dusă până jos (click, tragere, rotiță) reia urmărirea ieșirii.
   Același cod există în magiblot `master` (candidat pentru PR).
+- **Completare de director în dialogurile de fișiere** (29): în câmpul Name din Open file, Save file as, Load Profile și Save
+  Profile As, la tastarea unei căi apare singură, sub câmp, lista directoarelor potrivite: subdirectoarele părții dinaintea
+  ultimului `/` al căror nume începe cu textul de după el (`/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`). Doar directoare;
+  cele ascunse doar după `.` tastat; numele comparate cu diferență de majuscule; link-urile spre directoare incluse. O cale fără
+  `/` e luată din directorul afișat în dialog, `~/` din `$HOME`; fără listă la câmp gol sau cu `*` / `?` după ultimul `/`.
+  Taste: ↓ (cu lista deschisă) intră în listă; ↑/↓/PgUp/PgDn/Home/End se mișcă în ea; Enter (sau dublu-click) adaugă directorul
+  cu `/` în câmp și listează subdirectoarele lui; ↑ pe primul rând revine în câmp; Esc închide lista (al doilea Esc închide
+  dialogul); Tab o închide și trece la câmpul următor; orice altă tastă revine în câmp. Cu lista închisă totul merge ca înainte
+  (↓ deschide istoricul câmpului, Enter deschide / schimbă directorul); lista de fișiere de dedesubt nu se schimbă la tastare.
+  Cursorul rămâne în câmp și cât timp te miști în listă, așa că istoricul câmpului reține doar ce reținea și înainte (mutarea
+  focusului în listă adăuga fiecare text intermediar). Cel mult 10 rânduri, cu bară de derulare când sunt mai multe. Textul lipit
+  în câmp (commit 23) reface și el lista. `TVTermFileDialog` (`dircompl.cc`) înlocuiește `TFileDialog` în tvterm; tvision nu
+  e modificat. Pe `far2l-extended` (cu merge-ul lui 29) și în câmpul File din dialogul Save al istoricului și al Log View
+  (`histdlg.cc`, relativ la directorul propus).
 
 ---
 
@@ -431,6 +446,7 @@ source/tvterm/             aplicația
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
   dlgclip.cc/.h            clipboard în câmpurile din dialoguri (TInputLine cu focus; apelat din TVTermApp::getEvent)
+  dircompl.cc/.h           completare de director în câmpul Name al dialogurilor de fișiere (TVTermFileDialog, dircompl::Completion)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, nume de taste, șablon, FileStamp
   histdlg.cc/.h            dialogurile de căutare și salvare din modul istoric; openTextSave (dialogul de salvare pentru LogView)
@@ -523,6 +539,11 @@ examples/profiles/example.ini
   `tmux send-keys` nu poate trimite evenimente de mouse către tvterm; secvențele SGR (`ESC[<0;x;yM` / `...m`, rotița `64`/`65`)
   scrise în tty-ul panoului cu `ioctl(TIOCSTI)` merg (`#{pane_tty}`; x/y de la 1). Testul pentru cursa istoricului: un script care
   scrie rafale de linii cu mici pauze, apoi un marcaj; la final marcajul trebuie să fie vizibil (build-ul de bază s-a blocat 7/7).
+- Completarea de director (29): `dircompl::matches` verificat cu un mic test C++ legat cu `dircompl.cc` și `libtvision.a`
+  (prefix, majuscule, ascunse, căi relative / `~/` / absolute, link-uri, `*`, limită). În tmux, caracterele trimise într-un singur
+  `send-keys` sosesc împreună și contează ca paste; prima rafală într-un câmp cu textul selectat (ex. `*` la deschiderea
+  dialogului) păstrează doar primul caracter, și înainte de 29 → caracterele se trimit pe rând. Istoricul câmpului (↓ cu lista
+  închisă) nu trebuie să conțină texte intermediare.
 - Teste istoric (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse în format SGR `ESC[<b;x;yM/m` (dublu/triplu click = apăsare/eliberare
   repetată în 0,1 s; tragere = butonul 32). Potrivirea apare în pyte cu fundal `brightbrown`.
@@ -631,6 +652,7 @@ examples/profiles/example.ini
 | Zona pentru Tile | 26 | cel mai mare dreptunghi lângă ferestrele fixe, fiecare luată separat (editorul stânga sus nu mai e acoperit) |
 | Load Profile | 27 | întreabă dacă se închid întâi ferestrele deschise (Yes / No / Cancel) |
 | Urmărirea istoricului | 28 | vederea nu mai încetează să urmărească ieșirea după rafale; bara de derulare dusă jos reia urmărirea |
+| Completare director | 29 | lista directoarelor potrivite sub câmpul Name din dialogurile de fișiere (↓, Enter, Esc, Tab) |
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |

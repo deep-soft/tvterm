@@ -148,6 +148,23 @@ cu marcajul de alertă, dacă există. Butoane: **Go** (Enter), **Rename**, **Cl
 Editoarele cu modificări nesalvate întreabă după aceea. Programele primesc SIGHUP; far2l rămâne în fundal și poate fi
 reatașat.
 
+### Dialogurile de fișiere
+
+În câmpul pentru nume din dialogurile de fișiere (Open File in Editor, Save file as din editor, Load Profile, Save Profile
+As și câmpul File din dialogul Save al istoricului și al Log View), la tastarea unei căi apare singură, sub câmp, o listă de
+directoare: subdirectoarele părții dinaintea ultimului `/` al căror nume începe cu ce urmează după el.
+De exemplu `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
+
+- Doar directoare; cele ascunse doar după ce tastezi un `.`. Literele mari și mici diferă (`L` nu prinde `lib`).
+- Un nume fără `/` e luat din directorul afișat în dialog; `~/` e directorul tău home.
+- **↓** intră în listă; ↑ / ↓ / PgUp / PgDn / Home / End se mișcă în ea. **Enter** (sau dublu-click) adaugă directorul și
+  un `/` în câmp și arată subdirectoarele lui, ca să continui cu tastarea sau alegerea.
+  **↑** pe primul rând revine în câmp; orice altă tastă revine și ea în câmp și e tastată acolo.
+- **Esc** închide lista (al doilea Esc închide dialogul); **Tab** o închide și trece la câmpul următor.
+- Cu lista închisă tastele merg ca înainte: ↓ deschide istoricul câmpului, Enter deschide fișierul sau intră în director.
+  Lista de fișiere din dialog nu se schimbă cât tastezi.
+- Textul lipit (Shift-Ins, Ctrl-V) deschide și el lista. Se văd cel mult 10 rânduri, cu bară de derulare pentru restul.
+
 ---
 
 ## 3. Terminale și clipboard
@@ -228,7 +245,8 @@ apare negru pe galben. Negăsit: un mesaj în bara de stare.
 ### Salvarea
 
 Dialogul propune `tvterm-<titlu>-YYYY-MM-DD-hhmm.txt` în `save-dir`, altfel în directorul curent al programului din
-terminal; un nume relativ e relativ la acel director.
+terminal; un nume relativ e relativ la acel director. Numele de directoare se pot completa în câmpul File
+([Dialogurile de fișiere](#dialogurile-de-fișiere)).
 
 - **File name**: `Date first` (`YYYY-MM-DD-hhmm-tvterm-<titlu>.txt`, ordonat după dată în listele de fișiere) sau
   `Name first`. Comutarea rescrie numele propus (nu și unul modificat de mână). Alegerea de pornire este `save-name`

@@ -145,6 +145,23 @@ with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Canc
 `bash, idle`), the busy ones first. Buttons: **Quit**, **Go to** (goes to the chosen window, does not quit), Cancel.
 Editors with unsaved changes ask afterwards. Programs receive SIGHUP; far2l stays in the background and can be reattached.
 
+### File dialogs
+
+In the name field of the file dialogs (Open File in Editor, the editor's Save file as, Load Profile, Save Profile As,
+and the File field of the Save dialog of the history and the Log View), a list of directories opens by itself below the
+field while you type a path: the subdirectories of the part before the last `/` whose names begin with what follows it.
+For example `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
+
+- Only directories; hidden ones only after you type a `.`. Upper and lower case differ (`L` does not match `lib`).
+- A name without `/` is taken from the directory shown in the dialog; `~/` is your home directory.
+- **Down** moves into the list; Up / Down / PgUp / PgDn / Home / End move in it. **Enter** (or a double click) adds the
+  directory and a `/` to the field and shows its subdirectories, so you can go on typing or choosing.
+  **Up** on the first row goes back to the field; any other key also goes back to the field and is typed there.
+- **Esc** closes the list (a second Esc closes the dialog); **Tab** closes it and moves to the next field.
+- With the list closed the keys work as before: Down opens the field's history, Enter opens the file or changes to the
+  directory. The list of files of the dialog does not change while you type.
+- Pasted text (Shift-Ins, Ctrl-V) opens the list too. At most 10 rows are shown, with a scroll bar for the rest.
+
 ---
 
 ## 3. Terminals and the clipboard
@@ -224,7 +241,8 @@ shown black on yellow. Not found: a message in the status line.
 ### Save
 
 The dialog proposes `tvterm-<title>-YYYY-MM-DD-hhmm.txt` in `save-dir`, or else in the current directory of the program
-in the terminal; a relative name is relative to that directory.
+in the terminal; a relative name is relative to that directory. Directory names can be completed in the File field
+([File dialogs](#file-dialogs)).
 
 - **File name**: `Date first` (`YYYY-MM-DD-hhmm-tvterm-<title>.txt`, sorted by date in file lists) or `Name first`.
   Switching rewrites the proposed name (not one you edited). The starting choice is `save-name` in `tvterm.ini`;
