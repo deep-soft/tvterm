@@ -13,6 +13,7 @@ if (TVTERM_STATIC)
     # archives (.a) instead of shared libraries.
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
     message(STATUS "Building a static executable")
+    include(deps/static-pthread.cmake)
 endif()
 
 function(tvterm_set_warnings t)

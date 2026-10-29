@@ -50,6 +50,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 27. Ask whether to close the open windows when loading a profile
 28. Keep the scrollback following new output
 29. Complete directory names in the Name field of file dialogs
+30. Link the whole libpthread in static builds with glibc older than 2.34
 
 ---
 
@@ -177,6 +178,7 @@ source/tvterm/             aplicația
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
 deps/vterm/patches/0001-win32-input-mode.patch   aplicat automat de CMake pe o copie (submodulul rămâne curat)
 deps/tvision-fixes.cmake   corecturi tvision: histlist.cpp copiat în directorul de build, memcpy → memmove (submodulul curat)
+deps/static-pthread.cmake  build static: libpthread întreagă cu glibc mai vechi de 2.34 (std::thread)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
 examples/profiles/example.ini
@@ -203,6 +205,22 @@ examples/profiles/example.ini
   Ncurses”). Două soluții verificate: (1) build pe Ubuntu 24 (glibc + ncurses 6.4), care merge pe Ubuntu 12 și CentOS 7.9;
   (2) un `xterm-256color` nou (ex. de pe Alpine) copiat în `~/.terminfo/x/` (un utilizator) sau `/etc/terminfo/x/` (toți).
   Programele vechi ale sistemului (ncurses 5.9) sar peste fișierul în format nou și îl folosesc pe al lor (verificat `top`, `mc`).
+- **QNAP (QTS, x64)**: build-ul static de pe Alpine pornea monocrom. QTS setează `TERMINFO=/opt/share/terminfo` (director
+  inexistent fără Entware; shell-ul vede această valoare chiar dacă `.profile` are `/usr/share/terminfo`), iar singurul
+  `xterm` de pe QTS e din 2004 (`/usr/share/terminfo/x/xterm`; fără `infocmp` / `tput`). Soluție verificată, locală în
+  folderul tvterm: `xterm-256color` de pe Alpine în `<folder-tvterm>/terminfo/x/` și un script de pornire `tvt.sh`
+  (`#!/bin/sh`, `D` = folderul scriptului, `TERMINFO="$D/terminfo"`, `TERM=xterm-256color`, `exec "$D/tvterm"`). `/etc` nu se
+  atinge (QTS îl reface la repornire). `tvterm`, `mc`, `top` color.
+- **Build static cu glibc mai vechi de 2.34 (commit 30):** pe Raspbian 10 (Raspberry Pi 3, `armv7l`, glibc 2.28)
+  `tvterm-static` se oprea imediat la pornire (cod de ieșire 134, „terminate called without an active exception”, apoi
+  „recursively”); `--version` și build-ul dinamic mergeau. Cauza: înainte de 2.34, glibc ține funcțiile pentru fire de execuție
+  într-un `libpthread.a` separat; linkul static ia doar obiectele cerute direct, iar `std::thread` (`termctrl.cc`) eșuează.
+  `deps/static-pthread.cmake` (doar la build static) detectează glibc < 2.34 și leagă toată arhiva
+  (`-Wl,--whole-archive -lpthread -Wl,--no-whole-archive`; mesaj la configurare: „glibc older than 2.34: linking the whole
+  libpthread”). musl și glibc ≥ 2.34 (libpthread inclusă în libc) rămân neschimbate. Dacă opțiunea e deja în
+  `CMAKE_EXE_LINKER_FLAGS` (ocolirea manuală), nu se mai adaugă: de două ori ar defini de două ori fiecare simbol pthread.
+  `-DTVTERM_OLD_GLIBC=ON/OFF` înlocuiește detectarea. Ocolirea a fost verificată de utilizator înainte de commit (build
+  manual; far2l 2.8.0 rulează în el).
 - **„Illegal instruction” în dialogurile de fișiere (Alpine, commit 22):** istoricul câmpurilor din tvision (`histlist.cpp`:
   `deleteString`, `insertString`) muta intrările cu `memcpy` peste zone care se suprapun (originalul DOS folosea `movmem`).
   Cu `_FORTIFY_SOURCE` pe musl (fortify-headers), un `memcpy` cu suprapunere oprește programul cu `ud2` = „Illegal instruction”;
@@ -250,6 +268,11 @@ examples/profiles/example.ini
   `send-keys` sosesc împreună și contează ca paste; prima rafală într-un câmp cu textul selectat (ex. `*` la deschiderea
   dialogului) păstrează doar primul caracter, și înainte de 29 → caracterele se trimit pe rând. Istoricul câmpului (↓ cu lista
   închisă) nu trebuie să conțină texte intermediare.
+- libpthread la build static (30): `deps/static-pthread.cmake` încercat singur într-un proiect CMake mic: gcc (glibc 2.39) și
+  `musl-gcc` → neactivat; un `features.h` fals cu glibc 2.28 / 2.33 → activat, 2.34 / 3.0 → neactivat; opțiunea deja în
+  `CMAKE_EXE_LINKER_FLAGS` → nu se dublează; `-DTVTERM_OLD_GLIBC=ON/OFF` respectat. Comanda de link statică a lui tvterm pe
+  glibc 2.39 e identică cu cea dinainte de 30; forțat cu `-DTVTERM_OLD_GLIBC=ON` pe glibc 2.39, build-ul static se leagă și
+  pornește. Testul real: Raspberry Pi (utilizatorul).
 
 ---
 
@@ -261,7 +284,8 @@ examples/profiles/example.ini
   numerică) au `vk = 0`.
 - Starea „pauză” a Event Viewer-ului nu se salvează în profil.
 - tvision (pentru un PR la magiblot): `histlist.cpp` memcpy → memmove (corectat local, commit 22); `TFileList::getText` adaugă `\` după ce copiază până la 255 de caractere într-un buffer de 256
-  → un octet în plus la un director cu numele de exact 255 de octeți; `hotKeyStr` (tinputli.cpp) primește pointer nul de la separatoarele meniului.
+  → un octet în plus la un director cu numele de exact 255 de octeți; `hotKeyStr` (tinputli.cpp) primește pointer nul de la separatoarele meniului;
+  `fmtstr.cpp` `vFormatStr`: GCC 15 + fortify-headers (Alpine) avertizează la `vsprintf` → propunere `vsnprintf(buf, n + 1, …)`.
 
 ---
 
@@ -284,3 +308,4 @@ examples/profiles/example.ini
 | Load Profile | 27 | întreabă dacă se închid întâi ferestrele deschise (Yes / No / Cancel) |
 | Urmărirea istoricului | 28 | vederea nu mai încetează să urmărească ieșirea după rafale; bara de derulare dusă jos reia urmărirea |
 | Completare director | 29 | lista directoarelor potrivite sub câmpul Name din dialogurile de fișiere (↓, Enter, Esc, Tab) |
+| libpthread static | 30 | build-urile statice cu glibc < 2.34 (Raspbian 10) leagă toată libpthread; nu se mai opresc la pornire |
