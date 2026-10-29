@@ -71,6 +71,7 @@ E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
+E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 
 ---
 
@@ -289,6 +290,16 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   oră (`2026-10-29T10:06:17`, `2026-10-29^10:06:17`, `2026-10-29 10:06:17`), cu fracțiuni de secundă și fus orar opționale
   (`.123`, `+02:00`, `Z`), precum și `Oct 29 10:06:17`, ca logurile îmbinate din surse diferite să arate la fel.
   S-a schimbat doar acea regulă: `[T^ ]` în loc de `T` (un `^` care nu e primul în `[ ]` e literal în POSIX).
+- E16: o săgeată lângă Include, Exclude și Highlight sets în F4 (ca la Command): click sau ↓ în câmp deschide o listă.
+  Include / Exclude: valorile folosite (una înlocuiește câmpul; o cale rapidă de revenire, de ex. după ce un Exclude a
+  fost oprit cu `!(…)`). Highlight sets: întâi seturile (incluse + `tvterm.ini`, sortate; unul se adaugă la sfârșitul
+  câmpului cu un spațiu, dacă nu e deja acolo; cursorul la sfârșit, nimic selectat), apoi `── used before ──` și
+  valorile folosite (una înlocuiește câmpul). Valorile se salvează la OK și Apply (doar cele valide), nu cele goale, cel
+  mult 20 pe câmp, cea mai nouă prima, o valoare repetată urcă în capul listei; comune tuturor Log View-urilor, păstrate
+  cât rulează tvterm. Cod (`logview.cc`): `FieldHistory`, `FieldHistoryButton` (un `THistory` al cărui `recordHistory` nu
+  face nimic: tvision înregistrează câmpul la deschiderea listei și copiază cel mult 255 de octeți, iar Include / Exclude
+  au 512), `FieldListWindow` / `FieldListViewer` (`THistoryWindow` / `THistoryViewer` cu elemente proprii; lista are
+  între 5 și 12 rânduri și urcă dacă nu încape sub câmp). ID-ul de istoric 77 nu primește niciodată valori.
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
@@ -567,6 +578,14 @@ examples/profiles/example.ini
   `T`, `^`, spațiu, `.123`, `+02:00`, `Z` și `Oct 29` (ora estompată până la spațiu, numele programului cu `hash`), plus
   o linie fără spațiu după oră (neestompată); expresia nouă dă aceleași grupuri pe glibc și musl; în tmux, un LogView cu
   `syslog` pe un fișier cu toate formele.
+- Teste liste în câmpuri (E16), în tmux cu `LANG=C.UTF-8` (fără el, tvision afișează UTF-8 tastat prin tmux ca `�`, și
+  în câmpuri, și în lista de la Command): săgeți lângă cele patru câmpuri; listă goală `(nothing used yet)`, Enter lasă
+  câmpul neschimbat; 22 de valori Exclude aplicate → `v22` prima, `v03` ultima; o valoare goală aplicată nu se
+  înregistrează; o valoare aplicată din nou urcă în capul listei; seturile în ordine; `kv` apoi `syslog` adăugate →
+  `kv syslog`, `kv` din nou → neschimbat; Enter pe `── used before ──` → neschimbat; o valoare din istoric înlocuiește
+  câmpul; a doua fereastră vede aceleași liste; un Include de 310 octeți luat din listă și confirmat cu OK → fără eroare,
+  câmpul se termină ca originalul; valori UTF-8 (`ășț─x`) afișate corect; click cu mouse-ul (SGR prin `TIOCSTI`) pe
+  săgeți deschide listele. Build dinamic și static.
 
 ---
 
@@ -622,3 +641,4 @@ examples/profiles/example.ini
 | Lista alertelor (`far2l-extended`) | E13 | tasta A în Event Viewer (alertele active cu ora, grupul, linia); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` în mesaje; cuvinte cheie cu grupuri `+`, excluderi `!`, `\` |
 | Colorare (`far2l-extended`) | E14 | culori în LogView: seturi `[highlight <nume>]` în `tvterm.ini` (line, match, groups, hash, include), 10 seturi incluse (conversii multitail + zimbra-mta, nginx, syslog), câmp în F4, H, chei de profil |
 | Formele orei în `syslog` (`far2l-extended`) | E15 | setul `syslog` estompează ora ISO cu `T`, `^` sau spațiu (cu fracțiuni și fus orar) |
+| Liste în câmpurile F4 (`far2l-extended`) | E16 | ↓ lângă Include, Exclude (valorile folosite) și Highlight sets (seturi + valorile folosite) |

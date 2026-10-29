@@ -12,6 +12,8 @@
 #define Uses_TDialog
 #define Uses_TInputLine
 #define Uses_THistory
+#define Uses_THistoryWindow
+#define Uses_THistoryViewer
 #define Uses_TLabel
 #define Uses_TCheckBoxes
 #define Uses_TSItem
@@ -122,6 +124,7 @@ enum : ushort
 };
 
 enum : ushort { hiLogCommand = 76 }; // History of the 'Command' field.
+enum : ushort { hiLogList = 77 };    // Never added to: the lists of the other fields are kept here.
 
 // Colors (background, foreground): like a terminal.
 static const TColorAttr colNormal = 0x07;   // Light gray on black.
@@ -519,6 +522,216 @@ namespace logview
 
 enum : ushort { cmLogApply = 3390 };
 
+// The values used in the Include, Exclude and Highlight sets fields: kept
+// while tvterm runs, shared by all Log View windows, newest first. Saved by
+// OK and Apply (not when the list is opened, unlike THistory).
+struct FieldHistory
+{
+    enum { maxValues = 20 };
+    std::vector<std::string> values;
+
+    void add(const std::string &value)
+    {
+        if (trim(value).empty())
+            return;
+        auto it = std::find(values.begin(), values.end(), value);
+        if (it != values.end())
+            values.erase(it);
+        values.insert(values.begin(), value);
+        if (values.size() > maxValues)
+            values.resize(maxValues);
+    }
+};
+
+static FieldHistory includeHistory, excludeHistory, highlightHistory;
+
+// The whole buffer of the field is copied by setData.
+static void setInputText(TInputLine *field, const std::string &text)
+{
+    std::vector<char> buf(field->dataSize(), '\0');
+    memcpy(buf.data(), text.data(), std::min(text.size(), buf.size() - 1));
+    field->setData(buf.data());
+}
+
+struct FieldListItem
+{
+    enum Kind { Value, Set, Note };
+    std::string text;
+    Kind kind;
+};
+
+// The list opened by the arrow next to a field.
+class FieldListViewer : public THistoryViewer
+{
+public:
+
+    FieldListViewer( const TRect &bounds, TScrollBar *h, TScrollBar *v,
+                     std::vector<FieldListItem> aItems ) noexcept :
+        THistoryViewer(bounds, h, v, hiLogList),
+        items(std::move(aItems))
+    {
+        setRange((short) items.size());
+        focusItem(0);
+        int width = 0;
+        for (auto &item : items)
+            width = std::max(width, (int) strwidth(item.text));
+        if (hScrollBar)
+            hScrollBar->setRange(0, width - size.x + 3);
+    }
+
+    void getText(char *dest, short item, short maxChars) override
+    {
+        *dest = '\0';
+        if (item >= 0 && (size_t) item < items.size())
+        {
+            strncpy(dest, items[item].text.c_str(), maxChars);
+            dest[maxChars] = '\0';
+        }
+    }
+
+    const FieldListItem *focusedItem() const
+    {
+        return focused >= 0 && (size_t) focused < items.size() ? &items[focused] : nullptr;
+    }
+
+private:
+
+    std::vector<FieldListItem> items;
+};
+
+class FieldListWindow : public THistoryWindow
+{
+public:
+
+    // The items are taken by the viewer, which is created by the base class.
+    FieldListWindow(const TRect &bounds, std::vector<FieldListItem> aItems) noexcept :
+        TWindowInit(&TWindow::initFrame),
+        THistInit(&FieldListWindow::initList),
+        THistoryWindow((pending = std::move(aItems), bounds), hiLogList)
+    {
+    }
+
+    const FieldListItem *focusedItem() const
+    {
+        return viewer ? static_cast<FieldListViewer *>(viewer)->focusedItem() : nullptr;
+    }
+
+private:
+
+    static std::vector<FieldListItem> pending;
+
+    static TListViewer *initList(TRect r, TWindow *win, ushort)
+    {
+        r.grow(-1, -1);
+        return new FieldListViewer( r,
+            win->standardScrollBar(sbHorizontal | sbHandleKeyboard),
+            win->standardScrollBar(sbVertical | sbHandleKeyboard),
+            std::move(pending) );
+    }
+};
+
+std::vector<FieldListItem> FieldListWindow::pending;
+
+// The arrow next to a field (like THistory): a click, or Down in the field,
+// opens the list. A value replaces the field; with 'withSets', the list
+// starts with the highlight sets, and a set is added to the field.
+class FieldHistoryButton : public THistory
+{
+public:
+
+    FieldHistoryButton(const TRect &bounds, TInputLine *aLink, FieldHistory &h, bool sets) noexcept :
+        THistory(bounds, aLink, hiLogList),
+        history(h),
+        withSets(sets)
+    {
+    }
+
+    void recordHistory(const char *) override {}
+    void handleEvent(TEvent &ev) override;
+
+private:
+
+    FieldHistory &history;
+    bool withSets;
+
+    std::vector<FieldListItem> listItems() const;
+    void choose(const FieldListItem &item);
+};
+
+std::vector<FieldListItem> FieldHistoryButton::listItems() const
+{
+    std::vector<FieldListItem> items;
+    if (withSets)
+    {
+        for (auto &name : highlightSetNames())
+            items.push_back({name, FieldListItem::Set});
+        if (!history.values.empty())
+            items.push_back({"\xE2\x94\x80\xE2\x94\x80 used before \xE2\x94\x80\xE2\x94\x80", FieldListItem::Note});
+    }
+    for (auto &value : history.values)
+        items.push_back({value, FieldListItem::Value});
+    if (items.empty())
+        items.push_back({"(nothing used yet)", FieldListItem::Note});
+    return items;
+}
+
+void FieldHistoryButton::choose(const FieldListItem &item)
+{
+    if (item.kind == FieldListItem::Set)
+    {
+        // Added at the end, unless the field has it already.
+        std::string text = link->data;
+        auto names = splitHighlightNames(text);
+        if (std::find(names.begin(), names.end(), item.text) == names.end())
+        {
+            text = trim(text);
+            text += (text.empty() ? "" : " ") + item.text;
+            setInputText(link, text);
+        }
+        // The cursor at the end, nothing selected: more names can be typed.
+        link->selectAll(True);
+        link->selStart = link->selEnd = link->curPos;
+    }
+    else if (item.kind == FieldListItem::Value)
+    {
+        setInputText(link, item.text);
+        link->selectAll(True);
+    }
+    link->drawView();
+}
+
+void FieldHistoryButton::handleEvent(TEvent &ev)
+{
+    TView::handleEvent(ev);
+    if ( ev.what == evMouseDown ||
+         ( ev.what == evKeyDown && ctrlToArrow(ev.keyDown.keyCode) == kbDown &&
+           (link->state & sfFocused) ) )
+    {
+        if (!link->focus())
+        {
+            clearEvent(ev);
+            return;
+        }
+        auto items = listItems();
+        // Below the field (on it, like THistory), moved up if it does not fit.
+        TRect ext = owner->getExtent();
+        TRect r = link->getBounds();
+        r.a.x--;
+        r.b.x++;
+        r.a.y--;
+        r.b.y = r.a.y + (int) std::max<size_t>(5, std::min<size_t>(items.size(), 12)) + 2;
+        if (r.b.y > ext.b.y - 1)
+            r.move(0, ext.b.y - 1 - r.b.y);
+        r.intersect(ext);
+        auto *win = new FieldListWindow(r, std::move(items));
+        if (owner->execView(win) == cmOK)
+            if (const FieldListItem *item = win->focusedItem())
+                choose(*item);
+        destroy(win);
+        clearEvent(ev);
+    }
+}
+
 class LogViewDialog : public TDialog
 {
 public:
@@ -539,6 +752,8 @@ private:
     // field, and false.
     bool readFields(LogViewOptions &out);
     void fail(TView *field, const std::string &text);
+    // The values of 'o' go to the histories of the fields.
+    void recordValues();
 };
 
 LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusField,
@@ -556,11 +771,13 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(cmdIn);
     insert(new THistory(TRect(69, 6, 72, 7), cmdIn, hiLogCommand));
     insert(new TLabel(TRect(2, 5, 72, 6), "~C~ommand (e.g. tail -F -n 5000 /var/log/maillog)", cmdIn));
-    incIn = new TInputLine(TRect(3, 9, 72, 10), 512);
+    incIn = new TInputLine(TRect(3, 9, 69, 10), 512);
     insert(incIn);
+    insert(new FieldHistoryButton(TRect(69, 9, 72, 10), incIn, includeHistory, false));
     insert(new TLabel(TRect(2, 8, 72, 9), "~I~nclude: show only lines matching (empty: all)", incIn));
-    excIn = new TInputLine(TRect(3, 12, 72, 13), 512);
+    excIn = new TInputLine(TRect(3, 12, 69, 13), 512);
     insert(excIn);
+    insert(new FieldHistoryButton(TRect(69, 12, 72, 13), excIn, excludeHistory, false));
     insert(new TLabel(TRect(2, 11, 72, 12), "~E~xclude: hide lines matching (empty: none)", excIn));
     checkBoxes = new TCheckBoxes(TRect(3, 14, 30, 17),
         new TSItem("I~g~nore case",
@@ -573,8 +790,9 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     restartIn = new TInputLine(TRect(62, 15, 72, 16), 6);
     insert(restartIn);
     insert(new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn));
-    hlIn = new TInputLine(TRect(33, 17, 72, 18), 256);
+    hlIn = new TInputLine(TRect(33, 17, 69, 18), 256);
     insert(hlIn);
+    insert(new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, true));
     insert(new TLabel(TRect(32, 16, 72, 17), "~H~ighlight sets (e.g. zimbra-mta kv)", hlIn));
     insert(new TStaticText(TRect(3, 18, 73, 20),
         "Regular expressions like grep -E; alternatives with |, e.g.\n"
@@ -592,12 +810,7 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
         insert(new TButton(TRect(40, 20, 52, 22), "Cancel", cmCancel, bfNormal));
     }
 
-    // setData copies the whole buffer of the field.
-    auto setField = [] (TInputLine *field, const std::string &text) {
-        std::vector<char> buf(field->dataSize(), '\0');
-        memcpy(buf.data(), text.data(), std::min(text.size(), buf.size() - 1));
-        field->setData(buf.data());
-    };
+    auto setField = setInputText;
     setField(titleIn, o.title);
     setField(cmdIn, o.command);
     setField(incIn, o.include);
@@ -608,6 +821,14 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     setField(restartIn, std::to_string(o.autoRestart));
     setField(hlIn, o.highlight);
     (focusField == 1 ? incIn : focusField == 2 ? excIn : focusField == 3 ? hlIn : isNew ? cmdIn : titleIn)->select();
+}
+
+void LogViewDialog::recordValues()
+{
+    historyAdd(hiLogCommand, o.command);
+    includeHistory.add(o.include);
+    excludeHistory.add(o.exclude);
+    highlightHistory.add(o.highlight);
 }
 
 void LogViewDialog::fail(TView *field, const std::string &text)
@@ -703,7 +924,7 @@ Boolean LogViewDialog::valid(ushort command)
         if (!readFields(n))
             return False;
         o = n;
-        historyAdd(hiLogCommand, o.command);
+        recordValues();
     }
     return TDialog::valid(command);
 }
@@ -724,7 +945,7 @@ void LogViewDialog::handleEvent(TEvent &ev)
             return;
         }
         o = n;
-        historyAdd(hiLogCommand, o.command);
+        recordValues();
         showStatus("Settings applied.");
     }
 }

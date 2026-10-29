@@ -70,6 +70,7 @@ E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
+E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 
 ---
 
@@ -289,6 +290,16 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   time (`2026-10-29T10:06:17`, `2026-10-29^10:06:17`, `2026-10-29 10:06:17`), with optional fractions of a second and time
   zone (`.123`, `+02:00`, `Z`), as well as `Oct 29 10:06:17`, so logs merged from different sources look the same.
   Only that rule changed: `[T^ ]` instead of `T` (a `^` that is not first inside `[ ]` is literal in POSIX).
+- E16: an arrow next to Include, Exclude and Highlight sets in F4 (like Command): a click or Down in the field opens a
+  list. Include / Exclude: the values used before (one replaces the field; a quick way back, e.g. after turning an
+  Exclude off with `!(…)`). Highlight sets: first the sets (built-in + `tvterm.ini`, sorted; one is added to the end of
+  the field with a space, unless it is there already; cursor at the end, nothing selected), then `── used before ──` and
+  the values used before (one replaces the field). Values saved by OK and Apply (only valid ones), not empty, at most 20
+  per field, newest first, a repeated value moves to the top; shared by all Log Views, kept while tvterm runs.
+  Code (`logview.cc`): `FieldHistory`, `FieldHistoryButton` (a `THistory` whose `recordHistory` does nothing: tvision
+  records the field when the list opens, and copies at most 255 bytes, while Include / Exclude take 512),
+  `FieldListWindow` / `FieldListViewer` (`THistoryWindow` / `THistoryViewer` with their own items; the list is at least 5
+  and at most 12 rows, moved up when it does not fit below the field). History id 77 is never added to.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -563,6 +574,14 @@ examples/profiles/example.ini
   a space, `.123`, `+02:00`, `Z` and `Oct 29` (time dimmed up to the space, program name with `hash`), plus a line with
   no space after the time (not dimmed); the new expression gives the same groups on glibc and musl; in tmux, a Log View
   with `syslog` on a file with all the forms.
+- Field list tests (E16), in tmux with `LANG=C.UTF-8` (without it tvision shows UTF-8 typed through tmux as `�`, in the
+  fields and in the Command list too): arrows next to the four fields; empty list `(nothing used yet)`, Enter keeps the
+  field; 22 Exclude values applied → `v22` first, `v03` last; an empty value applied is not recorded; a value applied
+  again moves to the top; sets listed in order; `kv` then `syslog` added → `kv syslog`, `kv` again → unchanged; Enter on
+  `── used before ──` → unchanged; a value from the history replaces the field; the second window sees the same lists;
+  a 310-byte Include taken from the list and confirmed with OK → no error, the field ends with the original end; UTF-8
+  values (`ășț─x`) shown correctly; mouse click (SGR through `TIOCSTI`) on the arrows opens the lists. Dynamic and static
+  builds.
 
 ---
 
@@ -616,3 +635,4 @@ examples/profiles/example.ini
 | Alert list (`far2l-extended`) | E13 | Event Viewer key A (active alerts with time, group, line); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` in messages; keywords with `+` groups, `!` exclusions, `\` escapes |
 | Highlight (`far2l-extended`) | E14 | Log View colors: `[highlight <name>]` sets in `tvterm.ini` (line, match, groups, hash, include), 10 built-in sets (multitail conversions + zimbra-mta, nginx, syslog), F4 field, H, profile keys |
 | `syslog` time forms (`far2l-extended`) | E15 | the `syslog` set dims ISO times with `T`, `^` or a space (with fractions and time zone) |
+| F4 field lists (`far2l-extended`) | E16 | ↓ next to Include, Exclude (values used before) and Highlight sets (sets + values used before) |

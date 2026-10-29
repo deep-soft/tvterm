@@ -481,15 +481,22 @@ dar are istoricul lui (până la `max-lines`), căutare, selecție și salvare, 
 |---|---|
 | Title | gol: comanda |
 | Command | de ex. `tail -n 5000 -F /var/log/maillog` (↓ arată comenzile anterioare) |
-| Include | expresie regulată: se afișează doar liniile care se potrivesc (gol: toate) |
-| Exclude | expresie regulată: liniile care se potrivesc sunt ascunse (gol: niciuna) |
+| Include | expresie regulată: se afișează doar liniile care se potrivesc (gol: toate; ↓ arată valorile folosite) |
+| Exclude | expresie regulată: liniile care se potrivesc sunt ascunse (gol: niciuna; ↓ arată valorile folosite) |
 | Ignore case, Wrap long lines, Filters on | căsuțe de bifat |
 | Max lines | 0: `[logview] max-lines` din `tvterm.ini` |
 | Restart after N s | 0: fără repornire automată |
-| Highlight sets | culori, ex. `zimbra-mta kv` ([mai jos](#culori-colorare)); gol: fără |
+| Highlight sets | culori, ex. `zimbra-mta kv` ([mai jos](#culori-colorare)); gol: fără; ↓ arată seturile și valorile folosite |
 
 Expresiile regulate sunt POSIX extinse, ca la `grep -E`: alternative cu `|` (`reject:|bounced`), grupuri cu `( )`.
 Spațiile de la sfârșitul câmpurilor se păstrează (`dstport=993 ` nu prinde `dstport=9930`). Erorile apar în dialog.
+
+**Listele câmpurilor:** săgeata de lângă Command, Include, Exclude și Highlight sets (click sau **↓** în câmp) deschide
+o listă; Enter sau dublu click ia valoarea, Esc închide lista. O valoare folosită înainte **înlocuiește** câmpul (o cale
+rapidă de revenire, de ex. după ce ai oprit un Exclude pentru un timp). La Highlight sets lista începe cu seturile; un set
+se **adaugă** la sfârșitul câmpului (dacă nu e deja acolo), apoi urmează valorile folosite, după `── used before ──`.
+Valorile se salvează la OK și Apply (nu cele goale, cel mult 20 pe câmp, cea mai nouă prima, fără repetări), sunt comune
+tuturor Log View-urilor și se păstrează cât rulează tvterm.
 
 Comanda rulează cu `$SHELL -c` într-un pseudo-terminal, deci programe ca awk scriu fiecare linie imediat. Culorile și
 secvențele escape se elimină; tab-urile se păstrează. Folosește `tail -F` (nu `-f`), ca să fie urmată rotația logurilor.
@@ -541,8 +548,8 @@ directorul propus este `save-dir`, altfel directorul curent al lui tvterm.
 ### Culori (colorare)
 
 Un Log View își poate colora liniile cu **seturi de colorare**: numele lor se scriu în câmpul **Highlight sets** din F4
-(unul sau mai multe, cu spații sau virgule: `zimbra-mta kv`; primul set are prioritate). **H** oprește și pornește
-culorile (`[H-]` în titlu cât sunt oprite). Se schimbă doar afișarea: filtrele, căutarea, copierea și salvarea folosesc
+(unul sau mai multe, cu spații sau virgule: `zimbra-mta kv`; primul set are prioritate). Săgeata de lângă câmp listează seturile.
+**H** oprește și pornește culorile (`[H-]` în titlu cât sunt oprite). Se schimbă doar afișarea: filtrele, căutarea, copierea și salvarea folosesc
 textul simplu. Linia cursor și selecția își păstrează culorile, iar potrivirea căutării se desenează peste celelalte.
 
 Seturi incluse în tvterm:

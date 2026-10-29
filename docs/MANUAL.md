@@ -476,15 +476,22 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 |---|---|
 | Title | empty: the command |
 | Command | e.g. `tail -n 5000 -F /var/log/maillog` (↓ shows earlier commands) |
-| Include | regular expression: only matching lines are shown (empty: all) |
-| Exclude | regular expression: matching lines are hidden (empty: none) |
+| Include | regular expression: only matching lines are shown (empty: all; ↓ shows values used before) |
+| Exclude | regular expression: matching lines are hidden (empty: none; ↓ shows values used before) |
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
-| Highlight sets | colors, e.g. `zimbra-mta kv` ([below](#colors-highlight)); empty: none |
+| Highlight sets | colors, e.g. `zimbra-mta kv` ([below](#colors-highlight)); empty: none; ↓ shows the sets and values used before |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
 Spaces at the end of the fields are kept (`dstport=993 ` does not match `dstport=9930`). Errors are shown in the dialog.
+
+**Lists of the fields:** the arrow next to Command, Include, Exclude and Highlight sets (a click, or **↓** in the field)
+opens a list; Enter or a double click takes the value, Esc closes the list. A value used before **replaces** the field
+(a quick way back, e.g. after turning an Exclude off for a while). At Highlight sets the list starts with the sets; a set
+is **added** to the end of the field (unless it is there already), then the values used before follow, after
+`── used before ──`. The values are saved by OK and Apply (not empty ones, at most 20 per field, the newest first, without
+repeats), are shared by all Log Views and are kept while tvterm runs.
 
 The command runs with `$SHELL -c` in a pseudo-terminal, so programs like awk write each line at once. Colors and
 escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that log rotation is followed.
@@ -536,8 +543,8 @@ into a shell runs nothing. Saving uses the same dialog as the history ([chapter 
 ### Colors (highlight)
 
 A Log View can color its lines with **highlight sets**: write their names in the **Highlight sets** field of F4 (one or
-more, with spaces or commas: `zimbra-mta kv`; the first set has priority). **H** turns the colors off and on (`[H-]` in the
-title while off). Only the display changes: filters, search, copy and save use the plain text. The cursor line and the
+more, with spaces or commas: `zimbra-mta kv`; the first set has priority). The arrow next to the field lists the sets. **H** turns the colors off and
+on (`[H-]` in the title while off). Only the display changes: filters, search, copy and save use the plain text. The cursor line and the
 selection keep their own colors, and the search match is drawn over the others.
 
 Sets built into tvterm:
