@@ -288,6 +288,13 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (isLog && key == "auto-restart")
                 parseCount(0, 86400, win.logAutoRestart, "seconds, 0: off");
+            else if (isLog && key == "highlight")
+                win.logHighlight = value;
+            else if (isLog && key == "highlight-on")
+            {
+                if (!parseBool(value, win.logHighlightOn))
+                    warn("invalid highlight-on '" + value + "' (use yes or no)");
+            }
             else if (isTerm && key == "dir")
                 win.dir = expandHome(value);
             else if (isTerm && key == "command")
@@ -427,6 +434,10 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                      << "max-lines = " << win.logMaxLines << "\n";
                 if (win.logAutoRestart > 0)
                     file << "auto-restart = " << win.logAutoRestart << "\n";
+                if (!win.logHighlight.empty())
+                    file << "highlight = " << win.logHighlight << "\n";
+                if (!win.logHighlight.empty() && !win.logHighlightOn)
+                    file << "highlight-on = no\n";
                 if (win.alertActivity)
                     file << "alert-activity = yes\n";
                 if (!win.alertKeywords.empty())

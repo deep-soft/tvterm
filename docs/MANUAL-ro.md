@@ -273,6 +273,7 @@ creează, dacă lipsește, cu toate cheile comentate, și îl deschide. Cheile a
 | | `search-case-sensitive` | `no` | valoarea de pornire pentru „Case sensitive” în dialogul de căutare |
 | | `shift-click-select` | `yes` | Shift+click selectează în programele care folosesc mouse-ul |
 | `[logview]` | `max-lines` | `50000` | linii păstrate de fiecare sursă Log View, 100–1000000 |
+| `[highlight <nume>]` | reguli | seturile incluse | culorile din Log View ([capitolul 10](#culori-colorare)) |
 | `[keys]` | `history-page-up` | `Alt-Shift-PgUp` | tastele directe pentru istoric |
 | | `history-page-down` | `Alt-Shift-PgDn` | |
 | | `history-top` | `Alt-Shift-Home` | |
@@ -345,6 +346,8 @@ O poziție ieșită parțial din desktop este mutată înăuntru (și micșorat�
 | `filters` | `yes` | `no`: include / exclude nefolosite (ca după tasta F) |
 | `max-lines` | `0` | linii păstrate; 0: `[logview] max-lines` din `tvterm.ini` |
 | `auto-restart` | `0` | repornește comanda la N secunde după ce se termină (0: niciodată; maximum 86400) |
+| `highlight` | (niciunul) | seturi de colorare, ex. `zimbra-mta kv` ([capitolul 10](#culori-colorare)) |
+| `highlight-on` | `yes` | `no`: culorile oprite (ca după tasta H) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | oprite | alerte, pe liniile afișate |
 
 `include` / `exclude` între ghilimele duble păstrează spațiile de la început sau sfârșit: `include = "dstport=(993|465) "`.
@@ -483,6 +486,7 @@ dar are istoricul lui (până la `max-lines`), căutare, selecție și salvare, 
 | Ignore case, Wrap long lines, Filters on | căsuțe de bifat |
 | Max lines | 0: `[logview] max-lines` din `tvterm.ini` |
 | Restart after N s | 0: fără repornire automată |
+| Highlight sets | culori, ex. `zimbra-mta kv` ([mai jos](#culori-colorare)); gol: fără |
 
 Expresiile regulate sunt POSIX extinse, ca la `grep -E`: alternative cu `|` (`reject:|bounced`), grupuri cu `( )`.
 Spațiile de la sfârșitul câmpurilor se păstrează (`dstport=993 ` nu prinde `dstport=9930`). Erorile apar în dialog.
@@ -496,7 +500,7 @@ mare `max-lines` cerut). Mai multe ferestre cu filtre diferite pe același log c
 ### Titlul
 
 `[!cuvânt] Log: <titlu> [I] [E] afișate/total (ended) [PAUSE +N]`: marcajul de alertă, `[I]` / `[E]` când există
-include / exclude, `[F-]` cu filtrele oprite, liniile afișate / liniile din buffer, `(ended)` când comanda s-a terminat,
+include / exclude, `[F-]` cu filtrele oprite, `[H-]` cu culorile oprite, liniile afișate / liniile din buffer, `(ended)` când comanda s-a terminat,
 `[PAUSE +N]` în pauză, `[+N]` linii noi sub zona vizibilă.
 
 ### Taste
@@ -508,7 +512,8 @@ include / exclude, `[F-]` cu filtrele oprite, liniile afișate / liniile din buf
 | F4 | dialogul de setări (OK / **Apply** / Cancel; Apply aplică și lasă dialogul deschis) |
 | `I` / `E` | dialogul, pe Include / Exclude |
 | `F` | filtrele pornit/oprit (se afișează toate liniile) |
-| `D` | duplicare: o fereastră nouă pe aceeași sursă, cu aceleași filtre și opțiuni (fără alerte), titlu + ` (2)` |
+| `H` | culorile pornit/oprit ([seturi de colorare](#culori-colorare)) |
+| `D` | duplicare: o fereastră nouă pe aceeași sursă, cu aceleași filtre, culori și opțiuni (fără alerte), titlu + ` (2)` |
 | `R` | repornește comanda |
 | Space | pauză / continuare (liniile noi se păstrează, apar la continuare) |
 | `W` | liniile lungi: rupte / derulate (Left / Right, câte 8 coloane) |
@@ -532,6 +537,57 @@ vederea; ajunse jos, urmărirea repornește.
 Filtrele noi se aplică imediat pe tot bufferul. Clipboard-ul primește liniile fără ultimul sfârșit de linie, deci
 lipite într-un shell nu execută nimic. Salvarea folosește același dialog ca la istoric ([capitolul 4](#salvarea));
 directorul propus este `save-dir`, altfel directorul curent al lui tvterm.
+
+### Culori (colorare)
+
+Un Log View își poate colora liniile cu **seturi de colorare**: numele lor se scriu în câmpul **Highlight sets** din F4
+(unul sau mai multe, cu spații sau virgule: `zimbra-mta kv`; primul set are prioritate). **H** oprește și pornește
+culorile (`[H-]` în titlu cât sunt oprite). Se schimbă doar afișarea: filtrele, căutarea, copierea și salvarea folosesc
+textul simplu. Linia cursor și selecția își păstrează culorile, iar potrivirea căutării se desenează peste celelalte.
+
+Seturi incluse în tvterm:
+
+| Set | Ce colorează |
+|---|---|
+| `zimbra-mta` | Postfix / amavis (`zimbra.log`, `maillog`): roșu `status=bounced`, `reject:`, `NOQUEUE`, `SASL … authentication failed`; galben `status=deferred`, `warning:`; verde `status=sent`, `Passed CLEAN`; fiecare queue-ID cu culoarea lui; apoi `syslog` și `kv` |
+| `zimbra-mailbox` | `mailbox.log`: ESMTP, IMAPS, Ban, reject:, `<a> -> <b>`…; apoi `levels`, `timestamps`, `kv` |
+| `fortigate` | FortiGate: `srccountry` (Reserved / Romania pe albastru, celelalte pe roșu), `srcip=`, nume de politici, SMTPS / IMAPS; apoi `levels`, `timestamps`, `kv` |
+| `fail2ban` | fail2ban: loggerul, acțiunea, jail-ul, IP-ul, Ban / DROP; apoi `levels`, `timestamps` |
+| `nginx` | nginx: codul (5xx roșu, 4xx galben, 2xx verde), metoda; apoi `timestamps`, `kv` |
+| `rsync` | rsync: start, stop, sent, received, failed…; apoi `timestamps`, `kv` |
+| `syslog` | ora din syslog (estompată) și numele programului (fiecare cu culoarea lui) |
+| `kv` | paranteze, `;` `=`, chei (`cheie=`), adrese de e-mail, adrese IP și porturi, `ua=`, `mid=` |
+| `levels` | DEBUG, INFO, WARN, ERROR, NOTICE, FATAL |
+| `timestamps` | formele obișnuite de dată și oră de la începutul liniei, și cea din nginx |
+
+Seturile proprii, sau copii modificate ale acestora, se scriu în `tvterm.ini` ca secțiuni `[highlight <nume>]`; o secțiune
+cu numele unui set inclus îl înlocuiește (textul lor e în `source/tvterm/highlight.cc`, `builtinHighlightText`, în același
+format). O regulă pe linie, în ordinea în care se aplică:
+
+| Regula | Ce colorează |
+|---|---|
+| `line = <culoare> "<regex>" [icase]` | toată linia (prima regulă `line` potrivită dă culoarea de bază) |
+| `match = <culoare> "<regex>" [icase]` | fiecare potrivire |
+| `groups = <culoare> "<regex>" [icase]` | doar textul din paranteze, în fiecare potrivire |
+| `hash = "<regex>" [icase]` | o culoare aleasă după valoare (parantezele sau, fără ele, potrivirea): aceeași valoare are mereu aceeași culoare |
+| `include = <set> …` | regulile altor seturi, în acest loc (se pune la final) |
+
+La suprapunere **câștigă prima regulă**, deci regulile specifice se pun primele, iar `include` la final. Culori:
+`black red green yellow blue magenta cyan white`, `bright-` în fața oricăreia, și `on <culoare>` pentru fundal
+(`bright-yellow on red`). Expresii regulate ca la filtre (ca `grep -E`), mereu între ghilimele duble; `\"` e o ghilimea în
+interior. Din multitail: `cs_re` → `match`, `cs_re_s` → `groups`, `x,,bold` → `bright-x`, `.*?` → o clasă negată
+(`ua=([^;]*);`).
+
+```ini
+[highlight my-mail]
+line = white on red "status=bounced"
+groups = bright-yellow "from=<([^>]*)>"
+hash = "client=[^[]*\[([0-9.]+)\]"
+include = zimbra-mta
+```
+
+Seturile se recitesc odată cu `tvterm.ini` (la 2 secunde după salvare); o regulă greșită e ignorată și raportată în
+Event Viewer, cu linia ei.
 
 ### Când comanda se termină
 
@@ -660,6 +716,7 @@ layout = tile-columns
 title = policy 37
 command = tail -n 50000 -F /var/log/fortigate.log
 include = "policyid=37 "
+highlight = fortigate
 
 [logview]
 title = mail ports

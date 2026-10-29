@@ -8,7 +8,10 @@
 #define Uses_TKeys
 #include <tvision/tv.h>
 
+#include "highlight.h"
+
 #include <string>
+#include <vector>
 #include <time.h>
 
 struct Settings
@@ -26,6 +29,8 @@ struct Settings
     bool shiftClickSelect {true};
     // [logview]
     int logViewMaxLines {50000};
+    // [highlight <name>]: highlight sets for Log View (see highlight.h).
+    std::vector<HighlightSection> highlight;
     // [keys]
     TKey keyPageUp {kbPgUp, kbShift | kbAltShift};
     TKey keyPageDown {kbPgDn, kbShift | kbAltShift};

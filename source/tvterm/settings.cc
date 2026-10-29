@@ -164,7 +164,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Keys, LogView, Unknown } section = None;
+    enum { None, General, Scrollback, Keys, LogView, Highlight, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -179,6 +179,32 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
         if (line[0] == '[')
         {
             std::string name = lower(trim(line.substr(1, line.find(']') - 1)));
+            if (name == "highlight" || name.compare(0, 10, "highlight ") == 0)
+            {
+                // [highlight <name>]: a highlight set (rules checked later,
+                // see highlight.h).
+                std::string set = name.size() > 10 ? trim(name.substr(10)) : std::string();
+                bool validName = !set.empty() &&
+                    set.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-.") == std::string::npos;
+                section = validName ? Highlight : Unknown;
+                if (!validName)
+                    warn("invalid section [" + name + "] (use [highlight <name>], the name with "
+                         "letters, digits, '-', '_' or '.'); section ignored");
+                else
+                {
+                    for (auto it = settings.highlight.begin(); it != settings.highlight.end(); ++it)
+                        if (it->name == set)
+                        {
+                            warn("[highlight " + set + "] defined again; the last one is used");
+                            settings.highlight.erase(it);
+                            break;
+                        }
+                    settings.highlight.emplace_back();
+                    settings.highlight.back().name = set;
+                    settings.highlight.back().lineNo = lineNo;
+                }
+                continue;
+            }
             section = name == "general" ? General :
                       name == "scrollback" ? Scrollback :
                       name == "keys" ? Keys :
@@ -195,6 +221,11 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
         }
         std::string key = lower(trim(line.substr(0, eq)));
         std::string value = trim(line.substr(eq + 1));
+        if (section == Highlight)
+        {
+            settings.highlight.back().entries.push_back({lineNo, key, value});
+            continue;
+        }
         auto invalid = [&] (const std::string &hint) {
             warn("invalid " + key + " '" + value + "' (" + hint + "); keeping the previous value");
         };
@@ -335,6 +366,24 @@ std::string settingsTemplate()
         "# Lines kept by each Log View source (Ctrl-B D), 100 to 1000000; a window\n"
         "# can ask for another number. About 1 KB per line of a firewall log.\n"
         "#max-lines = " + std::to_string(d.logViewMaxLines) + "\n"
+        "\n"
+        "# Highlight sets for Log View (F4 > Highlight sets, e.g. 'zimbra-mta kv'; H turns\n"
+        "# the colors on/off). Built-in sets: levels timestamps kv syslog zimbra-mta\n"
+        "# zimbra-mailbox nginx fail2ban fortigate rsync; a section with the same name\n"
+        "# replaces one. Rules, in order (where they overlap, the first one wins):\n"
+        "#   line   = <color> \"<regex>\" [icase]   the whole line (first that matches)\n"
+        "#   match  = <color> \"<regex>\" [icase]   every match\n"
+        "#   groups = <color> \"<regex>\" [icase]   only the text in parentheses\n"
+        "#   hash   = \"<regex>\" [icase]           a color derived from the value\n"
+        "#   include = <set>                      the rules of another set (put it last)\n"
+        "# Colors: black red green yellow blue magenta cyan white, bright-<color>,\n"
+        "# optionally 'on <color>' (background). Regular expressions like grep -E;\n"
+        "# inside the quotes, \\\" is a quote.\n"
+        "#[highlight my-mail]\n"
+        "#line = bright-red \"status=bounced\"\n"
+        "#groups = bright-yellow on blue \"from=<([^>]*)>\"\n"
+        "#hash = \"client=[^[]*\\[([0-9.]+)\\]\"\n"
+        "#include = zimbra-mta\n"
         "\n"
         "[keys]\n"
         "# Keys that scroll the history directly (outside of full-screen programs).\n"

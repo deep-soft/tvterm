@@ -8,6 +8,7 @@
 //
 // Keys, when the window is focused (also in its menu: F9 or right click):
 //   F4 settings · I / E edit include / exclude · F filters on/off
+//   H highlight on/off (colors from tvterm.ini, see highlight.h)
 //   D duplicate · R restart the source · Space pause/continue
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
 //   / search · F3 or n older · Shift-F3 or N newer · F2 or s save
@@ -21,12 +22,15 @@
 #include <tvision/tv.h>
 
 #include "alerts.h"
+#include "highlight.h"
 #include "logsrc.h"
 
 #include <deque>
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <stdint.h>
 
 struct LogViewOptions
@@ -38,12 +42,15 @@ struct LogViewOptions
     bool ignoreCase {false};
     bool wrap {false};
     bool filters {true};    // F: the include / exclude filters are used.
+    std::string highlight;  // Highlight sets, e.g. "zimbra-mta kv"; empty: none.
+    bool highlightOn {true}; // H: the highlight sets are used.
     int maxLines {0};       // Lines kept by the source; 0: the default (tvterm.ini).
     int autoRestart {0};    // Restart the source N seconds after it ends; 0: never.
 };
 
 // Opens the settings dialog. Returns false if cancelled (after Apply, the
-// applied options are kept). 'focusField': 0 command, 1 include, 2 exclude.
+// applied options are kept). 'focusField': 0 command, 1 include, 2 exclude,
+// 3 highlight.
 // 'apply' (Apply button, for an open window): applies the options; returns
 // false, with 'error' set, if they cannot be applied.
 using LogViewApply = std::function<bool (const LogViewOptions &, std::string &error)>;
@@ -132,6 +139,16 @@ private:
     uint64_t matchSeq {0};
     int matchBegin {0}, matchEnd {0}; // Bytes in the line.
 
+    // Highlight: the rules of the sets in 'options.highlight', taken again
+    // when the sets change (tvterm.ini reloaded) or the option changes.
+    HighlightRules hlRules;
+    unsigned hlGeneration {0};
+    std::string hlResolvedFor;
+    // Unknown sets already reported (once per window and value).
+    std::vector<std::string> hlReported;
+    // Colors of the lines drawn last (by column, -1: none), by sequence.
+    std::unordered_map<uint64_t, std::vector<int>> hlCache;
+
     // Alerts.
     AlertSettings alertSettings;
     Alert alert {Alert::None};
@@ -152,6 +169,10 @@ private:
     void refilter();
     void dropOldLines();
     void checkAlerts(const std::deque<uint64_t> &newLines, size_t from);
+    // Takes the rules of the highlight sets again, if needed. Returns true
+    // if they changed.
+    bool resolveHighlight();
+    bool highlightActive() const noexcept { return options.highlightOn && !hlRules.empty(); }
     void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
     // The title without the alert mark.
     std::string plainTitle() const;
@@ -185,6 +206,7 @@ private:
     void duplicate();
     void togglePause();
     void toggleFilters();
+    void toggleHighlight();
     void toggleWrap();
     void clearWindow();
     void openSearch();

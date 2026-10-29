@@ -69,6 +69,7 @@ E10. Shorter status line items, distinct dialog hot keys, a note when Tile has n
 E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
+E14. Log View: highlight sets (colors from tvterm.ini)
 
 ---
 
@@ -248,6 +249,42 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - Test real (prima versiune, apoi v2, pe CentOS 7.9 și Alpine): v2 testat de utilizator și urcat. Starea F face acum parte
   din setările ferestrei (E7): F, căsuța din F4, D și profilurile folosesc aceeași valoare.
 
+### Colorare în LogView — `far2l-extended`
+- E14: culori în ferestrele LogView (doar acolo, nu în terminale), doar la afișare: filtrele, căutarea, F2 și copierea
+  rămân pe textul simplu. Se colorează doar rândurile de pe ecran; culorile unei linii se păstrează cât rămâne pe ecran.
+  Linia cursorului, selecția și marcajele `--` își păstrează culorile; potrivirea căutării se desenează peste colorare.
+- Seturi în `tvterm.ini`, `[highlight <nume>]` (nume: litere, cifre, `-`, `_`, `.`), o regulă pe linie, în ordine:
+  `line = <culoare> "<regex>" [icase]` (toată linia; prima regulă `line` potrivită dă culoarea de bază),
+  `match` (toate potrivirile; = `cs_re` din multitail), `groups` (doar textul din paranteze, toate grupurile, toate
+  potrivirile; = `cs_re_s` / `mcsre_s`; fără paranteze: raportat), `hash = "<regex>"` (fără culoare: culoare derivată din
+  valoarea grupurilor sau, fără grupuri, a potrivirii; FNV-1a peste 8 culori fără roșu/galben/verde: bright cyan,
+  bright magenta, bright blue, cyan, magenta, bright white, bright white pe albastru, bright white pe magenta),
+  `include = <set> …` (regulile celuilalt set în acel loc; se pune la final, ca regulile specifice să fie primele).
+  La suprapunere **câștigă prima** (`line` dă doar culoarea de bază, celelalte se desenează peste). În ghilimele `\"` e
+  ghilimea; restul backslash-urilor trec neschimbate la regex (POSIX extins, ca la filtre).
+- Culori: `black red green yellow blue magenta cyan white`, `bright-<culoare>`, opțional `<culoare> on <culoare>` (fundal;
+  implicit negru). Fără 256/RGB. Conversie din multitail: `x,,bold` → `bright-x`, `x,y,bold` → `bright-x on y`.
+- Seturi incluse (o secțiune cu același nume în `tvterm.ini` le înlocuiește): convertite din `multitail.conf-user` al
+  utilizatorului — `zimbra-mailbox`, `fail2ban`, `fortigate` (fără regulile de tip zimbra copiate acolo), `rsync`;
+  comune — `kv` (paranteze, `;=`, `cheie=`, e-mail, IP, `IP:port`, `ua=`, `mid=`), `levels` (DEBUG…FATAL), `timestamps`;
+  noi — `zimbra-mta` (roșu `status=bounced`, `reject:`, `NOQUEUE`, `SASL … authentication failed`; galben
+  `status=deferred`, `warning:`; verde `status=sent`, `Passed CLEAN`; queue-ID cu `hash`), `nginx` (5xx/4xx/2xx, metoda),
+  `syslog` (ora estompată, numele programului cu `hash`). Textul lor: `builtinHighlightText()` în
+  `source/tvterm/highlight.cc` (format INI, se poate copia în `tvterm.ini`). Regex-uri convertite: `.*?` / `*?` → clase
+  negate (`ua=(.*?);` → `ua=([^;]*);`), `\:` → `:`, fără backslash în `[ ]`. Verificat: glibc și musl acceptă `\b`, `\<` și
+  `*?`, dar `*?` e lacom pe amândouă (`a.*?b` pe `aXbYb` = tot textul), deci seturile incluse nu le folosesc; cele 71 de
+  expresii dau aceleași poziții (inclusiv grupurile) pe glibc și musl.
+- Per fereastră: câmpul **Highlight sets** în F4 (unul sau mai multe nume, cu spații sau virgule: `zimbra-mta kv`; primul
+  set are prioritate); un nume necunoscut e eroare în dialog (cu lista seturilor); seturi noi în F4 pornesc colorarea.
+  **H** (și F9 > Highlight on/off) o pornește/oprește, titlu `[H-]` cât e oprită. Profil: `highlight = …`,
+  `highlight-on = no` (scris doar când e oprită). D le copiază pe amândouă. Un set necunoscut în profil sau după
+  reîncărcare: notă în Event Viewer (o dată pe fereastră și valoare), celelalte seturi se folosesc.
+- `tvterm.ini` reîncărcat (2 s sau Reload settings): seturile se refac, ferestrele le preiau la următoarea actualizare.
+  O regulă greșită (regex, culoare, cheie, ghilimea lipsă, `hash` cu culoare, `groups` fără paranteze, include
+  necunoscut, set care se include pe sine): `settings: <cale>: line N: [highlight <set>] …; rule ignored` în Event Viewer.
+- Șablonul din Edit settings: un exemplu comentat `[highlight my-mail]` cu tipurile de reguli.
+- Amânate: o regulă care dă alertă; culori 256/RGB.
+
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
 - **OSC 52**: programele din tvterm (vim, tmux, scripturi) pot scrie în clipboard; citirea e refuzată intenționat (securitate).
@@ -367,6 +404,8 @@ source/tvterm/             aplicația
                            citită în idle (LogSource::pollAll), oprită fără blocare
   logview.cc/.h            LogViewWindow (filtre, derulare, linii rupte, căutare, selecție, editor, salvare, meniul F9, alerte),
                            LogViewInterior (desenare, mouse), dialogul de setări (execLogViewDialog); regex POSIX (regcomp)
+  highlight.cc/.h          seturile de colorare din LogView: regulile [highlight <nume>] (citite și compilate odată cu
+                           tvterm.ini), seturile incluse, highlightLine (culorile octeților unei linii)
   procinfo.cc/.h           funcții /proc: readLink, readCommandLine, describeForeground (ce rulează într-un terminal)
   editwnd.cc/.h            editor (dialoguri Save As etc.)
   evntview.cc/.h           Event Viewer (filtre, tastele N/X; EventTerminal: TTerminal cu buffer mai mare)
@@ -424,6 +463,8 @@ examples/profiles/example.ini
   (ex. `!scripts/*`). Directoare permise adăugate: `scripts/`, `examples/`, `docs/`.
 - Sursele sunt găsite cu `GLOB` → după adăugarea unui fișier `.cc` nou trebuie rulat din nou `cmake`.
 - Unity build: funcțiile `static` din fișiere diferite pot intra în conflict → namespace-uri proprii (`far2lext`, `far2lclip`).
+- Unity build: un fișier `.cc` nou schimbă grupurile de fișiere compilate împreună și poate scoate la iveală un include lipsă
+  în alt fișier (E14: `histdlg.cc` folosea `MAXPATH` adus de un fișier dinaintea lui; acum include `compat/borland/dir.h`).
 - `TFileDialog`: câmpul `directory` pornește gol → numele tastate sunt relative la directorul curent; tvterm îl setează la directorul profilurilor.
   Wildcard-ul trebuie să fie doar un tipar (`*.ini`): tvision îl lipește la director (panoul de jos, câmpul Name pentru un director focusat).
   O cale completă acolo apare dublată → dialogul e creat cu `fdNoLoadDir`, apoi se setează `directory` și se citește lista (`profiledlg::newDialog`, `app.cc`).
@@ -506,6 +547,17 @@ examples/profiles/example.ini
   profil cu `filters = no` → `[F-]`, fără cheie → filtre active, `filters = maybe` → „invalid filters 'maybe'”, filtre active.
 - Teste element Window List (E8): click pe el în barele de terminal, LogView, Event Viewer, editor, History, selecție și
   Grab Input deschide lista (Grab Input: `(Input Grab)` dispare din titlu); lățime 60 de coloane: fără blocare.
+- Teste colorare (E14): un test C++ legat cu `highlight.cc` (35 de verificări: culorile seturilor incluse pe linii de probă,
+  câștigă prima regulă, set înlocuit, avertismente cu fișier și linie, ciclu de include, `\"`, `icase`, potriviri goale, o
+  linie de 100 KB); un program C compilat cu gcc și cu `musl-gcc -static` (pachetul `musl-tools`) afișează toate potrivirile
+  și grupurile celor 71 de expresii incluse pe 17 linii de probă: ieșire identică. În tmux, culorile citite celulă cu celulă
+  din `capture-pane -e` (**atributele continuă pe linia următoare**: parserul le păstrează, altfel un rând care începe doar
+  cu o schimbare de culoare a textului pare să aibă fundalul implicit): culorile la pornire, linii noi, H și `[H-]` (doar
+  fereastra respectivă), cursorul și selecția fără culori, potrivirea căutării peste ele, `tvterm.ini` schimbat (culoare
+  nouă în ~3 s, regulă greșită raportată cu linia), set necunoscut raportat o singură dată, F4 (set necunoscut: eroare cu
+  lista; seturi valide aplicate; seturi noi pornesc H), D, Save Profile As (`highlight`, `highlight-on = no`) și
+  reîncărcare, linie ruptă cu fundal (fără culoare după sfârșitul liniei). 2 ferestre × 50000 de linii FortiGate
+  (`fortigate`, una cu linii rupte) + 2000 de linii/s timp de 10 s: 0,46 s de CPU. Build dinamic și static.
 
 ---
 
@@ -559,3 +611,4 @@ examples/profiles/example.ini
 | Numele fișierului salvat (`far2l-extended`) | E11 | „File name: Date first / Name first” în dialogurile de salvare (istoric, ecran, Log View), `save-name` în `tvterm.ini` |
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: manualul de utilizare al comportamentului curent, cu exemple complete |
 | Lista alertelor (`far2l-extended`) | E13 | tasta A în Event Viewer (alertele active cu ora, grupul, linia); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` în mesaje; cuvinte cheie cu grupuri `+`, excluderi `!`, `\` |
+| Colorare (`far2l-extended`) | E14 | culori în LogView: seturi `[highlight <nume>]` în `tvterm.ini` (line, match, groups, hash, include), 10 seturi incluse (conversii multitail + zimbra-mta, nginx, syslog), câmp în F4, H, chei de profil |

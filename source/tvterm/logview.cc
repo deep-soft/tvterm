@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <unordered_map>
 
 // A compiled regular expression (POSIX extended, like 'grep -E').
 struct LogRegex
@@ -117,6 +118,7 @@ enum : ushort
     cmLogSave,
     cmLogAlerts,
     cmLogChooseEditor,
+    cmLogHighlight,
 };
 
 enum : ushort { hiLogCommand = 76 }; // History of the 'Command' field.
@@ -157,6 +159,27 @@ static std::string expandTabs(const std::string &s)
         col += width;
     }
     return out;
+}
+
+static void columnColors(const std::string &raw, const std::vector<int> &byteColors, std::vector<int> &out)
+// Colors by byte -> colors by column (tabs expanded, like expandTabs).
+{
+    out.clear();
+    size_t i = 0;
+    while (i < raw.size())
+    {
+        if (raw[i] == '\t')
+        {
+            out.insert(out.end(), tabWidth - out.size() % tabWidth, byteColors[i]);
+            ++i;
+            continue;
+        }
+        size_t start = i, width = 0;
+        TText::next(raw, i, width);
+        if (i == start)
+            ++i;
+        out.insert(out.end(), width, byteColors[start]);
+    }
 }
 
 static int columnOf(const std::string &raw, size_t bytes)
@@ -290,6 +313,8 @@ void LogViewInterior::draw()
     int r = w.topRow;
     std::vector<size_t> starts;
     std::string text;
+    std::vector<int> byteColors;
+    uint64_t minSeq = UINT64_MAX, maxSeq = 0;
     int y = 0;
     while (y < size.y)
     {
@@ -312,6 +337,7 @@ void LogViewInterior::draw()
                 matchE = columnOf(line.text, w.matchEnd);
             }
             int startCol;
+            int rowWidth = INT_MAX;
             if (w.options.wrap)
             {
                 rowStarts(text, size.x, starts);
@@ -319,11 +345,35 @@ void LogViewInterior::draw()
                 size_t to = (size_t) r + 1 < starts.size() ? starts[r + 1] : text.size();
                 b.moveStr(0, TStringView(text.data() + from, to - from), attr, size.x);
                 startCol = (int) TText::width(TStringView(text.data(), from));
+                rowWidth = (int) TText::width(TStringView(text.data() + from, to - from));
             }
             else
             {
                 b.moveStr(0, text, attr, size.x, w.leftCol);
                 startCol = w.leftCol;
+            }
+            // Highlight: not on the cursor line, the selection and the
+            // markers; the search match is drawn over it.
+            if (attr == colNormal && w.highlightActive())
+            {
+                auto it = w.hlCache.find(seq);
+                if (it == w.hlCache.end())
+                {
+                    highlightLine(w.hlRules, line.text, byteColors);
+                    it = w.hlCache.emplace(seq, std::vector<int>()).first;
+                    columnColors(line.text, byteColors, it->second);
+                }
+                const std::vector<int> &cols = it->second;
+                for (int x = 0; x < size.x && x < rowWidth; ++x)
+                {
+                    size_t c = (size_t) startCol + x;
+                    if (c >= cols.size())
+                        break;
+                    if (cols[c] >= 0)
+                        b.putAttribute(x, TColorAttr((uchar) cols[c]));
+                }
+                minSeq = std::min(minSeq, seq);
+                maxSeq = std::max(maxSeq, seq);
             }
             for (int c = std::max(matchB, startCol); c < matchE; ++c)
                 if (c - startCol < size.x)
@@ -336,6 +386,17 @@ void LogViewInterior::draw()
         }
         writeLine(0, y, size.x, 1, b);
         ++y;
+    }
+    // The colors of the lines no longer on the screen are dropped.
+    if (w.hlCache.size() > (size_t) size.y * 4 + 16)
+    {
+        for (auto it = w.hlCache.begin(); it != w.hlCache.end();)
+        {
+            if (it->first < minSeq || it->first > maxSeq)
+                it = w.hlCache.erase(it);
+            else
+                ++it;
+        }
     }
 }
 
@@ -471,7 +532,7 @@ private:
 
     LogViewOptions &o;
     LogViewApply apply;
-    TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn;
+    TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn;
     TCheckBoxes *checkBoxes;
 
     // Reads and checks the fields. On error: a message, the focus on the
@@ -512,6 +573,9 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     restartIn = new TInputLine(TRect(62, 15, 72, 16), 6);
     insert(restartIn);
     insert(new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn));
+    hlIn = new TInputLine(TRect(33, 17, 72, 18), 256);
+    insert(hlIn);
+    insert(new TLabel(TRect(32, 16, 72, 17), "~H~ighlight sets (e.g. zimbra-mta kv)", hlIn));
     insert(new TStaticText(TRect(3, 18, 73, 20),
         "Regular expressions like grep -E; alternatives with |, e.g.\n"
         "dstport=(993|465|587)  Trailing spaces are kept."));
@@ -542,7 +606,8 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     checkBoxes->setData(&checks);
     setField(maxIn, std::to_string(o.maxLines));
     setField(restartIn, std::to_string(o.autoRestart));
-    (focusField == 1 ? incIn : focusField == 2 ? excIn : isNew ? cmdIn : titleIn)->select();
+    setField(hlIn, o.highlight);
+    (focusField == 1 ? incIn : focusField == 2 ? excIn : focusField == 3 ? hlIn : isNew ? cmdIn : titleIn)->select();
 }
 
 void LogViewDialog::fail(TView *field, const std::string &text)
@@ -553,7 +618,8 @@ void LogViewDialog::fail(TView *field, const std::string &text)
 
 bool LogViewDialog::readFields(LogViewOptions &out)
 {
-    char title[129] {}, command[513] {}, include[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {};
+    char title[129] {}, command[513] {}, include[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {},
+         highlight[257] {};
     ushort checks = 0;
     titleIn->getData(title);
     cmdIn->getData(command);
@@ -562,6 +628,7 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     checkBoxes->getData(&checks);
     maxIn->getData(maxLines);
     restartIn->getData(restart);
+    hlIn->getData(highlight);
 
     std::string error;
     std::string cmd = trim(command);
@@ -597,6 +664,22 @@ bool LogViewDialog::readFields(LogViewOptions &out)
         fail(restartIn, std::string("Restart after: 0 (never) or 1 to 86400 seconds, not '") + restart + "'.");
         return false;
     }
+    std::vector<std::string> hlNames = splitHighlightNames(highlight);
+    for (auto &name : hlNames)
+    {
+        HighlightRules rules;
+        if (!findHighlightSet(name, rules))
+        {
+            std::string known;
+            for (auto &n : highlightSetNames())
+                known += (known.empty() ? "" : " ") + n;
+            fail(hlIn, "Unknown highlight set '" + name + "'.\nSets: " + known);
+            return false;
+        }
+    }
+    std::string hlText;
+    for (auto &name : hlNames)
+        hlText += (hlText.empty() ? "" : " ") + name;
     out.title = trim(title);
     out.command = cmd;
     out.include = include;
@@ -606,6 +689,9 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     out.filters = checks & 4;
     out.maxLines = (int) nLines;
     out.autoRestart = (int) nRestart;
+    out.highlight = hlText;
+    // Not in the dialog (key H): kept, but new sets are shown.
+    out.highlightOn = o.highlightOn || o.highlight != hlText;
     return true;
 }
 
@@ -722,6 +808,7 @@ bool LogViewWindow::setOptions(const LogViewOptions &newOptions, std::string &er
     options = newOptions;
     includeRe = std::move(inc);
     excludeRe = std::move(exc);
+    resolveHighlight();
     if (hScrollBar)
     {
         if (options.wrap)
@@ -866,6 +953,8 @@ void LogViewWindow::update()
         source->setUserOptions(this, effectiveMaxLines(options), options.autoRestart);
     if (source->getStartTime() != sourceStart)
         sourceStart = source->getStartTime();
+    // tvterm.ini reloaded: the highlight sets may have changed.
+    bool recolor = resolveHighlight();
     dropOldLines();
     uint64_t end = source->endSeq();
     nextSeq = std::max({nextSeq, source->firstSeq(), clearedSeq});
@@ -887,10 +976,36 @@ void LogViewWindow::update()
     // are those after it.
     if (follow)
         newAfterSeq = nextSeq > 0 ? nextSeq - 1 : 0;
-    if (shown.size() != before)
+    if (shown.size() != before || recolor)
         redraw();
     else
         updateTitle();
+}
+
+bool LogViewWindow::resolveHighlight()
+{
+    using namespace logview;
+    if (hlGeneration == highlightGeneration() && hlResolvedFor == options.highlight)
+        return false;
+    hlGeneration = highlightGeneration();
+    if (hlResolvedFor != options.highlight)
+        hlReported.clear();
+    hlResolvedFor = options.highlight;
+    hlRules.clear();
+    hlCache.clear();
+    for (auto &name : splitHighlightNames(options.highlight))
+    {
+        HighlightRules rules;
+        if (findHighlightSet(name, rules))
+            hlRules.insert(hlRules.end(), rules.begin(), rules.end());
+        else if (std::find(hlReported.begin(), hlReported.end(), name) == hlReported.end())
+        {
+            hlReported.push_back(name);
+            TVTermApp::note( "Log View '" + plainTitle().substr(5) + "': unknown highlight set '" +
+                             name + "' (not in tvterm.ini nor built in)" );
+        }
+    }
+    return true;
 }
 
 void LogViewWindow::checkAlerts(const std::deque<uint64_t> &lines, size_t from)
@@ -1032,6 +1147,8 @@ const char *LogViewWindow::getTitle(short)
         if (!options.exclude.empty())
             text += " [E]";
     }
+    if (!options.highlight.empty() && !options.highlightOn)
+        text += " [H-]";
     if (source)
     {
         text += " " + std::to_string(shown.size()) + "/" +
@@ -1347,6 +1464,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("~I~nclude filter...", cmLogInclude, kbNoKey, hcNoContext, "I") +
         *new TMenuItem("~E~xclude filter...", cmLogExclude, kbNoKey, hcNoContext, "E") +
         *new TMenuItem("~F~ilters on/off", cmLogFilters, kbNoKey, hcNoContext, "F") +
+        *new TMenuItem("Hi~g~hlight on/off", cmLogHighlight, kbNoKey, hcNoContext, "H") +
         newLine() +
         *new TMenuItem("~D~uplicate window", cmLogDuplicate, kbNoKey, hcNoContext, "D") +
         *new TMenuItem("~R~estart source", cmLogRestart, kbNoKey, hcNoContext, "R") +
@@ -1379,6 +1497,7 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogInclude: editOptions(1); break;
         case cmLogExclude: editOptions(2); break;
         case cmLogFilters: toggleFilters(); break;
+        case cmLogHighlight: toggleHighlight(); break;
         case cmLogDuplicate: duplicate(); break;
         case cmLogRestart:
             if (source)
@@ -1471,6 +1590,19 @@ void LogViewWindow::toggleFilters()
     options.filters = !options.filters;
     refilter();
     showStatus(options.filters ? "Filters on." : "Filters off: all the lines are shown.");
+}
+
+void LogViewWindow::toggleHighlight()
+{
+    using namespace logview;
+    if (options.highlight.empty())
+    {
+        showStatus("No highlight sets: choose them in F4 (Highlight), e.g. zimbra-mta kv.");
+        return;
+    }
+    options.highlightOn = !options.highlightOn;
+    redraw();
+    showStatus(options.highlightOn ? "Highlight on." : "Highlight off: the lines are shown without colors.");
 }
 
 void LogViewWindow::toggleWrap()
@@ -1900,6 +2032,7 @@ void LogViewWindow::handleEvent(TEvent &ev)
                 case 'i': editOptions(1); break;
                 case 'e': editOptions(2); break;
                 case 'f': toggleFilters(); break;
+                case 'h': toggleHighlight(); break;
                 case 'w': toggleWrap(); break;
                 case 'x': clearWindow(); break;
                 case 's': save(); break;

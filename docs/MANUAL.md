@@ -268,6 +268,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `search-case-sensitive` | `no` | starting value of "Case sensitive" in the search dialog |
 | | `shift-click-select` | `yes` | Shift+click selects in programs that use the mouse |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
+| `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
 | `[keys]` | `history-page-up` | `Alt-Shift-PgUp` | direct history keys |
 | | `history-page-down` | `Alt-Shift-PgDn` | |
 | | `history-top` | `Alt-Shift-Home` | |
@@ -340,6 +341,8 @@ partly outside the desktop is moved inside (and shrunk if larger), with a note i
 | `filters` | `yes` | `no`: include / exclude not used (as after the F key) |
 | `max-lines` | `0` | lines kept; 0: `[logview] max-lines` of `tvterm.ini` |
 | `auto-restart` | `0` | restart the command N seconds after it ends (0: never; up to 86400) |
+| `highlight` | (none) | highlight sets, e.g. `zimbra-mta kv` ([chapter 10](#colors-highlight)) |
+| `highlight-on` | `yes` | `no`: colors off (as after the H key) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown |
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
@@ -478,6 +481,7 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
+| Highlight sets | colors, e.g. `zimbra-mta kv` ([below](#colors-highlight)); empty: none |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
 Spaces at the end of the fields are kept (`dstport=993 ` does not match `dstport=9930`). Errors are shown in the dialog.
@@ -491,7 +495,7 @@ escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that l
 ### Title
 
 `[!keyword] Log: <title> [I] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude are
-set, `[F-]` when the filters are off, lines shown / lines in the buffer, `(ended)` when the command has ended,
+set, `[F-]` when the filters are off, `[H-]` when the colors are off, lines shown / lines in the buffer, `(ended)` when the command has ended,
 `[PAUSE +N]` while paused, `[+N]` new lines below the view.
 
 ### Keys
@@ -503,7 +507,8 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | F4 | settings dialog (OK / **Apply** / Cancel; Apply applies and keeps the dialog open) |
 | `I` / `E` | the dialog, on Include / Exclude |
 | `F` | filters on/off (all the lines shown) |
-| `D` | duplicate: a new window on the same source, with the same filters and options (not the alerts), title + ` (2)` |
+| `H` | colors on/off ([highlight sets](#colors-highlight)) |
+| `D` | duplicate: a new window on the same source, with the same filters, colors and options (not the alerts), title + ` (2)` |
 | `R` | restart the command |
 | Space | pause / continue (new lines are kept, shown on continue) |
 | `W` | long lines: wrapped / scrolled (Left / Right, 8 columns) |
@@ -527,6 +532,57 @@ at the bottom, following starts again.
 New filters apply to the whole buffer at once. The clipboard gets the lines without the last line break, so pasting
 into a shell runs nothing. Saving uses the same dialog as the history ([chapter 4](#save)); the proposed directory is
 `save-dir`, or else tvterm's current directory.
+
+### Colors (highlight)
+
+A Log View can color its lines with **highlight sets**: write their names in the **Highlight sets** field of F4 (one or
+more, with spaces or commas: `zimbra-mta kv`; the first set has priority). **H** turns the colors off and on (`[H-]` in the
+title while off). Only the display changes: filters, search, copy and save use the plain text. The cursor line and the
+selection keep their own colors, and the search match is drawn over the others.
+
+Sets built into tvterm:
+
+| Set | Colors |
+|---|---|
+| `zimbra-mta` | Postfix / amavis (`zimbra.log`, `maillog`): red `status=bounced`, `reject:`, `NOQUEUE`, `SASL … authentication failed`; yellow `status=deferred`, `warning:`; green `status=sent`, `Passed CLEAN`; each queue-ID in its own color; then `syslog` and `kv` |
+| `zimbra-mailbox` | `mailbox.log`: ESMTP, IMAPS, Ban, reject:, `<a> -> <b>`…; then `levels`, `timestamps`, `kv` |
+| `fortigate` | FortiGate: `srccountry` (Reserved / Romania on blue, others on red), `srcip=`, policy names, SMTPS / IMAPS; then `levels`, `timestamps`, `kv` |
+| `fail2ban` | fail2ban: the logger, the action, the jail, the IP, Ban / DROP; then `levels`, `timestamps` |
+| `nginx` | nginx: the status (5xx red, 4xx yellow, 2xx green), the method; then `timestamps`, `kv` |
+| `rsync` | rsync: start, stop, sent, received, failed…; then `timestamps`, `kv` |
+| `syslog` | the syslog time (dimmed) and the program name (each in its own color) |
+| `kv` | brackets, `;` `=`, keys (`key=`), e-mail addresses, IP addresses and ports, `ua=`, `mid=` |
+| `levels` | DEBUG, INFO, WARN, ERROR, NOTICE, FATAL |
+| `timestamps` | the usual date and time forms at the start of the line, and nginx's |
+
+Your own sets, or changed copies of these, go in `tvterm.ini` as `[highlight <name>]` sections; a section with the name
+of a built-in set replaces it (their text is in `source/tvterm/highlight.cc`, `builtinHighlightText`, in the same
+format). One rule per line, in this order of use:
+
+| Rule | Colors |
+|---|---|
+| `line = <color> "<regex>" [icase]` | the whole line (the first `line` rule that matches gives the base color) |
+| `match = <color> "<regex>" [icase]` | every match |
+| `groups = <color> "<regex>" [icase]` | only the text in parentheses, in every match |
+| `hash = "<regex>" [icase]` | a color chosen from the value (the parentheses, or else the match): the same value always gets the same color |
+| `include = <set> …` | the rules of other sets, at this place (put it last) |
+
+Where rules overlap, **the first one wins**, so the specific rules go first and the `include`s at the end. Colors:
+`black red green yellow blue magenta cyan white`, `bright-` before any of them, and `on <color>` for the background
+(`bright-yellow on red`). Regular expressions as in the filters (like `grep -E`), always in double quotes; `\"` is a quote
+inside them. From multitail: `cs_re` → `match`, `cs_re_s` → `groups`, `x,,bold` → `bright-x`, `.*?` → a negated class
+(`ua=([^;]*);`).
+
+```ini
+[highlight my-mail]
+line = white on red "status=bounced"
+groups = bright-yellow "from=<([^>]*)>"
+hash = "client=[^[]*\[([0-9.]+)\]"
+include = zimbra-mta
+```
+
+The sets are read again with `tvterm.ini` (2 seconds after it is saved); an invalid rule is ignored and reported in the
+Event Viewer with its line.
 
 ### When the command ends
 
@@ -654,6 +710,7 @@ layout = tile-columns
 title = policy 37
 command = tail -n 50000 -F /var/log/fortigate.log
 include = "policyid=37 "
+highlight = fortigate
 
 [logview]
 title = mail ports

@@ -10,6 +10,9 @@
 #define Uses_TDeskTop
 #define Uses_MsgBox
 #include <tvision/tv.h>
+// MAXPATH (not brought by the classes above; with Unity Build it used to come
+// from another file of the same group).
+#include <tvision/compat/borland/dir.h>
 
 #include "histdlg.h"
 #include "app.h"

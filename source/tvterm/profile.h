@@ -37,6 +37,8 @@ struct WindowProfile
     bool logFilters {true};
     int logMaxLines {0};
     int logAutoRestart {0};
+    std::string logHighlight;   // Highlight sets (see highlight.h).
+    bool logHighlightOn {true};
     // Terminal and Log View alerts (see alerts.h).
     bool alertActivity {false};
     std::string alertKeywords; // Comma-separated.

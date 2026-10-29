@@ -68,6 +68,7 @@ E10. Shorter status line items, distinct dialog hot keys, a note when Tile has n
 E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
+E14. Log View: highlight sets (colors from tvterm.ini)
 
 ---
 
@@ -248,6 +249,42 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - Real test (first version, then v2, on CentOS 7.9 and Alpine): v2 tested by the user and pushed. The F state is now part of
   the window's settings (E7): F, the F4 check box, D and profiles use the same value.
 
+### Log View highlighting — `far2l-extended`
+- E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
+  plain text. Only the rows on the screen are colored; the colors of a line are kept while it stays on the screen.
+  The cursor line, the selection and the `--` markers keep their own colors; the search match is drawn over the highlight.
+- Highlight sets in `tvterm.ini`, `[highlight <name>]` (name: letters, digits, `-`, `_`, `.`), one rule per line, in order:
+  `line = <color> "<regex>" [icase]` (the whole line; the first `line` rule that matches gives the base color),
+  `match` (every match; = multitail `cs_re`), `groups` (only the text in parentheses, every group, every match; =
+  `cs_re_s` / `mcsre_s`; without parentheses: reported), `hash = "<regex>"` (no color: a color derived from the value of
+  the groups, or of the match without groups; FNV-1a over 8 colors without red/yellow/green: bright cyan, bright magenta,
+  bright blue, cyan, magenta, bright white, bright white on blue, bright white on magenta), `include = <set> …` (the rules
+  of the other set at that place; put it last, so that the specific rules come first). Where rules overlap, **the first
+  one wins** (`line` only gives the base color, the others are drawn over it). Inside the quotes `\"` is a quote; every
+  other backslash goes to the regular expression unchanged (POSIX extended, like the filters).
+- Colors: `black red green yellow blue magenta cyan white`, `bright-<color>`, optionally `<color> on <color>` (background;
+  default black). No 256/RGB colors. Conversion from multitail: `x,,bold` → `bright-x`, `x,y,bold` → `bright-x on y`.
+- Built-in sets (a section with the same name in `tvterm.ini` replaces one): converted from the user's
+  `multitail.conf-user` — `zimbra-mailbox`, `fail2ban`, `fortigate` (without the zimbra-type rules copied there), `rsync`;
+  common — `kv` (brackets, `;=`, `key=`, e-mail, IP, `IP:port`, `ua=`, `mid=`), `levels` (DEBUG…FATAL), `timestamps`;
+  new — `zimbra-mta` (red `status=bounced`, `reject:`, `NOQUEUE`, `SASL … authentication failed`; yellow
+  `status=deferred`, `warning:`; green `status=sent`, `Passed CLEAN`; queue-ID with `hash`), `nginx` (5xx/4xx/2xx, method),
+  `syslog` (time dimmed, program name with `hash`). Their text: `builtinHighlightText()` in `source/tvterm/highlight.cc`
+  (INI format, can be copied into `tvterm.ini`). Regular expressions converted: `.*?` / `*?` → negated classes
+  (`ua=(.*?);` → `ua=([^;]*);`), `\:` → `:`, no backslash inside `[ ]`. Checked: glibc and musl accept `\b`, `\<` and `*?`,
+  but `*?` is greedy on both (`a.*?b` on `aXbYb` = the whole text), so the built-in sets use none of them; the 71
+  expressions give the same positions (groups included) on glibc and musl.
+- Per window: **Highlight sets** field in F4 (one or more names, spaces or commas: `zimbra-mta kv`; the first set has
+  priority); an unknown name is an error in the dialog (with the list of the sets); new sets in F4 turn the highlight on.
+  **H** (also F9 > Highlight on/off) turns it on/off, title `[H-]` while off. Profile: `highlight = …`,
+  `highlight-on = no` (written only when off). D copies both. An unknown set in a profile or after a reload: a note in
+  the Event Viewer (once per window and value), the other sets are used.
+- `tvterm.ini` reloaded (2 s or Reload settings): the sets are rebuilt, the windows take them at their next update.
+  An invalid rule (regex, color, key, missing quote, `hash` with a color, `groups` without parentheses, unknown include,
+  a set including itself): `settings: <path>: line N: [highlight <set>] …; rule ignored` in the Event Viewer.
+- Edit settings template: a commented `[highlight my-mail]` example with the rule types.
+- Postponed: a rule that raises an alert; 256/RGB colors.
+
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
 - **OSC 52**: programs inside tvterm (vim, tmux, scripts) can write to the clipboard; reading is refused on purpose (security).
@@ -364,6 +401,8 @@ source/tvterm/             the application
                            read in idle (LogSource::pollAll), stopped without blocking
   logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
                            LogViewInterior (drawing, mouse), the settings dialog (execLogViewDialog); POSIX regex (regcomp)
+  highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
+                           read), the built-in sets, highlightLine (colors of the bytes of a line)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
@@ -421,6 +460,8 @@ examples/profiles/example.ini
   (e.g. `!scripts/*`). Allowed directories added: `scripts/`, `examples/`, `docs/`.
 - Sources are found with `GLOB` → after adding a new `.cc` file, run `cmake` again.
 - Unity build: `static` functions from different files can clash → own namespaces (`far2lext`, `far2lclip`).
+- Unity build: a new `.cc` file changes the groups of files compiled together, which can uncover a missing include in
+  another file (E14: `histdlg.cc` used `MAXPATH` brought by a file before it; it now includes `compat/borland/dir.h`).
 - `TFileDialog`: its `directory` field starts empty → typed names are relative to the current directory; tvterm sets it to the profiles directory.
   The wildcard must be a bare pattern (`*.ini`): tvision joins it to the directory (bottom pane, Name field for a focused directory).
   A full path there is doubled → the dialog is created with `fdNoLoadDir`, then `directory` is set and the list read (`profiledlg::newDialog`, `app.cc`).
@@ -502,6 +543,17 @@ examples/profiles/example.ini
   a profile with `filters = no` → `[F-]`, without the key → filters on, `filters = maybe` → "invalid filters 'maybe'", filters on.
 - Window List item tests (E8): a click on it in the terminal, Log View, Event Viewer, editor, History, selection and Grab Input
   lines opens the list (Grab Input: `(Input Grab)` gone from the title); 60 columns wide: no crash.
+- Highlight tests (E14): a C++ test linked with `highlight.cc` (35 checks: colors of the built-in sets on sample lines,
+  first rule wins, replaced set, warnings with file and line, include cycle, `\"`, `icase`, empty matches, a 100 KB line);
+  a C program compiled with gcc and with `musl-gcc -static` (package `musl-tools`) prints every match and group of the 71
+  built-in expressions on 17 sample lines: identical output. In tmux, colors read cell by cell from `capture-pane -e`
+  (**the attributes carry over to the next line**: the parser keeps them, otherwise a row that starts with only a
+  foreground change seems to have the default background): colors at start, new lines, H and `[H-]` (only that window),
+  cursor line and selection without colors, search match over them, `tvterm.ini` changed (new color in ~3 s, invalid rule
+  reported with its line), unknown set reported once, F4 (unknown set: error with the list; valid sets applied; new sets
+  turn H on), D, Save Profile As (`highlight`, `highlight-on = no`) and reload, wrapped line with a background (no color
+  after the end of the line). 2 windows × 50000 FortiGate lines (`fortigate`, one wrapped) + 2000 lines/s for 10 s:
+  0.46 s of CPU. Dynamic and static builds.
 
 ---
 
@@ -553,3 +605,4 @@ examples/profiles/example.ini
 | Save file name (`far2l-extended`) | E11 | "File name: Date first / Name first" in the Save dialogs (history, screen, Log View), `save-name` in `tvterm.ini` |
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: user manual of the current behavior, with complete examples |
 | Alert list (`far2l-extended`) | E13 | Event Viewer key A (active alerts with time, group, line); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` in messages; keywords with `+` groups, `!` exclusions, `\` escapes |
+| Highlight (`far2l-extended`) | E14 | Log View colors: `[highlight <name>]` sets in `tvterm.ini` (line, match, groups, hash, include), 10 built-in sets (multitail conversions + zimbra-mta, nginx, syslog), F4 field, H, profile keys |
