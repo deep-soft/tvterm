@@ -100,9 +100,9 @@ butonul `[■]`, ca în orice program Turbo Vision.
 | Tasta | Element | Ce face |
 |---|---|---|
 | `N` | New Term | terminal nou cu shell-ul tău (`$SHELL`) |
-| `W` | Close Term | închide fereastra activă |
+| (fără) | Close Term | închide fereastra activă: se alege cu săgețile + Enter sau cu un click (fără tastă, ca să nu fie aleasă din greșeală) |
 | `Tab` / `Shift-Tab` | Next / Previous Term | fereastra următoare / precedentă |
-| `J` | Window List... | lista tuturor ferestrelor: Go, Rename, Close |
+| `W` | Window List... | lista tuturor ferestrelor: Go, Rename, Close |
 | `T` | Rename Term... | titlu fix pentru un terminal sau un Log View (gol: cel automat) |
 | `K` | Alerts... | alertele terminalului sau Log View-ului activ ([capitolul 9](#9-alerte)) |
 | `G` | Go to Next Alert | merge la fereastra cu cea mai veche alertă |
@@ -133,7 +133,7 @@ ferestre folosesc cel mai mare dreptunghi care nu se suprapune peste niciunul di
 
 ### Window List
 
-**Ctrl-B J** sau click pe `WinList`. Fiecare rând arată tipul (`Term`, `Log`, `Editor`, `Events`) și titlul,
+**Ctrl-B W** sau click pe `WinList`. Fiecare rând arată tipul (`Term`, `Log`, `Editor`, `Events`) și titlul,
 cu marcajul de alertă, dacă există. Butoane: **Go** (Enter), **Rename**, **Close**, Cancel.
 
 ### Grab Input

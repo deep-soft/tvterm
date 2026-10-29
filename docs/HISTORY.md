@@ -71,17 +71,21 @@ E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups
 E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 E16. Log View: lists next to the Include, Exclude and Highlight sets fields
+E17. Ctrl-B menu: W opens the Window List, Close Term has no key
 
 ---
 
 ## 2. Features (all tested by the user in the real setup, unless marked otherwise)
 
 ### Menu (Ctrl-B)
-`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
+`N` New Term · Close Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `W` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
 `R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
+Free menu letters: B, C, I, J, X, Y, Z (`M` opens More...).
+- E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
+  key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
+  the close box of the frame still close windows). MANUAL chapter 2 and `examples/profiles/example.ini` updated.
 - **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
   stay where they are. The others use the largest rectangle that overlaps none of them, each fixed window counted separately
   (commit 26; commit 25 used the rectangle enclosing all of them, which with an editor at the top left and the Event Viewer on
@@ -361,7 +365,7 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
 - **Tile / Cascade without room** (E10): when the fixed windows leave no rectangle of at least 20 × 6 and the whole desktop is
   used (commit 26), the Event Viewer gets the note "no free area beside the fixed windows, using the whole desktop"
   (`TVTermApp::noteNoFreeArea`, also for the `layout` of profiles).
-- **Window List** (Ctrl-B J, or a click on `WinList` in the status line, E8: right after `Ctrl-B Menu` in the
+- **Window List** (Ctrl-B W (J before E17), or a click on `WinList` in the status line, E8: right after `Ctrl-B Menu` in the
   terminal, Log View, Event Viewer and editor lines, at the end of the History, selection and Grab Input lines; not while
   moving/resizing or in the menu; no key; in Grab Input the click first releases the input): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
@@ -636,3 +640,4 @@ examples/profiles/example.ini
 | Highlight (`far2l-extended`) | E14 | Log View colors: `[highlight <name>]` sets in `tvterm.ini` (line, match, groups, hash, include), 10 built-in sets (multitail conversions + zimbra-mta, nginx, syslog), F4 field, H, profile keys |
 | `syslog` time forms (`far2l-extended`) | E15 | the `syslog` set dims ISO times with `T`, `^` or a space (with fractions and time zone) |
 | F4 field lists (`far2l-extended`) | E16 | ↓ next to Include, Exclude (values used before) and Highlight sets (sets + values used before) |
+| Menu keys (`far2l-extended`) | E17 | Ctrl-B W = Window List (was J); Close Term without a key |

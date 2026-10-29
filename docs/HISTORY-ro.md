@@ -72,17 +72,22 @@ E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups
 E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 E16. Log View: lists next to the Include, Exclude and Highlight sets fields
+E17. Ctrl-B menu: W opens the Window List, Close Term has no key
 
 ---
 
 ## 2. Funcționalități (toate testate de utilizator în lanțul real, dacă nu e menționat altfel)
 
 ### Meniu (Ctrl-B)
-`N` New Term · `W` Close · `Tab`/`Shift-Tab` Next/Prev · `J` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
+`N` New Term · Close Term (fără tastă) · `Tab`/`Shift-Tab` Next/Prev · `W` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
 `R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
+Litere libere în meniu: B, C, I, J, X, Y, Z (`M` deschide More...).
+- E17 (doar `far2l-extended`; în magiblot W = Close): `W` deschide Window List (înainte `J`, acum liberă); Close Term nu
+  are tastă, se alege cu săgețile + Enter sau cu mouse-ul, ca o fereastră să nu fie închisă din greșeală (Window List și
+  butonul de închidere din ramă închid în continuare ferestre). Actualizate: MANUAL capitolul 2 și
+  `examples/profiles/example.ini`.
 - **Tile / Cascade** (commit 25): aranjează doar terminalele (și celelalte ferestre aranjabile); Event Viewer și ferestrele de editor
   rămân pe loc. Celelalte folosesc cel mai mare dreptunghi care nu atinge niciuna dintre ele, fiecare fereastră fixă luată separat
   (commit 26; commit-ul 25 folosea dreptunghiul care le cuprindea pe toate, iar cu un editor stânga sus și Event Viewer în dreapta
@@ -363,7 +368,7 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
 - **Tile / Cascade fără loc** (E10): când ferestrele fixe nu lasă un dreptunghi de cel puțin 20 × 6 și se folosește tot
   Desktop-ul (commit 26), în Event Viewer apare nota „no free area beside the fixed windows, using the whole desktop”
   (`TVTermApp::noteNoFreeArea`, și pentru `layout` din profiluri).
-- **Window List** (Ctrl-B J sau click pe `WinList` în bara de stare, E8: imediat după `Ctrl-B Menu` în barele de
+- **Window List** (Ctrl-B W (J înainte de E17) sau click pe `WinList` în bara de stare, E8: imediat după `Ctrl-B Menu` în barele de
   terminal, LogView, Event Viewer și editor, la final în barele History, selecție și Grab Input; nu la mutare/redimensionare
   și nici în meniu; fără tastă; în Grab Input click-ul eliberează întâi intrarea): Go / Rename / Close. **Rename Term** (Ctrl-B T); titlu gol = titlu automat.
 - **Event Viewer** (Ctrl-B V): afișează evenimentele Turbo Vision (diagnostic taste); a doua apăsare = pauză. Filtre: vezi mai sus.
@@ -642,3 +647,4 @@ examples/profiles/example.ini
 | Colorare (`far2l-extended`) | E14 | culori în LogView: seturi `[highlight <nume>]` în `tvterm.ini` (line, match, groups, hash, include), 10 seturi incluse (conversii multitail + zimbra-mta, nginx, syslog), câmp în F4, H, chei de profil |
 | Formele orei în `syslog` (`far2l-extended`) | E15 | setul `syslog` estompează ora ISO cu `T`, `^` sau spațiu (cu fracțiuni și fus orar) |
 | Liste în câmpurile F4 (`far2l-extended`) | E16 | ↓ lângă Include, Exclude (valorile folosite) și Highlight sets (seturi + valorile folosite) |
+| Tastele meniului (`far2l-extended`) | E17 | Ctrl-B W = Window List (înainte J); Close Term fără tastă |

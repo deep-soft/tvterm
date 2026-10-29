@@ -98,9 +98,9 @@ as in any Turbo Vision program.
 | Key | Item | What it does |
 |---|---|---|
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
-| `W` | Close Term | closes the focused window |
+| (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
 | `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
-| `J` | Window List... | list of all windows: Go, Rename, Close |
+| `W` | Window List... | list of all windows: Go, Rename, Close |
 | `T` | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one) |
 | `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the oldest alert |
@@ -131,7 +131,7 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 
 ### Window List
 
-**Ctrl-B J** or a click on `WinList`. Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
+**Ctrl-B W** or a click on `WinList`. Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
 with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Cancel.
 
 ### Grab Input

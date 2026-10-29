@@ -293,7 +293,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
     // Items of windows that handle their own keys: a click sends the key
     // (see TVTermStatusLine::keyCommand). "WinList" (Window List, no
-    // key, like Ctrl-B J) follows "Ctrl-B Menu" in every bar except those of
+    // key, like Ctrl-B W) follows "Ctrl-B Menu" in every bar except those of
     // moving/resizing a window and of the open menu.
     auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
         return TVTermStatusLine::keyCommand(keyCode, mods, ch);
@@ -503,11 +503,12 @@ void TVTermApp::openMenu()
 {
     TMenuItem &menuItems =
         *new TMenuItem("New Term", cmNewTerm, 'N', hcNoContext, "~N~") +
-        *new TMenuItem("Close Term", cmClose, 'W', hcNoContext, "~W~") +
+        // No key: closed only on purpose (arrows + Enter, or the mouse).
+        *new TMenuItem("Close Term", cmClose, kbNoKey) +
         newLine() +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
-        *new TMenuItem("Window List...", cmWindowList, 'J', hcNoContext, "~J~") +
+        *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
         *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
         *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
         *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
