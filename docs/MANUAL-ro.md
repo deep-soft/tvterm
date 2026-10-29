@@ -555,7 +555,7 @@ Seturi incluse în tvterm:
 | `fail2ban` | fail2ban: loggerul, acțiunea, jail-ul, IP-ul, Ban / DROP; apoi `levels`, `timestamps` |
 | `nginx` | nginx: codul (5xx roșu, 4xx galben, 2xx verde), metoda; apoi `timestamps`, `kv` |
 | `rsync` | rsync: start, stop, sent, received, failed…; apoi `timestamps`, `kv` |
-| `syslog` | ora din syslog (estompată) și numele programului (fiecare cu culoarea lui) |
+| `syslog` | ora din syslog, estompată (`Oct 29 10:06:17` sau ISO `2026-10-29` + `T`, `^` sau spațiu + `10:06:17`, cu `.123` și `+02:00` / `Z` opționale), și numele programului (fiecare cu culoarea lui) |
 | `kv` | paranteze, `;` `=`, chei (`cheie=`), adrese de e-mail, adrese IP și porturi, `ua=`, `mid=` |
 | `levels` | DEBUG, INFO, WARN, ERROR, NOTICE, FATAL |
 | `timestamps` | formele obișnuite de dată și oră de la începutul liniei, și cea din nginx |

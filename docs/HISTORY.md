@@ -69,6 +69,7 @@ E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 E14. Log View: highlight sets (colors from tvterm.ini)
+E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 
 ---
 
@@ -284,6 +285,10 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   a set including itself): `settings: <path>: line N: [highlight <set>] …; rule ignored` in the Event Viewer.
 - Edit settings template: a commented `[highlight my-mail]` example with the rule types.
 - Postponed: a rule that raises an alert; 256/RGB colors.
+- E15 (after the user's test of E14): the built-in `syslog` set dims the ISO time with `T`, `^` or a space between date and
+  time (`2026-10-29T10:06:17`, `2026-10-29^10:06:17`, `2026-10-29 10:06:17`), with optional fractions of a second and time
+  zone (`.123`, `+02:00`, `Z`), as well as `Oct 29 10:06:17`, so logs merged from different sources look the same.
+  Only that rule changed: `[T^ ]` instead of `T` (a `^` that is not first inside `[ ]` is literal in POSIX).
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -554,6 +559,10 @@ examples/profiles/example.ini
   turn H on), D, Save Profile As (`highlight`, `highlight-on = no`) and reload, wrapped line with a background (no color
   after the end of the line). 2 windows × 50000 FortiGate lines (`fortigate`, one wrapped) + 2000 lines/s for 10 s:
   0.46 s of CPU. Dynamic and static builds.
+- `syslog` test (E15): a C++ test linked with `highlight.cc` (38 checks; 14 of them fail on E14) on lines with `T`, `^`,
+  a space, `.123`, `+02:00`, `Z` and `Oct 29` (time dimmed up to the space, program name with `hash`), plus a line with
+  no space after the time (not dimmed); the new expression gives the same groups on glibc and musl; in tmux, a Log View
+  with `syslog` on a file with all the forms.
 
 ---
 
@@ -606,3 +615,4 @@ examples/profiles/example.ini
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: user manual of the current behavior, with complete examples |
 | Alert list (`far2l-extended`) | E13 | Event Viewer key A (active alerts with time, group, line); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` in messages; keywords with `+` groups, `!` exclusions, `\` escapes |
 | Highlight (`far2l-extended`) | E14 | Log View colors: `[highlight <name>]` sets in `tvterm.ini` (line, match, groups, hash, include), 10 built-in sets (multitail conversions + zimbra-mta, nginx, syslog), F4 field, H, profile keys |
+| `syslog` time forms (`far2l-extended`) | E15 | the `syslog` set dims ISO times with `T`, `^` or a space (with fractions and time zone) |

@@ -550,7 +550,7 @@ Sets built into tvterm:
 | `fail2ban` | fail2ban: the logger, the action, the jail, the IP, Ban / DROP; then `levels`, `timestamps` |
 | `nginx` | nginx: the status (5xx red, 4xx yellow, 2xx green), the method; then `timestamps`, `kv` |
 | `rsync` | rsync: start, stop, sent, received, failed…; then `timestamps`, `kv` |
-| `syslog` | the syslog time (dimmed) and the program name (each in its own color) |
+| `syslog` | the syslog time, dimmed (`Oct 29 10:06:17` or ISO `2026-10-29` + `T`, `^` or a space + `10:06:17`, with optional `.123` and `+02:00` / `Z`), and the program name (each in its own color) |
 | `kv` | brackets, `;` `=`, keys (`key=`), e-mail addresses, IP addresses and ports, `ua=`, `mid=` |
 | `levels` | DEBUG, INFO, WARN, ERROR, NOTICE, FATAL |
 | `timestamps` | the usual date and time forms at the start of the line, and nginx's |

@@ -70,6 +70,7 @@ E11. Save dialogs: choose the file name form (date first or name first)
 E12. Add the user manual (docs/MANUAL.md, docs/MANUAL-ro.md)
 E13. Event Viewer: list the active alerts (A), dates in messages, keyword groups and exclusions
 E14. Log View: highlight sets (colors from tvterm.ini)
+E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 
 ---
 
@@ -284,6 +285,10 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   necunoscut, set care se include pe sine): `settings: <cale>: line N: [highlight <set>] …; rule ignored` în Event Viewer.
 - Șablonul din Edit settings: un exemplu comentat `[highlight my-mail]` cu tipurile de reguli.
 - Amânate: o regulă care dă alertă; culori 256/RGB.
+- E15 (după testul E14 al utilizatorului): setul inclus `syslog` estompează ora ISO cu `T`, `^` sau spațiu între dată și
+  oră (`2026-10-29T10:06:17`, `2026-10-29^10:06:17`, `2026-10-29 10:06:17`), cu fracțiuni de secundă și fus orar opționale
+  (`.123`, `+02:00`, `Z`), precum și `Oct 29 10:06:17`, ca logurile îmbinate din surse diferite să arate la fel.
+  S-a schimbat doar acea regulă: `[T^ ]` în loc de `T` (un `^` care nu e primul în `[ ]` e literal în POSIX).
 
 ### Clipboard (scop principal, funcționează în toate direcțiile)
 - **Editor tvterm** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del folosesc clipboard-ul sistemului (= Windows prin far2l/putty4far2l). F2 salvează.
@@ -558,6 +563,10 @@ examples/profiles/example.ini
   lista; seturi valide aplicate; seturi noi pornesc H), D, Save Profile As (`highlight`, `highlight-on = no`) și
   reîncărcare, linie ruptă cu fundal (fără culoare după sfârșitul liniei). 2 ferestre × 50000 de linii FortiGate
   (`fortigate`, una cu linii rupte) + 2000 de linii/s timp de 10 s: 0,46 s de CPU. Build dinamic și static.
+- Test `syslog` (E15): un test C++ legat cu `highlight.cc` (38 de verificări; 14 dintre ele pică pe E14) pe linii cu
+  `T`, `^`, spațiu, `.123`, `+02:00`, `Z` și `Oct 29` (ora estompată până la spațiu, numele programului cu `hash`), plus
+  o linie fără spațiu după oră (neestompată); expresia nouă dă aceleași grupuri pe glibc și musl; în tmux, un LogView cu
+  `syslog` pe un fișier cu toate formele.
 
 ---
 
@@ -612,3 +621,4 @@ examples/profiles/example.ini
 | Manual (`far2l-extended`) | E12 | `docs/MANUAL.md` + `docs/MANUAL-ro.md`: manualul de utilizare al comportamentului curent, cu exemple complete |
 | Lista alertelor (`far2l-extended`) | E13 | tasta A în Event Viewer (alertele active cu ora, grupul, linia); `hh:mm:ss` / `YYYY-MM-DD hh:mm:ss` în mesaje; cuvinte cheie cu grupuri `+`, excluderi `!`, `\` |
 | Colorare (`far2l-extended`) | E14 | culori în LogView: seturi `[highlight <nume>]` în `tvterm.ini` (line, match, groups, hash, include), 10 seturi incluse (conversii multitail + zimbra-mta, nginx, syslog), câmp în F4, H, chei de profil |
+| Formele orei în `syslog` (`far2l-extended`) | E15 | setul `syslog` estompează ora ISO cu `T`, `^` sau spațiu (cu fracțiuni și fus orar) |
