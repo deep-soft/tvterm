@@ -50,6 +50,7 @@ Lucrăm la **o funcționalitate pe rând** (multe ating aceleași fișiere, ex. 
 25. Tile and Cascade leave the Event Viewer and editors in place
 26. Tile and Cascade use the largest area beside the fixed windows
 27. Ask whether to close the open windows when loading a profile
+28. Keep the scrollback following new output
 
 ### Commit-uri pe `far2l-extended`
 
@@ -308,6 +309,14 @@ Litere libere în meniu: B, C, I, X, Y, Z (`M` deschide More...).
   (`0x1C`, `0x1B`, `0x1D`, `0x1F`). `* + - /` de pe tastatura numerică (coduri de scanare 0x37, 0x4E, 0x4A, 0x35 + enhanced)
   primesc VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (aveau `vk = 0`). În far2l: Ctrl+\ duce în `/`, Ctrl+[ / Ctrl+] inserează calea
   panoului stâng/drept.
+- **Istoricul urmărește ieșirea nouă** (28): un terminal cu istoric putea să nu mai urmărească ieșirea și să rămână fixat mai sus
+  (liniile noi adăugate dedesubt, bara de derulare arătând linii mai jos; revenea doar cu End sau o tastă). Cauza: o cursă între
+  firul terminalului și firul interfeței. Când vederea își actualiza singură bara de derulare (`setParams`), Turbo Vision trimitea
+  `cmScrollBarChanged` ca și cum utilizatorul ar fi mișcat-o, iar tvterm trimitea valoarea barei înapoi emulatorului; între timp
+  firul terminalului putea adăuga linii, deci valoarea veche nu mai însemna „jos”. Apărea la rafale de ieșire (`tail -f`, alerte),
+  cu fereastra selectată sau nu, cât timp istoricul nu era plin. Acum anunțul produs de `updateScrollBar` e ignorat (indicatorul
+  `updatingScrollBar`), iar bara de derulare dusă până jos (click, tragere, rotiță) reia urmărirea ieșirii.
+  Același cod există în magiblot `master` (candidat pentru PR).
 
 ---
 
@@ -426,6 +435,10 @@ examples/profiles/example.ini
 - Teste de regresie folosite: OSC 52 (simplu, 150 KB, query ignorat, invalid), Shift-Ins în shell, lipire nativă far2l cu diacritice,
   bloc vertical far2l, bracketed paste în bash, profiluri (poziții, Ctrl+C → shell), salvare/reîncărcare profil, quit cu editor nesalvat,
   dialogul de ieșire (comenzi din profil, pipeline, comandă tastată, script, far2l, Go to, Esc, ecran 80x24).
+- Note pentru testele cu tmux (28): într-un shell din tvterm, `tmux send-keys Enter` poate să nu ruleze comanda → se trimite `C-j`.
+  `tmux send-keys` nu poate trimite evenimente de mouse către tvterm; secvențele SGR (`ESC[<0;x;yM` / `...m`, rotița `64`/`65`)
+  scrise în tty-ul panoului cu `ioctl(TIOCSTI)` merg (`#{pane_tty}`; x/y de la 1). Testul pentru cursa istoricului: un script care
+  scrie rafale de linii cu mici pauze, apoi un marcaj; la final marcajul trebuie să fie vizibil (build-ul de bază s-a blocat 7/7).
 - Teste istoric (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse în format SGR `ESC[<b;x;yM/m` (dublu/triplu click = apăsare/eliberare
   repetată în 0,1 s; tragere = butonul 32). Potrivirea apare în pyte cu fundal `brightbrown`.
@@ -510,6 +523,7 @@ examples/profiles/example.ini
 | Tile / Cascade | 25 | Event Viewer și editoarele rămân pe loc; celelalte ferestre folosesc zona lăsată liberă |
 | Zona pentru Tile | 26 | cel mai mare dreptunghi lângă ferestrele fixe, fiecare luată separat (editorul stânga sus nu mai e acoperit) |
 | Load Profile | 27 | întreabă dacă se închid întâi ferestrele deschise (Yes / No / Cancel) |
+| Urmărirea istoricului | 28 | vederea nu mai încetează să urmărească ieșirea după rafale; bara de derulare dusă jos reia urmărirea |
 | Istoric (`far2l-extended`) | E1 | modul istoric (derulare, căutare, salvare), dublu/triplu click, Shift+click, tvterm.ini cu profil implicit și reîncărcare automată |
 | Versiune (`far2l-extended`) | E2 | versiunea 0.1.0 cu commit/branch/dată generate la fiecare build; `--version`; dialogul About; primele note în Event Viewer |
 | Filtre Event Viewer (`far2l-extended`) | E3 | filtrele M C K O T, N (mesajele din nou), X (golire), buffer de 64000 de octeți, filtre în profiluri |

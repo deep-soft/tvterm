@@ -49,6 +49,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 25. Tile and Cascade leave the Event Viewer and editors in place
 26. Tile and Cascade use the largest area beside the fixed windows
 27. Ask whether to close the open windows when loading a profile
+28. Keep the scrollback following new output
 
 ### Commits on `far2l-extended`
 
@@ -305,6 +306,14 @@ Free menu letters: B, C, I, X, Y, Z (`M` opens More...).
   with the control character, as Windows does, and other programs the control byte (`0x1C`, `0x1B`, `0x1D`, `0x1F`).
   Keypad `* + - /` (scan codes 0x37, 0x4E, 0x4A, 0x35 + enhanced) get VK_MULTIPLY/ADD/SUBTRACT/DIVIDE (they had `vk = 0`).
   In far2l: Ctrl+\ goes to `/`, Ctrl+[ / Ctrl+] insert the path of the left/right panel.
+- **Scrollback follows new output** (28): a terminal with scrollback could stop following its output and stay fixed higher up
+  (new lines added below, the scroll bar showing more lines underneath; back only with End or a key). Cause: a race between the
+  terminal thread and the UI thread. When the view updated its own scroll bar (`setParams`), Turbo Vision broadcast
+  `cmScrollBarChanged` as if the user had moved it, and tvterm sent the bar's value back to the emulator; by then the terminal
+  thread could have added lines, so the old value no longer meant "at the bottom". Seen with bursts of output (`tail -f`, alerts),
+  focused or not, while the scrollback was not yet full. Now the broadcast caused by `updateScrollBar` is ignored (flag
+  `updatingScrollBar`), and moving the scroll bar to the very bottom (click, drag, wheel) follows the output again.
+  The same code exists in magiblot `master` (candidate for the PR).
 
 ---
 
@@ -423,6 +432,10 @@ examples/profiles/example.ini
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
+- tmux harness notes (28): in a shell inside tvterm, `tmux send-keys Enter` may not run the command → send `C-j`.
+  `tmux send-keys` cannot deliver mouse events to tvterm; writing SGR sequences (`ESC[<0;x;yM` / `...m`, wheel `64`/`65`)
+  into the pane's tty with `ioctl(TIOCSTI)` works (`#{pane_tty}`; x/y 1-based). Scrollback race test: a script printing
+  bursts of lines with small delays, then a marker; the marker must be visible at the end (the base build got stuck 7/7).
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -504,6 +517,7 @@ examples/profiles/example.ini
 | Tile / Cascade | 25 | the Event Viewer and editors stay in place; the other windows use the area they leave free |
 | Tile area | 26 | the largest rectangle beside the fixed windows, each counted separately (editor at the top left no longer covered) |
 | Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
+| Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |

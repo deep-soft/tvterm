@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <limits.h>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -355,8 +356,21 @@ void TerminalView::handleEvent(TEvent &ev)
             else if ( ev.message.command == cmScrollBarChanged &&
                       ev.message.infoPtr == scrollBar && scrollBar )
             {
+                if (updatingScrollBar)
+                {
+                    // The view itself updated the scroll bar (see updateScrollBar).
+                    // Its value may already be stale: the terminal thread can have
+                    // added lines in the meantime, so sending it back would stop
+                    // the terminal from following new output.
+                    clearEvent(ev);
+                    break;
+                }
                 // Handle scrollbar changes by sending a scroll event to the terminal
                 int newOffset = scrollBar->value;
+                // Scrolled to the very bottom: follow new output again, even if
+                // more lines have arrived since the scroll bar was last updated.
+                if (newOffset >= scrollBar->maxVal)
+                    newOffset = INT_MAX;
                 TerminalEvent termEvent;
                 termEvent.type = TerminalEventType::ScrollBackOffsetChange;
                 termEvent.scrollBackOffsetChange = {newOffset};
@@ -630,7 +644,9 @@ void TerminalView::updateScrollBar(TerminalState &state) noexcept
 
         if (state.scrollbackEnabled)
         {
+            updatingScrollBar = true;
             scrollBar->setParams(state.scrollbackOffset, 0, state.scrollbackLimit, size.y, 1);
+            updatingScrollBar = false;
             scrollBar->show();
 
             TPoint cursorPos = getCursorDisplayedPos(state);
