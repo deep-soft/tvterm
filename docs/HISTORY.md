@@ -75,6 +75,7 @@ E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 E17. Ctrl-B menu: W opens the Window List, Close Term has no key
 E18. About and --version: architecture and C library of the build
+E19. Document Claude's test environment in HISTORY (section 5)
 
 ---
 
@@ -526,6 +527,9 @@ examples/profiles/example.ini
 - Unity build: `static` functions from different files can clash → own namespaces (`far2lext`, `far2lclip`).
 - Unity build: a new `.cc` file changes the groups of files compiled together, which can uncover a missing include in
   another file (E14: `histdlg.cc` used `MAXPATH` brought by a file before it; it now includes `compat/borland/dir.h`).
+- Unity build: a new `.cc` file that needs `Uses_X` classes must define them and include `<tvision/tv.h>` itself, after
+  the `#define`s: its own header may already have been included (guarded) by another file of the same group, so the
+  `Uses_X` there would come too late.
 - `TFileDialog`: its `directory` field starts empty → typed names are relative to the current directory; tvterm sets it to the profiles directory.
   The wildcard must be a bare pattern (`*.ini`): tvision joins it to the directory (bottom pane, Name field for a focused directory).
   A full path there is doubled → the dialog is created with `fdNoLoadDir`, then `directory` is set and the list read (`profiledlg::newDialog`, `app.cc`).
@@ -556,6 +560,33 @@ examples/profiles/example.ini
   - far2l 2.6 in extensions mode: its title contains `TTY|F`.
 - Clipboard without far2l: a fake `xclip` in `PATH` (reads/writes a file) + `DISPLAY=:99` → tvision uses it for
   TClipboard (dialog fields: Shift-Ins, Ctrl-V, Ctrl-Ins, Ctrl-C). `tmux paste-buffer -p` = bracketed paste from the outer terminal.
+- **Current environment** (from E5 on; the `pyte` harness above was used for the first commits):
+  - Ubuntu 24.04 container, 1 CPU. Before a build: `apt-get update` and
+    `apt-get install cmake ninja-build tmux ccache libncurses-dev libgpm-dev`. The submodules (`deps/tvision`,
+    `deps/vterm/libvterm`) are cloned separately, with a timeout. `ccache` (`-DCMAKE_C_COMPILER_LAUNCHER=ccache`,
+    `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache`) makes the following builds much shorter.
+  - Long builds and long tmux sessions (more than ~300 s) are started detached (`setsid nohup …`) with the results written
+    to a file; a process started in the foreground is stopped at the end of the tool call.
+  - tvterm runs inside tmux; keys with `tmux send-keys`, the screen with `tmux capture-pane -p` (`-e` for colors).
+    The first start after `tmux kill-server`, and `far2l-extended` in general (slower to start), need longer pauses
+    (≥ 2–3 s) before the first keys. `-p none` (no default profile) and `--version` exist only in `far2l-extended`.
+  - Reading the screen: in a dialog with a double frame the text is the segment between the second and the third `║`;
+    over an editor the frame is `│`, so the text is read at fixed columns. Lines with cut UTF-8 characters are decoded
+    and cut in Python. With UTF-8 text use `LANG=C.UTF-8` (see E16).
+  - Positions after Tile / Cascade: the screen does not show an overlap (the editor stays drawn on top), so the profile is
+    saved (Ctrl-B A) and its `pos` lines are compared.
+  - `pkill -f "<text>"` also kills the shell of the tool call that contains the text → anchored pattern
+    (`pkill -f '^sleep 1000$'`).
+  - The output of Claude's tools is shown as JSON, so a `\` in a file appears as `\\` (in E13 this led to a wrong
+    "fix", later undone) → backslashes are checked with `od -c` or in Python (`replace(chr(92), '<BS>')`).
+  - Small unit tests: a C++ test linked only with the file under test (e.g. `highlight.cc`, no tvision) compiles in a few
+    seconds; it is also run on the old code (`git show HEAD:<file>`), to see that the test catches the problem.
+  - Regular expressions are compared between glibc and musl with a C program built with gcc and with `musl-gcc -static`
+    (package `musl-tools`).
+  - Awk in test pipelines: mawk (Ubuntu's `awk`) needs `-W interactive` after `tail -F`, gawk does not.
+- Documentation tests (E12 and later manual changes): automatic checks against the sources (keys and default values from
+  `settings.cc`, profile keys, menu letters, internal links, the same structure in English and Romanian) + the manual's
+  examples run as profiles on test logs (the count in the window title compared with `grep -E`).
 - Regression tests used: OSC 52 (simple, 150 KB, query ignored, invalid), Shift-Ins in a shell, native far2l paste with diacritics,
   far2l vertical block, bracketed paste in bash, profiles (positions, Ctrl+C → shell), save/reload profile, quit with an unsaved editor,
   quit dialog (profile commands, pipeline, typed command, script, far2l, Go to, Esc, 80x24 screen).
@@ -563,15 +594,24 @@ examples/profiles/example.ini
   `tmux send-keys` cannot deliver mouse events to tvterm; writing SGR sequences (`ESC[<0;x;yM` / `...m`, wheel `64`/`65`)
   into the pane's tty with `ioctl(TIOCSTI)` works (`#{pane_tty}`; x/y 1-based). Scrollback race test: a script printing
   bursts of lines with small delays, then a marker; the marker must be visible at the end (the base build got stuck 7/7).
+  Merge of 28 into `far2l-extended`: 40 bursts × 60 lines with random pauses, then the marker, tvterm restarted at each
+  run (the race appears only while the history is not full): base 4/7, fixed 7/7; the scenario with an alert on a window
+  that is not selected did not reproduce it in the container.
+  Scroll bar / wheel tests: first ~300 lines at once (so there is a history), then slow output (~3 lines/s), otherwise
+  the clicks do not reach the bottom; "follows" = the largest visible line number grows within 1.5 s; one page = a click
+  on the track (x 160 for a maximized window on 160 columns, the row above `▼`).
 - Directory completion (29): `dircompl::matches` checked by a small C++ test linked with `dircompl.cc` and `libtvision.a`
   (prefix, case, hidden, relative / `~/` / absolute paths, links, wildcards, limit). In tmux, characters typed in one
   `send-keys` arrive together and count as a paste; the first burst into a field whose text is selected (e.g. `*` when the
   dialog opens) keeps only the first character, also before 29 → characters are sent one at a time. The field's history
-  (Down with the list closed) must not contain intermediate texts.
+  (Down with the list closed) must not contain intermediate texts. A field is cleared with Ctrl-Y (not Ctrl-A / Ctrl-K).
+  A selectable `TListViewer` takes the focus at `show()` / `hide()` (`resetCurrent`) → the list is not selectable and the
+  field keeps the focus.
 - Static libpthread (30): `deps/static-pthread.cmake` tried alone in a small CMake project: gcc (glibc 2.39) and `musl-gcc`
   → off; a fake `features.h` with glibc 2.28 / 2.33 → on, 2.34 / 3.0 → off; option already in `CMAKE_EXE_LINKER_FLAGS` → not
-  added twice; `-DTVTERM_OLD_GLIBC=ON/OFF` respected. tvterm's static link command on glibc 2.39 is identical to the one
-  before 30; forced with `-DTVTERM_OLD_GLIBC=ON` on glibc 2.39, the static build links and starts. Real test: Raspberry Pi (user).
+  added twice; `-DTVTERM_OLD_GLIBC=ON/OFF` respected. tvterm's static link command on glibc 2.39
+  (`ninja -t commands tvterm | tail -1`) is identical to the one before 30; forced with `-DTVTERM_OLD_GLIBC=ON` on
+  glibc 2.39, the static build links and starts. Real test: Raspberry Pi (user).
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -621,6 +661,10 @@ examples/profiles/example.ini
   a profile with `filters = no` → `[F-]`, without the key → filters on, `filters = maybe` → "invalid filters 'maybe'", filters on.
 - Window List item tests (E8): a click on it in the terminal, Log View, Event Viewer, editor, History, selection and Grab Input
   lines opens the list (Grab Input: `(Input Grab)` gone from the title); 60 columns wide: no crash.
+- Alert list, dates and keyword groups tests (E13): profiles with terminals `bash -c 'sleep N; printf …'` (a line split
+  between writes, a prompt without Enter, an exclusion that arrives 0.2 s later) and Log Views on files to which the test
+  script appends lines (`echo >> log`, after the first 3 s); key A in the focused Event Viewer, read with a tmux capture;
+  the Ctrl-B K dialog: Tab to Keywords, End, text, Enter.
 - Highlight tests (E14): a C++ test linked with `highlight.cc` (35 checks: colors of the built-in sets on sample lines,
   first rule wins, replaced set, warnings with file and line, include cycle, `\"`, `icase`, empty matches, a 100 KB line);
   a C program compiled with gcc and with `musl-gcc -static` (package `musl-tools`) prints every match and group of the 71
@@ -630,7 +674,8 @@ examples/profiles/example.ini
   cursor line and selection without colors, search match over them, `tvterm.ini` changed (new color in ~3 s, invalid rule
   reported with its line), unknown set reported once, F4 (unknown set: error with the list; valid sets applied; new sets
   turn H on), D, Save Profile As (`highlight`, `highlight-on = no`) and reload, wrapped line with a background (no color
-  after the end of the line). 2 windows × 50000 FortiGate lines (`fortigate`, one wrapped) + 2000 lines/s for 10 s:
+  after the end of the line). F4 in Log View: Alt+H = the Highlight sets field; Home, Shift-End, text, Enter.
+  2 windows × 50000 FortiGate lines (`fortigate`, one wrapped) + 2000 lines/s for 10 s:
   0.46 s of CPU. Dynamic and static builds.
 - `syslog` test (E15): a C++ test linked with `highlight.cc` (38 checks; 14 of them fail on E14) on lines with `T`, `^`,
   a space, `.123`, `+02:00`, `Z` and `Oct 29` (time dimmed up to the space, program name with `hash`), plus a line with
@@ -643,7 +688,9 @@ examples/profiles/example.ini
   `── used before ──` → unchanged; a value from the history replaces the field; the second window sees the same lists;
   a 310-byte Include taken from the list and confirmed with OK → no error, the field ends with the original end; UTF-8
   values (`ășț─x`) shown correctly; mouse click (SGR through `TIOCSTI`) on the arrows opens the lists. Dynamic and static
-  builds.
+  builds. In a `TListViewer`, End goes to the last visible row, not to the last item → Down repeated.
+- Menu tests (E17): when the Ctrl-B menu opens nothing is selected, so the first Down selects New Term; Close Term = Down,
+  Down, Enter.
 
 ---
 
@@ -703,3 +750,4 @@ examples/profiles/example.ini
 | F4 field lists (`far2l-extended`) | E16 | ↓ next to Include, Exclude (values used before) and Highlight sets (sets + values used before) |
 | Menu keys (`far2l-extended`) | E17 | Ctrl-B W = Window List (was J); Close Term without a key |
 | Build architecture (`far2l-extended`) | E18 | `--version`, About and the Event Viewer show the architecture (`uname -m` names) and the C library (`glibc X.Y` / `musl`) of the build |
+| Test notes (`far2l-extended`) | E19 | section 5 describes Claude's current test environment (container, tmux, reading the screen, pitfalls) and the tests of E13, E17, the merge of 28; documentation only |
