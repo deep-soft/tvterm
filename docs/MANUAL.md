@@ -202,6 +202,17 @@ key-window-down = Alt-Down:not-far2l, Shift-Alt-Down
 `bash, idle`), the busy ones first. Buttons: **Quit**, **Go to** (goes to the chosen window, does not quit), Cancel.
 Editors with unsaved changes ask afterwards. Programs receive SIGHUP; far2l stays in the background and can be reattached.
 
+The dialog opens large enough to show every line whole (when the screen allows) and can be changed while it is open:
+
+- **Resize** with the mouse (bottom right corner) or with **Ctrl-F5**: arrows move it, Shift+arrows change its size,
+  Enter or Esc end. It can also be moved by its title. The list grows with it; the buttons stay at the bottom.
+  Lines that do not fit end with `…`.
+- **F5** or the zoom button of the frame: whole screen; again: back.
+- It never leaves the screen; if the screen gets smaller while it is open, it is moved and shrunk to fit.
+- The size you choose and the zoomed state are kept until tvterm exits (the dialog always opens centered). On a smaller
+  screen it opens shrunk; the size you chose comes back on a larger one.
+- The same holds for the "Close windows" question of Load Profile.
+
 ### File dialogs
 
 In the name field of the file dialogs (Open File in Editor, the editor's Save file as, Load Profile, Save Profile As,
