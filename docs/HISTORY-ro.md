@@ -75,6 +75,7 @@ E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 E17. Ctrl-B menu: W opens the Window List, Close Term has no key
+E18. About and --version: architecture and C library of the build
 
 ---
 
@@ -135,11 +136,19 @@ Litere libere în meniu: B, C, I, J, X, Y, Z (`M` deschide More...).
 - Număr de versiune `0.1.0`, în `CMakeLists.txt` (`TVTERM_VERSION`), schimbat doar manual. Restul se adaugă automat la
   **fiecare build** de `scripts/buildinfo.cmake`: commit-ul (`git describe --always --dirty`: hash scurt, `-dirty` cu modificări
   necommit-uite), branch-ul, data compilării în ora locală a mașinii de build, cu fus (`YYYY-MM-DD hh:mm TZ`, ex.
-  `2026-10-25 16:40 EET`; o mașină fără fus orar setat arată `UTC`), tipul build-ului (`static`/`dynamic`) și commit-urile
-  tvision și libvterm incluse. Fără git (ex. surse dintr-o arhivă): `unknown`.
+  `2026-10-25 16:40 EET`; o mașină fără fus orar setat arată `UTC`), tipul build-ului (`static`/`dynamic`), arhitectura și
+  commit-urile tvision și libvterm incluse. Fără git (ex. surse dintr-o arhivă): `unknown`.
+- Arhitectura și biblioteca C (E18), după tipul build-ului: `built: 2026-10-30 17:20 EET, static, x86_64, musl`
+  (Alpine), `..., static, armv7l, glibc 2.28` (Raspbian 10). Descriu **executabilul**, așa cum a fost compilat, nu mașina pe
+  care rulează. Arhitectura are denumirea din `uname -m` și vine din `CMAKE_SYSTEM_PROCESSOR` (la build nativ, `uname -m` al
+  mașinii de build; compilatorul din Raspbian produce cod armv6, dar numele rămâne `armv7l`, ca pe Pi); un build pe 32 de biți
+  pe un sistem de 64 primește numele de 32 de biți (`i686`, `arm`). Biblioteca C vine din macro-urile compilatorului:
+  `glibc X.Y` (versiunea antetelor folosite la build; la un build dinamic, glibc-ul minim cerut e cel mult aceasta),
+  `uClibc`, `bionic`; orice altă bibliotecă C pe Linux e `musl` (musl nu are, intenționat, un macro propriu); pe alte sisteme nu se afișează.
 - `tvterm --version` (sau `-V`) le afișează și iese, fără să pornească interfața.
-- Primele două linii din Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` și `built <dată>, <tip>`.
-- **More... > About tvterm...**: versiunea, commit-ul și branch-ul, data și tipul build-ului, commit-urile tvision/libvterm,
+- Primele două linii din Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` și
+  `built <dată>, <tip>, <arhitectură>, <bibliotecă C>`.
+- **More... > About tvterm...**: versiunea, commit-ul și branch-ul, data, tipul, arhitectura și biblioteca C ale build-ului, commit-urile tvision/libvterm,
   fișierul de setări (`(not found)` dacă nu există), ultimul profil încărcat (`(none)`), uptime (`2d 03:14`: zile, ore, minute),
   numărul de ferestre terminal (care rulează sau deconectate) și link-urile (fork deep-soft, originalul magiblot).
   Valorile se citesc la deschiderea dialogului. Căile lungi se scurtează la început (`...`) pe ecrane înguste.
@@ -459,7 +468,7 @@ deps/tvision-fixes.cmake   corecturi tvision: histlist.cpp copiat în directorul
 deps/static-pthread.cmake  build static: libpthread întreagă cu glibc mai vechi de 2.34 (std::thread)
 scripts/build.sh           build dinamic/static → bin/tvterm-dynamic, bin/tvterm-static (+ loguri)
 scripts/tvterm-copy        copiere în clipboard prin OSC 52
-scripts/buildinfo.cmake    rulat la fiecare build: scrie <dir. build>/buildinfo.cc (versiune, commit, branch, dată, tip)
+scripts/buildinfo.cmake    rulat la fiecare build: scrie <dir. build>/buildinfo.cc (versiune, commit, branch, dată, tip, arhitectură)
 examples/profiles/example.ini
 ```
 
@@ -578,6 +587,11 @@ examples/profiles/example.ini
   de 3 terminale (unul deconectat); uptime după 1 minut; cale lungă scurtată pe un ecran de 60 de coloane; Enter/Esc îl închid;
   primele note din Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build fără git → `unknown`;
   recompilare în același minut nu compilează nimic, în minutul următor doar `buildinfo.cc`.
+- Teste arhitectură (E18): `scripts/buildinfo.cmake` rulat singur cu `-DARCH=… -DPOINTER_SIZE=…` (x86_64/8 → `x86_64`,
+  armv7l/4 → `armv7l`, aarch64/4 → `arm`, x86_64/4 → `i686`, AMD64 → `x86_64`, ARM64 → `aarch64`, gol → `unknown`);
+  macro-urile bibliotecii C într-un program C mic compilat cu gcc (`glibc 2.39`) și `musl-gcc -static` (`musl`); build-ul
+  static (glibc 2.39): `--version`, `-V`, a doua linie din Event Viewer, About pe 160 de coloane (dialogul se lărgește) și pe
+  60 de coloane (linia Built se scurtează la început, ca o cale). Necompilat de Claude: Alpine (musl) și Raspbian (glibc 2.28).
 - Teste Event Viewer (feat E3): titlul și bara de stare implicite; X; mișcările de mouse ascunse, apoi afișate după M; tastele
   proprii neînregistrate; K, C, T (note noi de la o reîncărcare automată a setărilor); N (și cu T oprit); ~120 de evenimente
   de taste (> 32000 de octeți) păstrează primele note, ~300 le elimină pe cele mai vechi; titlul la pauză; cheile din profil,
@@ -695,3 +709,4 @@ examples/profiles/example.ini
 | Formele orei în `syslog` (`far2l-extended`) | E15 | setul `syslog` estompează ora ISO cu `T`, `^` sau spațiu (cu fracțiuni și fus orar) |
 | Liste în câmpurile F4 (`far2l-extended`) | E16 | ↓ lângă Include, Exclude (valorile folosite) și Highlight sets (seturi + valorile folosite) |
 | Tastele meniului (`far2l-extended`) | E17 | Ctrl-B W = Window List (înainte J); Close Term fără tastă |
+| Arhitectura build-ului (`far2l-extended`) | E18 | `--version`, About și Event Viewer arată arhitectura (denumiri ca `uname -m`) și biblioteca C (`glibc X.Y` / `musl`) ale build-ului |

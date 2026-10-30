@@ -74,7 +74,8 @@ install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/tvterm" DESTINATION include
 if (TVTERM_BUILD_APP)
     file(GLOB_RECURSE TVTERM_SRC "${CMAKE_CURRENT_LIST_DIR}/source/tvterm/*.cc")
 
-    # Build information (version, commit, date), generated at every build.
+    # Build information (version, commit, date, architecture), generated at
+    # every build.
     set(TVTERM_BUILDINFO "${CMAKE_CURRENT_BINARY_DIR}/buildinfo.cc")
     add_custom_target(tvterm-buildinfo
         COMMAND "${CMAKE_COMMAND}"
@@ -84,6 +85,8 @@ if (TVTERM_BUILD_APP)
             "-DSTATIC=${TVTERM_STATIC}"
             "-DSYSTEM_TVISION=${TVTERM_USE_SYSTEM_TVISION}"
             "-DSYSTEM_LIBVTERM=${TVTERM_USE_SYSTEM_LIBVTERM}"
+            "-DARCH=${CMAKE_SYSTEM_PROCESSOR}"
+            "-DPOINTER_SIZE=${CMAKE_SIZEOF_VOID_P}"
             -P "${CMAKE_CURRENT_LIST_DIR}/scripts/buildinfo.cmake"
         BYPRODUCTS "${TVTERM_BUILDINFO}"
         VERBATIM

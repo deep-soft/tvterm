@@ -12,6 +12,33 @@
 #include <vector>
 #include <algorithm>
 
+std::string libcName()
+{
+    // musl has no macro of its own (on purpose); on Linux, a C library that
+    // is not glibc, uClibc (which also defines __GLIBC__) or bionic is musl.
+#if defined(__UCLIBC__)
+    return "uClibc";
+#elif defined(__GLIBC__)
+    return "glibc " + std::to_string(__GLIBC__) + "." + std::to_string(__GLIBC_MINOR__);
+#elif defined(__ANDROID__)
+    return "bionic";
+#elif defined(__linux__)
+    return "musl";
+#else
+    return "";
+#endif
+}
+
+std::string buildDescription()
+{
+    std::string text = std::string(buildinfo::date) + ", " + buildinfo::kind + ", " +
+                       buildinfo::arch;
+    std::string libc = libcName();
+    if (!libc.empty())
+        text += ", " + libc;
+    return text;
+}
+
 std::string versionLine()
 {
     return std::string("tvterm ") + buildinfo::version + " (deep-soft), " +
@@ -20,14 +47,14 @@ std::string versionLine()
 
 std::string buildLine()
 {
-    return std::string("built ") + buildinfo::date + ", " + buildinfo::kind;
+    return "built " + buildDescription();
 }
 
 std::string versionText()
 {
     return std::string("tvterm ") + buildinfo::version + " (deep-soft)\n" +
            "commit:   " + buildinfo::commit + " (" + buildinfo::branch + ")\n" +
-           "built:    " + buildinfo::date + ", " + buildinfo::kind + "\n" +
+           "built:    " + buildDescription() + "\n" +
            "tvision:  " + buildinfo::tvision + "\n" +
            "libvterm: " + buildinfo::libvterm + "\n";
 }
@@ -84,7 +111,7 @@ void showAbout(const AboutInfo &info)
     struct Line { std::string label, value; };
     std::vector<Line> lines = {
         {"Commit:", std::string(buildinfo::commit) + " (" + buildinfo::branch + ")"},
-        {"Built:", std::string(buildinfo::date) + ", " + buildinfo::kind},
+        {"Built:", buildDescription()},
         {"tvision:", buildinfo::tvision},
         {"libvterm:", buildinfo::libvterm},
         {"", ""},

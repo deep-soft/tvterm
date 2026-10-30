@@ -76,8 +76,20 @@ Dacă `XDG_CONFIG_HOME` e setat, se folosește `$XDG_CONFIG_HOME/tvterm/` în lo
 
 ### Versiunea
 
-`tvterm --version` afișează versiunea (`0.1.0`), branch-ul și commit-ul, data și tipul compilării (`static` / `dynamic`)
-și commit-urile tvision și libvterm incluse. Aceleași informații sunt în **Ctrl-B More... > About tvterm...**,
+`tvterm --version` afișează versiunea (`0.1.0`), branch-ul și commit-ul, data, tipul (`static` / `dynamic`), arhitectura
+și biblioteca C ale compilării și commit-urile tvision și libvterm incluse. De exemplu:
+
+```
+tvterm 0.1.0 (deep-soft)
+commit:   1a2b3c4 (far2l-extended)
+built:    2026-10-30 17:20 EET, static, armv7l, glibc 2.28
+tvision:  6402631
+libvterm: 62b27d1
+```
+
+Arhitectura are denumirile din `uname -m` (`x86_64`, `armv7l`, `aarch64`), iar biblioteca C e `glibc X.Y` sau `musl`
+(Alpine). Amândouă descriu executabilul așa cum a fost compilat, nu mașina pe care rulează: util ca să verifici că pe un
+server e copia potrivită. Aceleași informații sunt în **Ctrl-B More... > About tvterm...**,
 împreună cu fișierul de setări, ultimul profil încărcat, timpul de funcționare și numărul de terminale.
 
 ---

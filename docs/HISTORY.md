@@ -74,6 +74,7 @@ E14. Log View: highlight sets (colors from tvterm.ini)
 E15. Log View: the syslog highlight set also dims ISO times with ^ or a space
 E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 E17. Ctrl-B menu: W opens the Window List, Close Term has no key
+E18. About and --version: architecture and C library of the build
 
 ---
 
@@ -134,10 +135,19 @@ Free menu letters: B, C, I, J, X, Y, Z (`M` opens More...).
   automatically at **every build** by `scripts/buildinfo.cmake`: the commit (`git describe --always --dirty`: short hash,
   `-dirty` with uncommitted changes), the branch, the build date as local time of the build machine with its time zone
   (`YYYY-MM-DD hh:mm TZ`, e.g. `2026-10-25 16:40 EET`; a machine without a time zone shows `UTC`), the build type
-  (`static`/`dynamic`) and the commits of the bundled tvision and libvterm. Without git (e.g. sources from an archive): `unknown`.
+  (`static`/`dynamic`), the architecture and the commits of the bundled tvision and libvterm. Without git (e.g. sources from
+  an archive): `unknown`.
+- Architecture and C library (E18), after the build type: `built: 2026-10-30 17:20 EET, static, x86_64, musl`
+  (Alpine), `..., static, armv7l, glibc 2.28` (Raspbian 10). They describe the **binary**, as it was built, not the machine
+  it runs on. The architecture is named like `uname -m` and comes from `CMAKE_SYSTEM_PROCESSOR` (in a native build,
+  `uname -m` of the build machine; Raspbian's compiler targets armv6, but the name stays `armv7l`, as on the Pi); a 32-bit
+  build on a 64-bit system gets the 32-bit name (`i686`, `arm`). The C library comes from the compiler's macros:
+  `glibc X.Y` (the version of the headers the build used; for a dynamic build, the oldest glibc it needs is at most that),
+  `uClibc`, `bionic`; any other C library on Linux is `musl` (musl has no macro of its own, on purpose); on other systems it is not shown.
 - `tvterm --version` (or `-V`) prints it and exits, without starting the interface.
-- The first two lines in the Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` and `built <date>, <type>`.
-- **More... > About tvterm...**: version, commit and branch, build date and type, tvision/libvterm commits, the settings file
+- The first two lines in the Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` and
+  `built <date>, <type>, <architecture>, <C library>`.
+- **More... > About tvterm...**: version, commit and branch, build date, type, architecture and C library, tvision/libvterm commits, the settings file
   (`(not found)` if it does not exist), the last profile loaded (`(none)`), uptime (`2d 03:14`: days, hours, minutes),
   the number of terminal windows (running or disconnected) and the links (deep-soft fork, magiblot original).
   The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
@@ -455,7 +465,7 @@ deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build direc
 deps/static-pthread.cmake  static builds: whole libpthread with glibc older than 2.34 (std::thread)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
-scripts/buildinfo.cmake    run at every build: writes <build dir>/buildinfo.cc (version, commit, branch, date, type)
+scripts/buildinfo.cmake    run at every build: writes <build dir>/buildinfo.cc (version, commit, branch, date, type, architecture)
 examples/profiles/example.ini
 ```
 
@@ -573,6 +583,11 @@ examples/profiles/example.ini
   a profile of 3 terminals (one disconnected); uptime after 1 minute; long path shortened on a 60-column screen;
   Enter/Esc close it; the first notes in the Event Viewer; `TZ=Europe/Bucharest` → `EET`; `-dirty`; build without git → `unknown`;
   rebuild in the same minute compiles nothing, in the next minute only `buildinfo.cc`.
+- Architecture tests (E18): `scripts/buildinfo.cmake` run alone with `-DARCH=… -DPOINTER_SIZE=…` (x86_64/8 → `x86_64`,
+  armv7l/4 → `armv7l`, aarch64/4 → `arm`, x86_64/4 → `i686`, AMD64 → `x86_64`, ARM64 → `aarch64`, empty → `unknown`);
+  the C library macros in a small C program built with gcc (`glibc 2.39`) and `musl-gcc -static` (`musl`); the static build
+  (glibc 2.39): `--version`, `-V`, the second Event Viewer line, About on 160 columns (the dialog grows) and on 60 columns
+  (the Built line is shortened at the beginning, like a path). Not built by Claude: Alpine (musl) and Raspbian (glibc 2.28).
 - Event Viewer tests (feat E3): default title and status line; X; mouse movements hidden, then shown after M; own keys
   not logged; K, C, T (new notes from an automatic settings reload); N (also with T off); ~120 key events (> 32000 bytes)
   keep the first notes, ~300 drop the oldest; pause title; profile keys, saving (comment + five keys) and reloading;
@@ -687,3 +702,4 @@ examples/profiles/example.ini
 | `syslog` time forms (`far2l-extended`) | E15 | the `syslog` set dims ISO times with `T`, `^` or a space (with fractions and time zone) |
 | F4 field lists (`far2l-extended`) | E16 | ↓ next to Include, Exclude (values used before) and Highlight sets (sets + values used before) |
 | Menu keys (`far2l-extended`) | E17 | Ctrl-B W = Window List (was J); Close Term without a key |
+| Build architecture (`far2l-extended`) | E18 | `--version`, About and the Event Viewer show the architecture (`uname -m` names) and the C library (`glibc X.Y` / `musl`) of the build |

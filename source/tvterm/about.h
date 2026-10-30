@@ -12,6 +12,7 @@ extern const char commit[];   // short hash, '-dirty' if modified, or "unknown"
 extern const char branch[];
 extern const char date[];     // "YYYY-MM-DD hh:mm TZ", local time of the build
 extern const char kind[];     // "static" or "dynamic"
+extern const char arch[];     // like 'uname -m': "x86_64", "armv7l", "aarch64"
 extern const char tvision[];  // commit of the bundled Turbo Vision
 extern const char libvterm[]; // commit of the bundled libvterm
 
@@ -19,9 +20,17 @@ extern const char libvterm[]; // commit of the bundled libvterm
 
 // Two short lines, for the Event Viewer:
 // "tvterm 0.1.0 (deep-soft), far2l-extended da593f7"
-// "built 2026-10-25 16:40 EET, static"
+// "built 2026-10-25 16:40 EET, static, x86_64, musl"
 std::string versionLine();
 std::string buildLine();
+
+// The C library the binary was built with: "glibc 2.28" (version of the
+// headers), "musl", "uClibc", "bionic"; empty if not known.
+std::string libcName();
+
+// "2026-10-25 16:40 EET, static, x86_64, musl": date, type, architecture
+// and C library of the build.
+std::string buildDescription();
 
 // Several lines, for 'tvterm --version'.
 std::string versionText();

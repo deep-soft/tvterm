@@ -74,8 +74,20 @@ With `XDG_CONFIG_HOME` set, `$XDG_CONFIG_HOME/tvterm/` is used instead of `~/.co
 
 ### Version
 
-`tvterm --version` prints the version (`0.1.0`), the branch and commit, the build date and type (`static` / `dynamic`)
-and the commits of the bundled tvision and libvterm. The same information is in **Ctrl-B More... > About tvterm...**,
+`tvterm --version` prints the version (`0.1.0`), the branch and commit, the build date, type (`static` / `dynamic`),
+architecture and C library, and the commits of the bundled tvision and libvterm. For example:
+
+```
+tvterm 0.1.0 (deep-soft)
+commit:   1a2b3c4 (far2l-extended)
+built:    2026-10-30 17:20 EET, static, armv7l, glibc 2.28
+tvision:  6402631
+libvterm: 62b27d1
+```
+
+The architecture uses the names of `uname -m` (`x86_64`, `armv7l`, `aarch64`) and the C library is `glibc X.Y` or
+`musl` (Alpine). Both describe the executable as it was built, not the machine it runs on: useful to check that the copy
+on a server is the right one. The same information is in **Ctrl-B More... > About tvterm...**,
 together with the settings file, the last profile loaded, the uptime and the number of terminals.
 
 ---
