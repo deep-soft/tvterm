@@ -27,6 +27,7 @@
 #include <tvision/tv.h>
 
 #include "logview.h"
+#include "globalkeys.h"
 #include "app.h"
 #include "cmds.h"
 #include "editwnd.h"
@@ -1703,7 +1704,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-A") +
         *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
         newLine() +
-        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, "Ctrl-B K");
+        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, globalkeys::menuKeyName() + " K");
     ushort cmd = popupMenu(where, items, nullptr);
     if (cmd)
         runCommand(cmd);

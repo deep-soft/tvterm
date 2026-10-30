@@ -291,6 +291,21 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             else
                 warn("unknown key '" + key + "' in [logview]");
         }
+        else if (section == Keys && globalkeys::actionOf(key) >= 0)
+        {
+            int action = globalkeys::actionOf(key);
+            std::vector<GlobalKey> keys;
+            std::vector<std::string> problems;
+            globalkeys::parseList(value, keys, problems);
+            for (auto &p : problems)
+                warn(key + ": " + p + "; ignored");
+            if (action == gaMenu && keys.empty())
+            {
+                warn("menu-key has no valid key; using Ctrl-B");
+                keys.push_back(globalkeys::defaultMenuKey());
+            }
+            settings.globalKeys[action] = keys;
+        }
         else if (section == Keys)
         {
             TKey *target = key == "history-page-up" ? &settings.keyPageUp :
@@ -309,6 +324,10 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
         else if (section == None)
             warn("key '" + key + "' outside of a section");
     }
+    std::vector<std::string> duplicates;
+    globalkeys::removeDuplicates(settings.globalKeys, duplicates);
+    for (auto &d : duplicates)
+        warnings += path + ": " + d + "\n";
     return true;
 }
 
@@ -391,7 +410,24 @@ std::string settingsTemplate()
         "#history-page-up = " + keyName(d.keyPageUp) + "\n"
         "#history-page-down = " + keyName(d.keyPageDown) + "\n"
         "#history-top = " + keyName(d.keyTop) + "\n"
-        "#history-bottom = " + keyName(d.keyBottom) + "\n";
+        "#history-bottom = " + keyName(d.keyBottom) + "\n"
+        "# Global keys: they work in every window (not in dialogs, menus or Grab\n"
+        "# Input). A comma separates several keys; modifiers Ctrl-, Alt-, Shift-;\n"
+        "# keys F1-F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, with Ctrl\n"
+        "# or Alt, Tab Enter Backspace Space a-z 0-9 ` (the key left of 1; also\n"
+        "# written backquote). ':not-far2l' after a key: the key goes to far2l when\n"
+        "# the focused terminal runs far2l with its extensions.\n"
+        "# Key that opens the menu (the first one is shown in the status line),\n"
+        "# e.g. Ctrl-B, Ctrl-`\n"
+        "#menu-key = Ctrl-B\n"
+        "# Maximize / restore the focused window (also Ctrl-B Z), e.g. F12:not-far2l\n"
+        "#key-zoom =\n"
+        "# Go to the neighbouring window on the left / right / above / below,\n"
+        "# e.g. Alt-Shift-Left, Alt-Shift-Right, Alt-Shift-Up, Alt-Shift-Down\n"
+        "#key-window-left =\n"
+        "#key-window-right =\n"
+        "#key-window-up =\n"
+        "#key-window-down =\n";
 }
 
 FileStamp FileStamp::of(const std::string &path)

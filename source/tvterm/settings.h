@@ -9,6 +9,7 @@
 #include <tvision/tv.h>
 
 #include "highlight.h"
+#include "globalkeys.h"
 
 #include <string>
 #include <vector>
@@ -36,6 +37,8 @@ struct Settings
     TKey keyPageDown {kbPgDn, kbShift | kbAltShift};
     TKey keyTop {kbHome, kbShift | kbAltShift};
     TKey keyBottom {kbEnd, kbShift | kbAltShift};
+    // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
+    std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };
 
 // Path of the settings file.

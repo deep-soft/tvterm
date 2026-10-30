@@ -13,6 +13,7 @@
 #include <tvision/tv.h>
 
 #include "alerts.h"
+#include "globalkeys.h"
 #include "wnd.h"
 #include "winlist.h"
 
@@ -453,8 +454,9 @@ void AlertStatusLine::draw()
     TVTermStatusLine::draw();
     if (alertCount == 0 || TVTermStatusLine::hasMessage())
         return;
-    char text[64];
-    snprintf(text, sizeof(text), " Alerts: %zu (Ctrl-B G) ", alertCount);
+    char text[96];
+    snprintf( text, sizeof(text), " Alerts: %zu (%s G) ", alertCount,
+              globalkeys::menuKeyName().c_str() );
     int width = (int) strwidth(text);
     if (width >= size.x)
         return;

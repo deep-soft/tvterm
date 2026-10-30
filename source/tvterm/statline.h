@@ -31,6 +31,10 @@ public:
     // windows that handle their own keys (Log View, Event Viewer, History).
     static ushort keyCommand(ushort keyCode, ushort mods = 0, char ch = 0);
 
+    // Replaces the text of the items with 'command' that have a text
+    // (e.g. "~Ctrl-B~ Menu" when the menu key changes).
+    void setCommandText(ushort command, const std::string &text);
+
     void handleEvent(TEvent &event) override;
     void putEvent(TEvent &event) override;
 };

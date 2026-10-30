@@ -76,6 +76,7 @@ E16. Log View: lists next to the Include, Exclude and Highlight sets fields
 E17. Ctrl-B menu: W opens the Window List, Close Term has no key
 E18. About and --version: architecture and C library of the build
 E19. Document Claude's test environment in HISTORY (section 5)
+E20. Configurable global keys: menu key, Zoom, neighbouring window
 
 ---
 
@@ -83,13 +84,32 @@ E19. Document Claude's test environment in HISTORY (section 5)
 
 ### Menu (Ctrl-B)
 `N` New Term · Close Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `W` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
-`R` Resize/Move · `F` Maximize · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
+`R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, I, J, X, Y, Z (`M` opens More...).
+Free menu letters: B, C, I, J, X, Y (`M` opens More...).
 - E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
   key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
   the close box of the frame still close windows). MANUAL chapter 2 and `examples/profiles/example.ini` updated.
+- **Global keys** (E20, `far2l-extended` only), `[keys]` in `tvterm.ini`: `menu-key` (default `Ctrl-B`), `key-zoom`,
+  `key-window-left/right/up/down` (empty by default). Each value is a comma-separated list; modifiers `ctrl`, `alt`, `shift`
+  joined with `-` or `+` (any case, any order); keys F1–F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, only with
+  Ctrl or Alt, Tab Enter Backspace Space a–z 0–9 and `` ` `` (also `backquote` or `„`: recognized by scan code 41, so it works
+  with the US and Romanian layouts; Shift is ignored for it). Esc is refused (it starts escape sequences). `:not-far2l` after a
+  key: the key goes to the terminal while the focused terminal's program has far2l's extensions on (they are turned on and off
+  by far2l itself, also through ssh; a far2l killed abruptly leaves them on until the terminal restarts). Invalid keys and
+  a key used twice (kept for the first setting in the order above) are reported in the Event Viewer; `menu-key` without a
+  valid key falls back to Ctrl-B.
+  The keys are taken in `TVTermApp::getEvent`, before the focused window, only when the application is the modal view (not
+  in dialogs, menus or Grab Input) and no window is being moved/resized. The status line items no longer carry `kbCtrlB`
+  (otherwise Ctrl-B could not reach programs when removed from `menu-key`); their text becomes `~<first menu key>~ Menu` when
+  the settings are read (`TVTermStatusLine::setCommandText`); the same name appears in the alert counter, in the Log View
+  menu (Alerts) and in the "see the Event Viewer" messages. Since Ctrl-B is no longer turned into `cmMenu` by the status
+  line, the Event Viewer shows it as a key (K), not as command 3 (O).
+  Zoom = `cmZoom` to the focused window (maximize, again: restore); also Ctrl-B Z. Neighbouring window: among the windows
+  whose center lies in that direction, first those that share rows (left/right) or columns (up/down) with the focused one,
+  then the nearest edge (overlap = 0), then the one on top; nothing happens at the edge of the screen (no wrap-around);
+  the Event Viewer and editors are included. Code: `globalkeys.cc` (parsing, matching, names), `TerminalView::far2lExtensionsEnabled`.
 - **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
   stay where they are. The others use the largest rectangle that overlaps none of them, each fixed window counted separately
   (commit 26; commit 25 used the rectangle enclosing all of them, which with an editor at the top left and the Event Viewer on
@@ -457,6 +477,7 @@ source/tvterm/             the application
   dircompl.cc/.h           directory completion in the Name field of file dialogs (TVTermFileDialog, dircompl::Completion)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
+  globalkeys.cc/.h         global keys (E20): menu-key, key-zoom, key-window-*: parsing, matching, display names
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
   statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
                            (keyCommand: a command per key, turned into the key event in putEvent)
@@ -689,6 +710,17 @@ examples/profiles/example.ini
   a 310-byte Include taken from the list and confirmed with OK → no error, the field ends with the original end; UTF-8
   values (`ășț─x`) shown correctly; mouse click (SGR through `TIOCSTI`) on the arrows opens the lists. Dynamic and static
   builds. In a `TListViewer`, End goes to the last visible row, not to the last item → Down repeated.
+- Global key tests (E20): a C++ test linked with `globalkeys.cc` and `libtvision.a` (40 checks: names and forms, refused keys,
+  suffix, `none`, matching of `KeyDownEvent`s with Ctrl-B as control character, scan code 41 with left/right Ctrl, Alt+Shift
+  arrows, duplicates). In tmux: the status line is the **first** screen row (the desktop starts below it); Alt-Shift arrows are
+  sent as `ESC[1;4D/C/A/B` with `send-keys -l`; the focused window is the one whose frame has `╔`, a maximized window starts
+  at column -1 (row 1 begins with `═[■]`). Checked: default Ctrl-B; `menu-key = ctrl-t, F11` (status `Ctrl-T Menu`, Ctrl-B
+  reaches `cat -v` as `^B`); reload to `alt-m` and removal of the file; the 7 notes of an invalid file (read after Ctrl-B Z on
+  the Event Viewer, the notes are wider than the window); navigation on 2×2 tiled terminals in every direction, no wrap; on
+  3 cascaded windows left goes to the next one down; F12 / Ctrl-B Z / Ctrl-B F zoom and restore; Grab Input (F12 and
+  Alt-Shift-Left reach `cat -v`); Open file dialog (global keys ignored); `:not-far2l` with far2l 2.6 (`TTY|F`): far2l shows its
+  help on the first start (Esc), F12 shows nothing visible there, so F9 was used (far2l's menu bar opens, the window is not
+  zoomed; after far2l exits, F9 zooms).
 - Menu tests (E17): when the Ctrl-B menu opens nothing is selected, so the first Down selects New Term; Close Term = Down,
   Down, Enter.
 
@@ -751,3 +783,4 @@ examples/profiles/example.ini
 | Menu keys (`far2l-extended`) | E17 | Ctrl-B W = Window List (was J); Close Term without a key |
 | Build architecture (`far2l-extended`) | E18 | `--version`, About and the Event Viewer show the architecture (`uname -m` names) and the C library (`glibc X.Y` / `musl`) of the build |
 | Test notes (`far2l-extended`) | E19 | section 5 describes Claude's current test environment (container, tmux, reading the screen, pitfalls) and the tests of E13, E17, the merge of 28; documentation only |
+| Global keys (`far2l-extended`) | E20 | `menu-key` (list, default Ctrl-B, `` Ctrl-` `` by scan code), `key-zoom`, `key-window-*` in `[keys]`; `:not-far2l`; Ctrl-B Z = Zoom (F still works) |

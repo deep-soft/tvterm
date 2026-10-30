@@ -495,11 +495,16 @@ bool TerminalView::pasteOnShiftIns() noexcept
 {
     if (owner && owner->helpCtx == consts.hcInputGrabbed)
         return false;
-    bool far2lEnabled = false;
+    return !far2lExtensionsEnabled();
+}
+
+bool TerminalView::far2lExtensionsEnabled() noexcept
+{
+    bool enabled = false;
     termCtrl.lockState([&] (auto &state) {
-        far2lEnabled = state.far2lExtensionsEnabled;
+        enabled = state.far2lExtensionsEnabled;
     });
-    return !far2lEnabled;
+    return enabled;
 }
 
 void TerminalView::handleMouse(ushort what, MouseEventType mouse) noexcept

@@ -1,4 +1,6 @@
 #define Uses_TStatusLine
+#define Uses_TStatusDef
+#define Uses_TStatusItem
 #define Uses_TDrawBuffer
 #define Uses_TProgram
 #define Uses_TEvent
@@ -36,6 +38,21 @@ static std::vector<StatusKey> &keys()
 TVTermStatusLine::TVTermStatusLine(const TRect &bounds, TStatusDef &defs) noexcept :
     TStatusLine(bounds, defs)
 {
+}
+
+void TVTermStatusLine::setCommandText(ushort command, const std::string &text)
+{
+    bool changed = false;
+    for (TStatusDef *d = defs; d; d = d->next)
+        for (TStatusItem *i = d->items; i; i = i->next)
+            if (i->command == command && i->text && text != i->text)
+            {
+                delete[] i->text;
+                i->text = newStr(text);
+                changed = true;
+            }
+    if (changed)
+        drawView();
 }
 
 void TVTermStatusLine::draw()

@@ -28,6 +28,9 @@ struct TVTermApp : public TApplication
     Boolean valid(ushort command) override;
     void idle() override;
     void getEvent(TEvent &event) override;
+    // Global keys (tvterm.ini, [keys]): turns 'event' into a command or
+    // handles it.
+    void handleGlobalKey(TEvent &event);
 
     size_t getOpenTermCount();
 

@@ -83,6 +83,10 @@ public:
 
     TerminalController &termCtrl;
 
+    // Whether the application uses far2l's terminal extensions (far2l
+    // turns them on at start and off at exit, also through ssh).
+    bool far2lExtensionsEnabled() noexcept;
+
     // Output of the client application, for alerts (see TerminalState):
     // the total number of bytes received, and the text received since the
     // owner last cleared 'newOutputText'. Updated on cmCheckTerminalUpdates,

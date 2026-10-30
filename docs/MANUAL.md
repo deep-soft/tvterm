@@ -105,7 +105,9 @@ as in any Turbo Vision program.
 ### The Ctrl-B menu
 
 **Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click). Ctrl-B is not sent to programs
-(see Grab Input below).
+(see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
+([Global keys](#global-keys)); the status line then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
+writes Ctrl-B.
 
 | Key | Item | What it does |
 |---|---|---|
@@ -117,7 +119,7 @@ as in any Turbo Vision program.
 | `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the oldest alert |
 | `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
-| `F` | Maximize/Restore | |
+| `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
 | `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
 | `P` | Paste | pastes the clipboard into the terminal |
@@ -148,8 +150,45 @@ with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Canc
 
 ### Grab Input
 
-**More... > Grab Input** sends every key to the program in the focused terminal, Ctrl-B included (the title shows
-`(Input Grab)`). **Alt-End** or a click outside the window ends it.
+**More... > Grab Input** sends every key to the program in the focused terminal, Ctrl-B and the global keys included
+(the title shows `(Input Grab)`). **Alt-End** or a click outside the window ends it.
+
+### Global keys
+
+Keys set in `[keys]` of `tvterm.ini` ([chapter 6](#6-settings-file-tvtermini)) that work in every window, without the menu:
+
+| Key in `tvterm.ini` | Default | What it does |
+|---|---|---|
+| `menu-key` | `Ctrl-B` | opens the Ctrl-B menu |
+| `key-zoom` | (none) | Zoom: maximizes the focused window; again: back to its size (like Ctrl-B Z) |
+| `key-window-left` / `-right` / `-up` / `-down` | (none) | goes to the window beside the focused one in that direction |
+
+- A comma separates several keys: `` menu-key = Ctrl-B, Ctrl-` ``. Modifiers `Ctrl-`, `Alt-`, `Shift-` (or with `+`, any case and
+  order: `shift-alt-left` = `Alt-Shift-Left`). Keys: `F1`…`F12`, `Left`, `Right`, `Up`, `Down`, `Home`, `End`, `PgUp`, `PgDn`,
+  `Ins`, `Del`; only with Ctrl or Alt (otherwise they would block typing): `Tab`, `Enter`, `Backspace`, `Space`, `a`…`z`,
+  `0`…`9` and `` ` `` (the key left of 1; also written `backquote` or `„`, the same key on the Romanian layout).
+  `Esc` cannot be used.
+- **`:not-far2l`** after a key (e.g. `key-zoom = F12:not-far2l`): while the focused terminal runs far2l with its
+  extensions, the key goes to far2l; in the other windows it is a global key. far2l turns its extensions on at start and
+  off at exit (also through ssh); if far2l is killed abruptly, the key keeps going to that terminal until it is restarted.
+- Removing `Ctrl-B` from `menu-key` sends Ctrl-B to the programs again (e.g. far2l, tmux, `less`).
+- A global key wins over the window's own use of it (e.g. `Alt-Shift-Left` in the editor or in far2l: vertical block).
+  It is not taken in dialogs, menus and Grab Input, nor while a window is being moved or resized.
+- The neighbouring window: among the windows in that direction, first those beside the focused one (sharing rows for
+  left/right, columns for up/down), then the nearest; where windows overlap, the one on top. At the edge of the screen
+  nothing happens (no wrap-around). The Event Viewer and editors are included.
+- An invalid key is ignored and reported in the Event Viewer; a key used by two settings is kept for the first one
+  (order: `menu-key`, `key-zoom`, left, right, up, down). Without a valid `menu-key`, Ctrl-B is used.
+
+```ini
+[keys]
+menu-key = Ctrl-B, Ctrl-`
+key-zoom = F12:not-far2l
+key-window-left = Alt-Shift-Left
+key-window-right = Alt-Shift-Right
+key-window-up = Alt-Shift-Up
+key-window-down = Alt-Shift-Down
+```
 
 ### Quitting
 
@@ -179,7 +218,7 @@ For example `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
 ## 3. Terminals and the clipboard
 
 A new terminal runs `$SHELL`. Its title is set by the program running in it, unless a fixed title was given
-(Ctrl-B T, or `title` in a profile). Keys go to the program, except Ctrl-B. far2l running inside tvterm uses its
+(Ctrl-B T, or `title` in a profile). Keys go to the program, except Ctrl-B and the [global keys](#global-keys). far2l running inside tvterm uses its
 extended keyboard mode (win32-input-mode) and its terminal extensions: its title shows `TTY|F`.
 
 When the program of a terminal ends, the title shows `(Disconnected)` and the output stays visible; any key closes it.
@@ -303,10 +342,14 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `history-page-down` | `Alt-Shift-PgDn` | |
 | | `history-top` | `Alt-Shift-Home` | |
 | | `history-bottom` | `Alt-Shift-End` | |
+| | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
+| | `key-zoom` | (none) | Zoom key |
+| | `key-window-left`, `-right`, `-up`, `-down` | (none) | keys that go to the neighbouring window |
 
 Yes/no values also accept `true`/`false`, `on`/`off`, `1`/`0`. Key names: modifiers `Ctrl-`, `Alt-`, `Shift-`
 (or with `+`) and a key: `PgUp`, `PgDn`, `Home`, `End`, `Up`, `Down`, `Left`, `Right`, `Ins`, `Del`, `Tab`, `Enter`,
-`Esc`, `Backspace`, `Space`, `F1`…`F12` or one character; `none` disables the key.
+`Esc`, `Backspace`, `Space`, `F1`…`F12` or one character; `none` disables the key. The global keys accept a list and
+fewer keys ([Global keys](#global-keys)).
 
 ```ini
 [general]
@@ -779,7 +822,11 @@ Mind the trailing space: `policyid=37 ` (in quotes) does not match `policyid=370
   the old programs of the system keep working. Or build on Ubuntu 24 (glibc).
 - In putty4far2l, **Shift+mouse** is used by its own selection: tvterm's Shift+click works only if that is disabled there.
 - **Alt+Shift+Up/Down** (far2l vertical selection) do not arrive through putty4far2l / Windows, with or without tvterm.
-  Use Alt+Shift+Left/Right and Alt+Shift+PgUp/PgDn.
+  Use Alt+Shift+Left/Right and Alt+Shift+PgUp/PgDn. The same holds for `key-window-up/down` set to Alt-Shift-Up/Down.
+- **`` Ctrl-` ``** is recognized only through far2l's extensions (putty4far2l → far2l → tvterm); over a plain SSH terminal it
+  arrives as Ctrl+Space (a NUL byte) and does nothing, so keep `Ctrl-B` in `menu-key` as well.
+- Global keys and far2l: `F12` (far2l's screens), `Alt-Shift-arrows` (vertical block) and other far2l keys no longer reach
+  far2l when set as global keys; add `:not-far2l` to such keys.
 - Alert keywords and regular expressions with "Ignore case" fold only ASCII letters (`ș` does not match `Ș`).
   The plain text search of the history also folds diacritics.
 - The history search uses ECMAScript regular expressions and the Log View POSIX ones (like `grep -E`): they differ in

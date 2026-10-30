@@ -37,6 +37,7 @@
 #include <tvterm/termview.h>
 #include "dlgclip.h"
 #include "dircompl.h"
+#include "globalkeys.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -205,7 +206,7 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
         // Problems with the default profile: reported, but not blocking.
         note("default profile '" + profile + "' (from " + settingsPath() + "): " + pendingMessage);
         appsettings::showStatus( "Problems with the default profile '" + profile +
-                                 "': see the Event Viewer (Ctrl-B V)." );
+                                 "': see the Event Viewer (" + globalkeys::menuKeyName() + " V)." );
         pendingMessage.clear();
     }
     if (!opened)
@@ -221,6 +222,10 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
     applySettings(currentSettings);
+    // The first menu key, in the status line and in messages.
+    globalkeys::setMenuKeyName(currentSettings.globalKeys[gaMenu].front().name());
+    if (auto *sl = dynamic_cast<TVTermStatusLine *>(TProgram::statusLine))
+        sl->setCommandText(cmMenu, "~" + globalkeys::menuKeyName() + "~ Menu");
     // Log View highlight sets: the built-in ones and those in the file. The
     // windows take them at their next update.
     rebuildHighlightSets(currentSettings.highlight, path, warnings);
@@ -239,7 +244,7 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     }
     if (problems)
         showStatus( "Settings: " + std::to_string(problems) +
-                    " problem(s), see the Event Viewer (Ctrl-B V)." );
+                    " problem(s), see the Event Viewer (" + globalkeys::menuKeyName() + " V)." );
     else if (!existed && manual)
         showStatus("No settings file " + path + " (More... > Edit settings creates it).");
     else if (existed && !startup)
@@ -295,7 +300,9 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
     // Items of windows that handle their own keys: a click sends the key
     // (see TVTermStatusLine::keyCommand). "WinList" (Window List, no
     // key, like Ctrl-B W) follows "Ctrl-B Menu" in every bar except those of
-    // moving/resizing a window and of the open menu.
+    // moving/resizing a window and of the open menu. The menu key itself is
+    // handled in getEvent (menu-key in tvterm.ini); the "Ctrl-B Menu" items
+    // get its name when the settings are read.
     auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
         return TVTermStatusLine::keyCommand(keyCode, mods, ch);
     };
@@ -314,7 +321,6 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Click & Drag~ Select Text", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
-            *new TStatusItem(0 , kbCtrlB, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // History mode: the keys are handled by the terminal view.
         *new TStatusDef(hcHistory, hcHistory) +
@@ -325,7 +331,6 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, keyCmd(kbEsc)) +
-            *new TStatusItem(0 , kbCtrlB, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Log View: its keys are handled by the window.
         *new TStatusDef(hcLogView, hcLogView) +
@@ -338,7 +343,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~/~ Search", kbNoKey, keyCmd('/', 0, '/')) +
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
@@ -350,19 +355,19 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
             *new TStatusItem("~A~ Alerts", kbNoKey, keyCmd('a', 0, 'a')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
             *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbCtrlB, cmMenu) +
+            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
             *new TStatusItem("WinList", kbNoKey, cmWindowList) +
             // Shift-Ins itself is handled by the terminal view (see
             // TerminalView::pasteOnShiftIns); this item is a hint and can be
@@ -500,6 +505,34 @@ void TVTermApp::idle()
     }
 }
 
+namespace appmenu
+{
+
+// The Ctrl-B menu. F, the former letter of Zoom (Maximize/Restore), still
+// works.
+class MainMenuPopup : public CenteredMenuPopup
+{
+public:
+
+    using CenteredMenuPopup::CenteredMenuPopup;
+
+    void getEvent(TEvent &event) override
+    {
+        CenteredMenuPopup::getEvent(event);
+        if (event.what == evKeyDown && TKey(event.keyDown) == TKey('F'))
+        {
+            event.keyDown.keyCode = 'z';
+            event.keyDown.controlKeyState = 0;
+            event.keyDown.text[0] = 'z';
+            event.keyDown.textLength = 1;
+        }
+    }
+};
+
+} // namespace appmenu
+
+using appmenu::MainMenuPopup;
+
 void TVTermApp::openMenu()
 {
     TMenuItem &menuItems =
@@ -514,7 +547,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
         *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
-        *new TMenuItem("Maximize/Restore", cmZoom, 'F', hcNoContext, "~F~") +
+        *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
         newLine() +
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
         *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
@@ -544,7 +577,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
 
     TMenu *menu = new TMenu(menuItems);
-    TMenuPopup *menuPopup = new CenteredMenuPopup(menu);
+    TMenuPopup *menuPopup = new MainMenuPopup(menu);
     menuPopup->helpCtx = hcMenu;
 
     if (ushort cmd = execView(menuPopup))
@@ -637,9 +670,105 @@ void TVTermApp::getEvent(TEvent &event)
     if (event.what != evNothing)
         if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
             viewer->print(event);
+    // Global keys (menu-key, key-zoom, key-window-*): not in dialogs, menus
+    // or Grab Input (another view is modal then), nor while a window is
+    // being moved or resized.
+    if ( event.what == evKeyDown && TopView() == this &&
+         !(deskTop->current && (deskTop->current->state & sfDragging)) )
+        handleGlobalKey(event);
     // Clipboard keys and pasted text in the text fields of dialogs.
     if (event.what == evKeyDown)
         dlgclip::handleKeyEvent(*this, event);
+}
+
+namespace appkeys
+{
+
+static bool far2lActiveIn(TView *view)
+// Whether 'view' is a terminal whose application uses far2l's extensions.
+{
+    if (auto *win = dynamic_cast<TerminalWindow *>(view))
+        if (auto *termView = win->getTerminalView())
+            return termView->far2lExtensionsEnabled();
+    return false;
+}
+
+static void selectNeighbour(TDeskTop &desk, int dx, int dy)
+// The window beside the focused one in the direction (dx, dy): among the
+// windows whose center lies in that direction, those that share rows
+// (left/right) or columns (up/down) with it come first, then the nearest
+// edge, then the one on top. Nothing happens at the edge of the screen.
+{
+    TView *cur = desk.current;
+    if (!cur)
+        return;
+    TRect c = cur->getBounds();
+    int cx = c.a.x + c.b.x, cy = c.a.y + c.b.y; // Centers, doubled.
+    TView *best = nullptr;
+    int bestAside = 0, bestGap = 0;
+    int z = 0;
+    for (TView *p = desk.first(); p; p = p->nextView(), ++z)
+    {
+        if ( p == cur || !(p->state & sfVisible) || !(p->options & ofSelectable) ||
+             !dynamic_cast<TWindow *>(p) )
+            continue;
+        TRect r = p->getBounds();
+        int px = r.a.x + r.b.x, py = r.a.y + r.b.y;
+        if ((dx ? (px - cx) * dx : (py - cy) * dy) <= 0)
+            continue;
+        int gap = dx > 0 ? r.a.x - c.b.x : dx < 0 ? c.a.x - r.b.x :
+                  dy > 0 ? r.a.y - c.b.y : c.a.y - r.b.y;
+        if (gap < 0)
+            gap = 0;
+        bool beside = dx ? (r.a.y < c.b.y && c.a.y < r.b.y)
+                         : (r.a.x < c.b.x && c.a.x < r.b.x);
+        int aside = beside ? 0 : 1;
+        // Windows are visited from the top one down: on a tie, the first wins.
+        if (!best || aside < bestAside || (aside == bestAside && gap < bestGap))
+        {
+            best = p;
+            bestAside = aside;
+            bestGap = gap;
+        }
+    }
+    if (best)
+        best->select();
+}
+
+} // namespace appkeys
+
+void TVTermApp::handleGlobalKey(TEvent &event)
+{
+    const auto &keys = appsettings::currentSettings.globalKeys;
+    bool far2l = false, far2lChecked = false;
+    for (int action = 0; action < gaCount; ++action)
+        for (const GlobalKey &k : keys[action])
+        {
+            if (!k.matches(event.keyDown))
+                continue;
+            if (k.notFar2l)
+            {
+                if (!far2lChecked)
+                    far2l = appkeys::far2lActiveIn(deskTop->current), far2lChecked = true;
+                if (far2l)
+                    continue;
+            }
+            switch (action)
+            {
+                case gaMenu:
+                case gaZoom:
+                    event.what = evCommand;
+                    event.message.command = action == gaMenu ? cmMenu : cmZoom;
+                    event.message.infoPtr = nullptr;
+                    return;
+                case gaWindowLeft: appkeys::selectNeighbour(*deskTop, -1, 0); break;
+                case gaWindowRight: appkeys::selectNeighbour(*deskTop, 1, 0); break;
+                case gaWindowUp: appkeys::selectNeighbour(*deskTop, 0, -1); break;
+                case gaWindowDown: appkeys::selectNeighbour(*deskTop, 0, 1); break;
+            }
+            clearEvent(event);
+            return;
+        }
 }
 
 static std::string firstLines(const std::string &text, int maxLines)
