@@ -51,6 +51,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 27. Ask whether to close the open windows when loading a profile
 28. Keep the scrollback following new output
 29. Complete directory names in the Name field of file dialogs
+30. Link the whole libpthread in static builds with glibc older than 2.34
 
 ### Commits on `far2l-extended`
 
@@ -451,6 +452,7 @@ source/tvterm/             the application
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
+deps/static-pthread.cmake  static builds: whole libpthread with glibc older than 2.34 (std::thread)
 scripts/build.sh           dynamic/static build → bin/tvterm-dynamic, bin/tvterm-static (+ logs)
 scripts/tvterm-copy        copy to the clipboard with OSC 52
 scripts/buildinfo.cmake    run at every build: writes <build dir>/buildinfo.cc (version, commit, branch, date, type)
@@ -483,6 +485,22 @@ examples/profiles/example.ini
   Ncurses"). Two verified solutions: (1) build on Ubuntu 24 (glibc + ncurses 6.4), which works on Ubuntu 12 and CentOS 7.9;
   (2) copy a new `xterm-256color` (e.g. from Alpine) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users).
   The system's old programs (ncurses 5.9) skip the new-format file and keep using theirs (`top`, `mc` verified).
+- **QNAP (QTS, x64)**: the static Alpine build started monochrome. QTS sets `TERMINFO=/opt/share/terminfo` (a directory that
+  does not exist without Entware; the shell sees this value even if `.profile` says `/usr/share/terminfo`), and the only
+  `xterm` entry on QTS is from 2004 (`/usr/share/terminfo/x/xterm`; no `infocmp` / `tput`). Verified solution, local to the
+  tvterm folder: Alpine's `xterm-256color` in `<tvterm folder>/terminfo/x/` and a start script `tvt.sh` (`#!/bin/sh`,
+  `D` = the script's folder, `TERMINFO="$D/terminfo"`, `TERM=xterm-256color`, `exec "$D/tvterm"`). `/etc` is not touched
+  (QTS restores it at reboot). `tvterm`, `mc`, `top` in color.
+- **Static builds with glibc older than 2.34 (commit 30):** on Raspbian 10 (Raspberry Pi 3, `armv7l`, glibc 2.28)
+  `tvterm-static` stopped right at startup (exit code 134, "terminate called without an active exception", then
+  "recursively"); `--version` and the dynamic build worked. Cause: before 2.34, glibc keeps the thread functions in a
+  separate `libpthread.a`; a static link takes only the objects referenced directly, and `std::thread` (`termctrl.cc`) fails.
+  `deps/static-pthread.cmake` (static builds only) detects glibc < 2.34 and links the whole archive
+  (`-Wl,--whole-archive -lpthread -Wl,--no-whole-archive`; configure message: "glibc older than 2.34: linking the whole
+  libpthread"). musl and glibc ≥ 2.34 (libpthread merged into libc) are unchanged. If the option is already in
+  `CMAKE_EXE_LINKER_FLAGS` (the manual workaround), it is not added again: twice would define every pthread symbol twice.
+  `-DTVTERM_OLD_GLIBC=ON/OFF` overrides the check. The workaround was verified by the user before the commit (manual build;
+  far2l 2.8.0 runs inside it).
 - **"Illegal instruction" in file dialogs (Alpine, commit 22):** tvision's input line history (`histlist.cpp`: `deleteString`,
   `insertString`) moved entries with `memcpy` over overlapping memory (the DOS original used `movmem`). With `_FORTIFY_SOURCE`
   on musl (fortify-headers), an overlapping `memcpy` stops the program with `ud2` = "Illegal instruction"; glibc does not check.
@@ -540,6 +558,10 @@ examples/profiles/example.ini
   `send-keys` arrive together and count as a paste; the first burst into a field whose text is selected (e.g. `*` when the
   dialog opens) keeps only the first character, also before 29 → characters are sent one at a time. The field's history
   (Down with the list closed) must not contain intermediate texts.
+- Static libpthread (30): `deps/static-pthread.cmake` tried alone in a small CMake project: gcc (glibc 2.39) and `musl-gcc`
+  → off; a fake `features.h` with glibc 2.28 / 2.33 → on, 2.34 / 3.0 → off; option already in `CMAKE_EXE_LINKER_FLAGS` → not
+  added twice; `-DTVTERM_OLD_GLIBC=ON/OFF` respected. tvterm's static link command on glibc 2.39 is identical to the one
+  before 30; forced with `-DTVTERM_OLD_GLIBC=ON` on glibc 2.39, the static build links and starts. Real test: Raspberry Pi (user).
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -623,7 +645,8 @@ examples/profiles/example.ini
   line); restarting a source with `tail -n N` shows those N lines again; the regular expressions of the history search
   (ECMAScript) and of the Log View (POSIX, like `grep -E`) differ in details (e.g. `\d` only in ECMAScript).
 - tvision (for a PR to magiblot): `histlist.cpp` memcpy → memmove (fixed locally, commit 22); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
-  → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators.
+  → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators;
+  `fmtstr.cpp` `vFormatStr`: GCC 15 + fortify-headers (Alpine) warn about `vsprintf` → proposal `vsnprintf(buf, n + 1, …)`.
 
 ---
 
@@ -646,6 +669,7 @@ examples/profiles/example.ini
 | Load Profile | 27 | asks whether to close the open windows first (Yes / No / Cancel) |
 | Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |
 | Directory completion | 29 | a list of the matching directories below the Name field of the file dialogs (Down, Enter, Esc, Tab) |
+| Static libpthread | 30 | static builds with glibc < 2.34 (Raspbian 10) link the whole libpthread; no longer abort at startup |
 | History (`far2l-extended`) | E1 | history mode (scroll, search, save), double/triple click, Shift+click, tvterm.ini with default profile and automatic reload |
 | Version (`far2l-extended`) | E2 | version 0.1.0 with commit/branch/build date generated at every build; `--version`; About dialog; first notes in the Event Viewer |
 | Event Viewer filters (`far2l-extended`) | E3 | M C K O T filters, N (messages again), X (clear), 64000-byte buffer, filters in profiles |
