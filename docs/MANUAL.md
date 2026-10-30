@@ -179,15 +179,21 @@ Keys set in `[keys]` of `tvterm.ini` ([chapter 6](#6-settings-file-tvtermini)) t
   nothing happens (no wrap-around). The Event Viewer and editors are included.
 - An invalid key is ignored and reported in the Event Viewer; a key used by two settings is kept for the first one
   (order: `menu-key`, `key-zoom`, left, right, up, down). Without a valid `menu-key`, Ctrl-B is used.
+- Avoid **Ctrl+Alt+arrows**: Windows (often the graphics driver's shortcuts, or another program) may take them before
+  they reach SSH (seen: Left/Right on Windows 11, Up/Down on Windows 7), so they do not arrive at all
+  ([chapter 12](#12-known-problems)).
+
+Recommended (tested in the real setup, putty4far2l → far2l → tvterm): in far2l, Alt+arrows stay far2l's keys and
+Shift+Alt+arrows move between windows; in the other windows both move between windows.
 
 ```ini
 [keys]
 menu-key = Ctrl-B, Ctrl-`
 key-zoom = F12:not-far2l
-key-window-left = Alt-Shift-Left
-key-window-right = Alt-Shift-Right
-key-window-up = Alt-Shift-Up
-key-window-down = Alt-Shift-Down
+key-window-left = Alt-Left:not-far2l, Shift-Alt-Left
+key-window-right = Alt-Right:not-far2l, Shift-Alt-Right
+key-window-up = Alt-Up:not-far2l, Shift-Alt-Up
+key-window-down = Alt-Down:not-far2l, Shift-Alt-Down
 ```
 
 ### Quitting
@@ -821,8 +827,10 @@ Mind the trailing space: `policyid=37 ` (in quotes) does not match `policyid=370
   `/usr/share/terminfo/x/xterm-256color`) to `~/.terminfo/x/` (one user) or `/etc/terminfo/x/` (all users) on the server;
   the old programs of the system keep working. Or build on Ubuntu 24 (glibc).
 - In putty4far2l, **Shift+mouse** is used by its own selection: tvterm's Shift+click works only if that is disabled there.
-- **Alt+Shift+Up/Down** (far2l vertical selection) do not arrive through putty4far2l / Windows, with or without tvterm.
-  Use Alt+Shift+Left/Right and Alt+Shift+PgUp/PgDn. The same holds for `key-window-up/down` set to Alt-Shift-Up/Down.
+- **Alt+Shift+Up/Down** arrive at tvterm through putty4far2l, so `key-window-up/down` set to them work.
+- **Ctrl+Alt+arrows** may be taken by Windows before SSH (Left/Right on Windows 11, Up/Down on Windows 7, depending on the
+  machine: graphics driver shortcuts or another program); they then reach neither tvterm nor the programs in it. Do not
+  use them as global keys.
 - **`` Ctrl-` ``** is recognized only through far2l's extensions (putty4far2l → far2l → tvterm); over a plain SSH terminal it
   arrives as Ctrl+Space (a NUL byte) and does nothing, so keep `Ctrl-B` in `menu-key` as well.
 - Global keys and far2l: `F12` (far2l's screens), `Alt-Shift-arrows` (vertical block) and other far2l keys no longer reach

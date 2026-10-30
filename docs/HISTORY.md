@@ -77,6 +77,7 @@ E17. Ctrl-B menu: W opens the Window List, Close Term has no key
 E18. About and --version: architecture and C library of the build
 E19. Document Claude's test environment in HISTORY (section 5)
 E20. Configurable global keys: menu key, Zoom, neighbouring window
+E21. Document the real test of the global keys (E20)
 
 ---
 
@@ -110,6 +111,15 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   whose center lies in that direction, first those that share rows (left/right) or columns (up/down) with the focused one,
   then the nearest edge (overlap = 0), then the one on top; nothing happens at the edge of the screen (no wrap-around);
   the Event Viewer and editors are included. Code: `globalkeys.cc` (parsing, matching, names), `TerminalView::far2lExtensionsEnabled`.
+  Real test (E21 notes; CentOS 7.9, putty4far2l → far2l 2.9.0 → tvterm, Windows 11 and Windows 7): all points worked.
+  Ctrl+Alt+arrows are stopped on Windows before SSH (Windows 11: Left/Right, Windows 7: Up/Down; nothing in the Event
+  Viewer either; probably graphics driver shortcuts or another program); where they arrive (Windows 7 Left/Right) they
+  work. Alt-Shift-Up/Down do arrive (the MANUAL note saying otherwise was wrong for tvterm; corrected in E21). Used by
+  the user: `key-window-left = Alt-Left:not-far2l, Shift-Alt-Left` (and right/up/down): Alt+arrows stay far2l's in far2l,
+  Shift+Alt+arrows move between windows; now the MANUAL example. In Grab Input, `` Ctrl-` `` sends nothing (expected).
+  `cat -v` with Ctrl/Ctrl+Alt+arrows (Windows 11): inside tvterm the programs get the xterm forms `^[[1;5D` (Ctrl) and
+  `^[[1;7A` (Ctrl+Alt Up/Down); in far2l's own shell (Ctrl-O) without tvterm, Ctrl is lost (`^[OD`, like plain Left)
+  and Ctrl+Alt+Up/Down arrive as ESC + arrow. That is outside tvterm and noted only for comparison.
 - **Tile / Cascade** (commit 25): arrange only the terminals (and other tileable windows); the Event Viewer and the editor windows
   stay where they are. The others use the largest rectangle that overlaps none of them, each fixed window counted separately
   (commit 26; commit 25 used the rectangle enclosing all of them, which with an editor at the top left and the Event Viewer on
@@ -784,3 +794,4 @@ examples/profiles/example.ini
 | Build architecture (`far2l-extended`) | E18 | `--version`, About and the Event Viewer show the architecture (`uname -m` names) and the C library (`glibc X.Y` / `musl`) of the build |
 | Test notes (`far2l-extended`) | E19 | section 5 describes Claude's current test environment (container, tmux, reading the screen, pitfalls) and the tests of E13, E17, the merge of 28; documentation only |
 | Global keys (`far2l-extended`) | E20 | `menu-key` (list, default Ctrl-B, `` Ctrl-` `` by scan code), `key-zoom`, `key-window-*` in `[keys]`; `:not-far2l`; Ctrl-B Z = Zoom (F still works) |
+| Global keys test (`far2l-extended`) | E21 | notes of the real test of E20 (Ctrl+Alt+arrows stopped on Windows, Alt-Shift-Up/Down arrive, Ctrl+arrows in `cat -v`); MANUAL: recommended example, chapter 12 corrected; documentation only |
