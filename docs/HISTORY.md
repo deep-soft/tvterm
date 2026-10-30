@@ -50,6 +50,7 @@ One feature at a time (most of them touch the same files, e.g. the menu in `app.
 28. Keep the scrollback following new output
 29. Complete directory names in the Name field of file dialogs
 30. Link the whole libpthread in static builds with glibc older than 2.34
+31. Quit dialog: resizable, zoomable, size kept while tvterm runs
 
 ---
 
@@ -119,8 +120,18 @@ Free menu letters: B, C, D, G, H, I, K, M, X, Y, Z (some are used inside More).
   How the command is found: the processes of the terminal's foreground process group (`tcgetpgrp`) are read from `/proc/<pid>/stat`;
   shells that only run a command line (`sh -c ...`, e.g. the wrapper used for profile commands) are skipped; far2l rewrites its
   `argv[0]`, so its name is taken from `/proc/<pid>/stat`.
+  Size (commit 31; also the "Close windows" variant): resized with the mouse (bottom right corner), moved by the title,
+  **Ctrl-F5** = resize/move with the keyboard (arrows move, Shift+arrows resize, Enter/Esc end), **F5** or the zoom button =
+  whole screen and back. The list grows with the dialog, the buttons stay at the bottom, centered; minimum 44 × 12 (or the
+  screen). It cannot leave the screen (`dmLimitAll`); when the screen shrinks while it is open, it is moved inside, then
+  shrunk (zoomed: it follows the screen). Initial size: every line whole (at least 76 columns) and one line per terminal,
+  never larger than the screen. A size chosen by the user (mouse or Ctrl-F5) and the zoomed state are kept while tvterm
+  runs (not saved); the dialog always opens centered; on a smaller screen it opens shrunk, the kept size stays; automatic
+  adjustments do not change the kept size. Lines cut by the width end with `…`. Code: `QuitDialog` in `quitdlg.cc`
+  (`calcBounds`, `changeBounds`, `zoom`, `execute`, `RememberedSize`).
 - Alt+Shift+Up/Down (far2l vertical selection) do not arrive even outside tvterm → an issue in putty4far2l/Windows, not in tvterm.
-  Workaround: Alt+Shift+Left/Right + Alt+Shift+PgUp/PgDn.
+  Workaround: Alt+Shift+Left/Right + Alt+Shift+PgUp/PgDn. Later (test of E20 on `far2l-extended`, 2026-10-30): Alt+Shift+Up/Down
+  do arrive at tvterm through putty4far2l (used as global keys); the note above holds at most for far2l outside tvterm.
 - **Ctrl+\ [ ] _ and the keypad operators**: through far2l's extensions they arrive as control characters (Ctrl+\ =
   `0x1C`, often with the scan code: keyCode `0x2B1C`), which Turbo Vision does not turn into a key. tvterm finds the key by
   scan code (or by the control character) and sends far2l (win32-input-mode) the right VK (VK_OEM_5/4/6, VK_OEM_MINUS)
@@ -269,6 +280,13 @@ examples/profiles/example.ini
   → off; a fake `features.h` with glibc 2.28 / 2.33 → on, 2.34 / 3.0 → off; option already in `CMAKE_EXE_LINKER_FLAGS` → not
   added twice; `-DTVTERM_OLD_GLIBC=ON/OFF` respected. tvterm's static link command on glibc 2.39 is identical to the one
   before 30; forced with `-DTVTERM_OLD_GLIBC=ON` on glibc 2.39, the static build links and starts. Real test: Raspberry Pi (user).
+- Quit dialog (31), in tmux (keys with `send-keys`: `C-F5`, `S-Left`, `F5`; screen size with `resize-window`; mouse with SGR
+  sequences through `TIOCSTI`), the dialog's frame found in `capture-pane`: initial width from the longest line (150-column
+  screen) and 76 columns otherwise; Ctrl-F5 + Shift+arrows (minimum height 12, `…` on cut lines, buttons centered); kept size
+  after Esc and reopening; arrows and Shift+arrows pushed past the edges stay inside; mouse: corner dragged 20 columns left,
+  title dragged past the right edge (inside), size kept; screen 150×40 → 70×20 while open (moved and shrunk to 70) → back
+  (kept size used at the next opening); F5 zoom, reopened zoomed, zoomed dialog follows a smaller screen, F5 restores a
+  size that fits; screen 40×11 (smaller than the minimum: whole screen, as before); Go to and Quit unchanged.
 
 ---
 
@@ -304,3 +322,4 @@ examples/profiles/example.ini
 | Scrollback follow | 28 | the view no longer stops following output after bursts; the scroll bar moved to the bottom follows again |
 | Directory completion | 29 | a list of the matching directories below the Name field of the file dialogs (Down, Enter, Esc, Tab) |
 | Static libpthread | 30 | static builds with glibc < 2.34 (Raspbian 10) link the whole libpthread; no longer abort at startup |
+| Quit dialog size | 31 | the quit dialog can be resized (mouse, Ctrl-F5), zoomed (F5) and moved; initial size from its content; size kept while tvterm runs |

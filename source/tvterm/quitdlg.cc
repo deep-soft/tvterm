@@ -8,6 +8,7 @@
 #define Uses_TProgram
 #define Uses_TEvent
 #define Uses_TText
+#define Uses_TKeys
 #include <tvision/tv.h>
 
 #include "quitdlg.h"
@@ -33,6 +34,16 @@ enum : ushort
     cmQuitGoTo = 3200,
 };
 
+// Cuts 'text' to at most 'width' columns, adding '…' if it was cut.
+static std::string fitWidth(const std::string &text, int width)
+{
+    if (width < 1)
+        return std::string();
+    if ((int) TText::width(text) <= width)
+        return text;
+    return text.substr(0, TText::scroll(text, width - 1, False)) + "\u2026";
+}
+
 class TermListViewer : public TListViewer
 {
 public:
@@ -55,7 +66,9 @@ public:
     {
         if (item >= 0 && (size_t) item < items.size())
         {
-            strncpy(dest, items[item].c_str(), maxChars);
+            // The text starts one column in: size.x - 1 columns are visible.
+            std::string text = fitWidth(items[item], size.x - 1);
+            strncpy(dest, text.c_str(), maxChars);
             dest[maxChars] = '\0';
         }
         else
@@ -63,33 +76,155 @@ public:
     }
 };
 
+// Size of the dialog chosen by the user, kept while tvterm runs.
+struct RememberedSize
+{
+    bool sized {false};  // resized by the user (mouse or Ctrl-F5)
+    TPoint size {0, 0};
+    bool zoomed {false}; // closed while zoomed
+};
+
+static RememberedSize remembered;
+
+const TPoint minDialogSize {44, 12};
+const int buttonsWidth = 38;
+
 class QuitDialog : public TDialog
 {
 public:
 
     TermListViewer *list;
+    TButton *buttons[3];
+    bool zoomed {false};
+    bool autoFit {false}; // the next changeBounds is not the user's choice
+    bool inZoom {false};
 
     QuitDialog(const TRect &bounds, const std::string &summary, bool closing) noexcept :
         TWindowInit(&initFrame),
         TDialog(bounds, closing ? "Close windows" : "Quit")
     {
         options |= ofCentered;
-        insert(new TStaticText(TRect(2, 2, size.x - 2, 4), summary));
+        flags |= wfGrow | wfZoom;
+        dragMode = dmLimitAll;
+        auto *text = new TStaticText(TRect(2, 2, size.x - 2, 4), summary);
+        text->growMode = gfGrowHiX;
+        insert(text);
         TRect r(2, 6, size.x - 3, size.y - 4);
         auto *sb = new TScrollBar(TRect(r.b.x, r.a.y, r.b.x + 1, r.b.y));
+        sb->growMode = gfGrowLoX | gfGrowHiX | gfGrowHiY;
         insert(sb);
         list = new TermListViewer(r, sb);
+        list->growMode = gfGrowHiX | gfGrowHiY;
         insert(list);
         insert(new TLabel(TRect(r.a.x, r.a.y - 1, r.a.x + 30, r.a.y), "~T~erminals", list));
-        int x = (size.x - 38) / 2, y = size.y - 3;
-        insert(new TButton(TRect(x, y, x + 10, y + 2), closing ? "~C~lose" : "~Q~uit", cmOK, bfDefault)); x += 12;
-        insert(new TButton(TRect(x, y, x + 12, y + 2), "~G~o to", cmQuitGoTo, bfNormal)); x += 14;
-        insert(new TButton(TRect(x, y, x + 12, y + 2), "Cancel", cmCancel, bfNormal));
+        buttons[0] = new TButton(TRect(0, 0, 10, 2), closing ? "~C~lose" : "~Q~uit", cmOK, bfDefault);
+        buttons[1] = new TButton(TRect(0, 0, 12, 2), "~G~o to", cmQuitGoTo, bfNormal);
+        buttons[2] = new TButton(TRect(0, 0, 12, 2), "Cancel", cmCancel, bfNormal);
+        placeButtons();
+        for (auto *b : buttons)
+            insert(b);
         list->select();
+    }
+
+    // The buttons stay at the bottom, centered.
+    void placeButtons()
+    {
+        int x = (size.x - buttonsWidth) / 2, y = size.y - 3;
+        if (x < 1) x = 1;
+        int widths[3] = {10, 12, 12};
+        for (int i = 0; i < 3; ++i)
+        {
+            TRect r(x, y, x + widths[i], y + 2);
+            buttons[i]->locate(r);
+            x += widths[i] + 2;
+        }
+    }
+
+    // Moves 'r' inside the owner, then shrinks it if it still does not fit.
+    TRect fitInside(TRect r)
+    {
+        TPoint lim = owner->size;
+        TPoint sz = r.b - r.a;
+        if (sz.x > lim.x) sz.x = lim.x;
+        if (sz.y > lim.y) sz.y = lim.y;
+        if (r.a.x + sz.x > lim.x) r.a.x = lim.x - sz.x;
+        if (r.a.y + sz.y > lim.y) r.a.y = lim.y - sz.y;
+        if (r.a.x < 0) r.a.x = 0;
+        if (r.a.y < 0) r.a.y = 0;
+        r.b = r.a + sz;
+        return r;
+    }
+
+    void sizeLimits(TPoint &min, TPoint &max) override
+    {
+        TDialog::sizeLimits(min, max);
+        min = minDialogSize;
+        if (min.x > max.x) min.x = max.x;
+        if (min.y > max.y) min.y = max.y;
+    }
+
+    // The screen changed size: keep the dialog inside it.
+    void calcBounds(TRect &bounds, TPoint delta) override
+    {
+        (void) delta;
+        if (zoomed)
+            bounds = TRect(0, 0, owner->size.x, owner->size.y);
+        else
+            bounds = fitInside(getBounds());
+        autoFit = true;
+    }
+
+    void changeBounds(const TRect &bounds) override
+    {
+        TPoint old = size;
+        TDialog::changeBounds(bounds);
+        if (size != old)
+        {
+            placeButtons();
+            if (!autoFit && !inZoom)
+            {
+                remembered.sized = true;
+                remembered.size = size;
+                zoomed = false;
+            }
+        }
+        autoFit = false;
+    }
+
+    void zoom() override
+    {
+        TPoint min, max;
+        sizeLimits(min, max);
+        inZoom = true;
+        if (size != max)
+            zoomed = true;
+        else
+        {
+            zoomRect = fitInside(zoomRect);
+            zoomed = false;
+        }
+        TDialog::zoom();
+        inZoom = false;
+    }
+
+    ushort execute() override
+    {
+        if (remembered.zoomed)
+            zoom();
+        ushort result = TDialog::execute();
+        remembered.zoomed = zoomed;
+        return result;
     }
 
     void handleEvent(TEvent &ev) override
     {
+        if (ev.what == evKeyDown && (ev.keyDown.keyCode == kbCtrlF5 || ev.keyDown.keyCode == kbF5))
+        {
+            ushort cmd = ev.keyDown.keyCode == kbF5 ? cmZoom : cmResize;
+            ev.what = evCommand;
+            ev.message.command = cmd;
+            ev.message.infoPtr = nullptr;
+        }
         TDialog::handleEvent(ev);
         if (ev.what == evCommand && ev.message.command == cmQuitGoTo)
         {
@@ -149,14 +284,6 @@ static TermItem describe(TerminalWindow &w)
     return item;
 }
 
-// Cuts 'text' to at most 'width' columns, adding '…' if it was cut.
-static std::string fitWidth(const std::string &text, int width)
-{
-    if ((int) TText::width(text) <= width)
-        return text;
-    return text.substr(0, TText::scroll(text, width - 1, False)) + "\u2026";
-}
-
 static std::string padRight(const std::string &text, int width)
 {
     int w = (int) TText::width(text);
@@ -198,11 +325,22 @@ bool confirmQuit(TDeskTop &deskTop, bool closing)
         terms.size(), terms.size() == 1 ? " is" : "s are", busy,
         closing ? "Close them" : "Quit");
 
-    int listHeight = (int) terms.size();
-    int maxListHeight = deskTop.size.y - 10;
-    if (listHeight > maxListHeight) listHeight = maxListHeight;
-    if (listHeight < 3) listHeight = 3;
-    TRect r(0, 0, 76, listHeight + 10);
+    // Natural size: every line whole (at least 76 columns), every terminal
+    // on its own line; or the size chosen by the user before. Never larger
+    // than the desktop.
+    TRect r(0, 0, 0, 0);
+    if (remembered.sized)
+        r.b = remembered.size;
+    else
+    {
+        int width = 76;
+        for (const auto &item : items)
+            width = std::max(width, (int) TText::width(item) + 7);
+        int listHeight = std::max((int) terms.size(), 3);
+        r.b = TPoint {width, listHeight + 10};
+    }
+    r.b.x = std::max(r.b.x, minDialogSize.x);
+    r.b.y = std::max(r.b.y, minDialogSize.y);
     if (r.b.x > deskTop.size.x) r.b.x = deskTop.size.x;
     if (r.b.y > deskTop.size.y) r.b.y = deskTop.size.y;
 
