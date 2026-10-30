@@ -1026,7 +1026,11 @@ void TVTermApp::windowList()
 void TVTermApp::alertSettings()
 {
     auto *w = dynamic_cast<TWindow *>(deskTop->current);
-    if (auto *target = dynamic_cast<AlertTarget *>(deskTop->current))
+    auto *log = dynamic_cast<LogViewWindow *>(deskTop->current);
+    if (log && log->hasFixedLines())
+        messageBox( "This Log View has fixed lines (made by Search > New window):\n"
+                    "no new lines come, so alerts are not used.", mfInformation | mfOKButton );
+    else if (auto *target = dynamic_cast<AlertTarget *>(deskTop->current))
         execAlertSettings(*w, *target);
     else
         messageBox("The current window is not a terminal or a Log View.", mfInformation | mfOKButton);
@@ -1155,6 +1159,9 @@ void TVTermApp::saveProfile()
         }
         else if (auto *log = dynamic_cast<LogViewWindow *>(w))
         {
+            // Fixed lines (Search > New window): nothing to start again.
+            if (log->hasFixedLines())
+                continue;
             const LogViewOptions &o = log->getOptions();
             WindowProfile win;
             win.kind = WindowProfile::LogView;

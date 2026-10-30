@@ -11,11 +11,16 @@
 //   H highlight on/off (colors from tvterm.ini, see highlight.h)
 //   D duplicate · R restart the source · Space pause/continue
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
-//   / search · F3 or n older · Shift-F3 or N newer · F2 or s save
+//   / search (New window: the matching lines in a new window) ·
+//   F3 or n older · Shift-F3 or N newer · F2 or s save
 //   Ctrl-C copy · Ctrl-E to a new editor · Ctrl-A to an open editor
 //   Up/Down PgUp/PgDn Home/End move the cursor line (Shift: select);
 //   with the cursor on the last line, new lines are followed.
 // The copy keys use the selection or, without one, the cursor line.
+//
+// A window made by Search > New window has fixed lines (a copy of the
+// matching lines of the other window, see LogSource::createFixed): no
+// command, no pause, no restart, no alerts, not saved in profiles.
 
 #define Uses_TWindow
 #define Uses_TView
@@ -54,8 +59,10 @@ struct LogViewOptions
 // 'apply' (Apply button, for an open window): applies the options; returns
 // false, with 'error' set, if they cannot be applied.
 using LogViewApply = std::function<bool (const LogViewOptions &, std::string &error)>;
+// 'fixedLines': for a window with fixed lines (the command, max lines and
+// restart fields are disabled).
 bool execLogViewDialog( LogViewOptions &options, bool isNew, int focusField = 0,
-                        LogViewApply apply = nullptr );
+                        LogViewApply apply = nullptr, bool fixedLines = false );
 
 class LogViewInterior;
 class TScrollBar;
@@ -66,6 +73,9 @@ class LogViewWindow : public TWindow, public AlertTarget
 public:
 
     LogViewWindow(const TRect &bounds, const LogViewOptions &options) noexcept;
+    // A window with fixed lines: 'fixedSource' from LogSource::createFixed.
+    LogViewWindow( const TRect &bounds, const LogViewOptions &options,
+                   std::shared_ptr<LogSource> fixedSource ) noexcept;
     ~LogViewWindow();
 
     void shutDown() override;
@@ -80,6 +90,8 @@ public:
     bool setOptions(const LogViewOptions &newOptions, std::string &error);
     void setCustomTitle(const std::string &title);
     bool isSourceRunning() const noexcept { return source && source->isRunning(); }
+    // Made by Search > New window: fixed lines, no command.
+    bool hasFixedLines() const noexcept { return fixedSource != nullptr; }
 
     // AlertTarget.
     const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }
@@ -100,6 +112,8 @@ private:
 
     LogViewOptions options;
     std::shared_ptr<LogSource> source;
+    // Windows with fixed lines: their source (kept by D and setOptions).
+    std::shared_ptr<LogSource> fixedSource;
     std::unique_ptr<LogRegex> includeRe, excludeRe;
 
     LogViewInterior *interior {nullptr};
@@ -204,6 +218,10 @@ private:
     void runCommand(ushort cmd);
     void editOptions(int focusField);
     void duplicate();
+    // Where a new window made from this one goes (D, New window).
+    TRect nextWindowBounds() const;
+    // Search > New window: the shown lines matching the current search.
+    void openFindWindow();
     void togglePause();
     void toggleFilters();
     void toggleHighlight();

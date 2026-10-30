@@ -13,6 +13,10 @@
 //
 // The sources are read in the application's idle time (LogSource::pollAll),
 // without threads.
+//
+// A fixed source (LogSource::createFixed) has no process: it holds lines
+// copied from another Log View (Search > New window). It is not shared by
+// command, not polled, never trimmed and cannot be restarted.
 
 #include <chrono>
 #include <deque>
@@ -39,6 +43,8 @@ public:
 
     // The source running 'command', started if there is none yet.
     static std::shared_ptr<LogSource> acquire(const std::string &command);
+    // A fixed source holding 'lines' ('command': the one they came from).
+    static std::shared_ptr<LogSource> createFixed(const std::string &command, std::vector<LogLine> lines);
     // Reads the output of every source. Called in the application's idle
     // time. Returns true if any source received something.
     static bool pollAll();
@@ -51,6 +57,7 @@ public:
 
     const std::string &getCommand() const noexcept { return command; }
     bool isRunning() const noexcept { return fd >= 0 || pid > 0; }
+    bool isFixed() const noexcept { return fixed; }
     long getPid() const noexcept { return pid; }
     // When the process was started (or restarted).
     Clock::time_point getStartTime() const noexcept { return startTime; }
@@ -68,6 +75,7 @@ public:
     void removeUser(const void *user);
 
     // Stops the process (if running) and starts it again (R key).
+    // Nothing for a fixed source.
     void restart();
 
 private:
@@ -86,6 +94,7 @@ private:
     std::map<const void *, UserOptions> users;
     size_t maxLines {50000};
     int autoRestart {0};
+    bool fixed {false};
 
     // Line being received (no '\n' yet) and the escape sequence parser.
     std::string partial;
@@ -93,6 +102,8 @@ private:
     enum class Esc : uint8_t { None, Start, Csi, Str, StrEsc, Charset } esc {Esc::None};
 
     explicit LogSource(const std::string &aCommand);
+    struct FixedTag {};
+    LogSource(FixedTag, const std::string &aCommand, std::vector<LogLine> fixedLines);
     void start();
     // 'why': text of the marker line ("" for none).
     void stop(const char *why);

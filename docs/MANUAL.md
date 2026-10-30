@@ -610,7 +610,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Space | pause / continue (new lines are kept, shown on continue) |
 | `W` | long lines: wrapped / scrolled (Left / Right, 8 columns) |
 | `X` | clear this window (not the source) |
-| `/` | search (plain text or regular expression; match black on yellow) |
+| `/` | search (plain text or regular expression; match black on yellow); **New window** in the dialog: all the matching lines in a new window ([below](#search-new-window)) |
 | F3 or `n` / Shift-F3 or `N` | next match, older / newer |
 | Up / Down, PgUp / PgDn, Home / End | move the cursor line |
 | Shift + those keys, Shift+click, drag | select lines |
@@ -680,6 +680,25 @@ include = zimbra-mta
 
 The sets are read again with `tvterm.ini` (2 seconds after it is saved); an invalid rule is ignored and reported in the
 Event Viewer with its line.
+
+### Search: New window
+
+The search dialog (`/`) has three buttons: **Find**, **New window** (Alt-N; disabled while the text is empty) and
+Cancel. **New window** opens a new Log View with **all the lines of this window that match the text**: the lines that
+passed its filters (and were not cleared with X), compared the same way as Find (Case sensitive, Regular expression).
+They are listed one under the other, so a text that appears far apart in the log can be read at once; the search in
+the original window stays useful for the lines around each match. Without a match: `No matches for "text".` in the
+status line, and no window.
+
+The new window has **fixed lines**: a copy taken when the button is pressed, with no command and no process; new
+lines of the log do not reach it (press New window again in the original for a fresh copy). Its title is
+`Log: Find: <text> — <title of the original>`. It keeps the colors (highlight sets) and the search (F3 / `n` work at
+once), starts without filters, and works like any Log View for scrolling, search, selection, copy, save, W, X and H.
+Filtering further: **F4** / `I` / `E` set Include / Exclude on its lines (Command, Max lines and Restart are disabled),
+or **New window** again from its own search dialog, as many levels as needed. **D** copies it with the same lines.
+Space (pause), `R` (restart) and alerts (Ctrl-B K) do nothing there and say why. It does not depend on the original
+(closing the original keeps it), it is not listed at Quit (nothing runs) and **profiles do not save it**. The Event
+Viewer notes how many lines it received.
 
 ### When the command ends
 

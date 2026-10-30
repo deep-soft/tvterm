@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
+#include <iterator>
 
 // Own namespace: this file is compiled together with others (Unity Build).
 namespace logsrc
@@ -100,6 +101,12 @@ std::shared_ptr<LogSource> LogSource::acquire(const std::string &command)
     return src;
 }
 
+std::shared_ptr<LogSource> LogSource::createFixed(const std::string &command, std::vector<LogLine> lines)
+{
+    // Not in 'sources': not shared, not polled, not counted as running.
+    return std::shared_ptr<LogSource>(new LogSource(FixedTag {}, command, std::move(lines)));
+}
+
 bool LogSource::pollAll()
 {
     using namespace logsrc;
@@ -141,6 +148,15 @@ LogSource::LogSource(const std::string &aCommand) :
     command(aCommand)
 {
     start();
+}
+
+LogSource::LogSource(FixedTag, const std::string &aCommand, std::vector<LogLine> fixedLines) :
+    command(aCommand),
+    ended(true),
+    fixed(true)
+{
+    lines.assign(std::make_move_iterator(fixedLines.begin()), std::make_move_iterator(fixedLines.end()));
+    startTime = lastData = endTime = Clock::now();
 }
 
 LogSource::~LogSource()
@@ -212,6 +228,8 @@ void LogSource::stop(const char *why)
 
 void LogSource::restart()
 {
+    if (fixed)
+        return;
     if (isRunning())
         stop("");
     pushLine("-- source restarted --", true);
@@ -221,6 +239,9 @@ void LogSource::restart()
 
 void LogSource::setUserOptions(const void *user, int aMaxLines, int aAutoRestart)
 {
+    if (fixed)
+        // Never trimmed nor restarted.
+        aAutoRestart = 0;
     users[user] = {aMaxLines, aAutoRestart};
     size_t newMax = 0;
     int newRestart = 0;
@@ -248,6 +269,8 @@ void LogSource::pushLine(std::string text, bool marker)
 
 void LogSource::trim()
 {
+    if (fixed)
+        return;
     while (lines.size() > maxLines)
     {
         lines.pop_front();

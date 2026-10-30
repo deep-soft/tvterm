@@ -122,6 +122,8 @@ enum : ushort
     cmLogAlerts,
     cmLogChooseEditor,
     cmLogHighlight,
+    // Button of the search dialog.
+    cmLogFindNew,
 };
 
 enum : ushort { hiLogCommand = 76 }; // History of the 'Command' field.
@@ -737,7 +739,8 @@ class LogViewDialog : public TDialog
 {
 public:
 
-    LogViewDialog(LogViewOptions &options, bool isNew, int focusField, LogViewApply apply) noexcept;
+    LogViewDialog( LogViewOptions &options, bool isNew, int focusField, LogViewApply apply,
+                   bool fixedLines ) noexcept;
 
     Boolean valid(ushort command) override;
     void handleEvent(TEvent &ev) override;
@@ -746,6 +749,7 @@ private:
 
     LogViewOptions &o;
     LogViewApply apply;
+    bool fixedLines;
     TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn;
     TCheckBoxes *checkBoxes;
 
@@ -758,11 +762,13 @@ private:
 };
 
 LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusField,
-                              LogViewApply aApply ) noexcept :
+                              LogViewApply aApply, bool aFixedLines ) noexcept :
     TWindowInit(&initFrame),
-    TDialog(TRect(0, 0, 76, 23), isNew ? "New Log View" : "Log View settings"),
+    TDialog( TRect(0, 0, 76, 23),
+             isNew ? "New Log View" : aFixedLines ? "Log View settings (fixed lines)" : "Log View settings" ),
     o(options),
-    apply(std::move(aApply))
+    apply(std::move(aApply)),
+    fixedLines(aFixedLines)
 {
     TView::options |= ofCentered;
     titleIn = new TInputLine(TRect(3, 3, 72, 4), 128);
@@ -770,8 +776,10 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(new TLabel(TRect(2, 2, 72, 3), "~T~itle (empty: the command)", titleIn));
     cmdIn = new TInputLine(TRect(3, 6, 69, 7), 512);
     insert(cmdIn);
-    insert(new THistory(TRect(69, 6, 72, 7), cmdIn, hiLogCommand));
-    insert(new TLabel(TRect(2, 5, 72, 6), "~C~ommand (e.g. tail -F -n 5000 /var/log/maillog)", cmdIn));
+    auto *cmdHistory = new THistory(TRect(69, 6, 72, 7), cmdIn, hiLogCommand);
+    insert(cmdHistory);
+    auto *cmdLabel = new TLabel(TRect(2, 5, 72, 6), "~C~ommand (e.g. tail -F -n 5000 /var/log/maillog)", cmdIn);
+    insert(cmdLabel);
     incIn = new TInputLine(TRect(3, 9, 69, 10), 512);
     insert(incIn);
     insert(new FieldHistoryButton(TRect(69, 9, 72, 10), incIn, includeHistory, false));
@@ -787,10 +795,12 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(checkBoxes);
     maxIn = new TInputLine(TRect(62, 14, 72, 15), 8);
     insert(maxIn);
-    insert(new TLabel(TRect(32, 14, 62, 15), "Ma~x~ lines (0: tvterm.ini)", maxIn));
+    auto *maxLabel = new TLabel(TRect(32, 14, 62, 15), "Ma~x~ lines (0: tvterm.ini)", maxIn);
+    insert(maxLabel);
     restartIn = new TInputLine(TRect(62, 15, 72, 16), 6);
     insert(restartIn);
-    insert(new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn));
+    auto *restartLabel = new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn);
+    insert(restartLabel);
     hlIn = new TInputLine(TRect(33, 17, 69, 18), 256);
     insert(hlIn);
     insert(new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, true));
@@ -821,12 +831,22 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     setField(maxIn, std::to_string(o.maxLines));
     setField(restartIn, std::to_string(o.autoRestart));
     setField(hlIn, o.highlight);
-    (focusField == 1 ? incIn : focusField == 2 ? excIn : focusField == 3 ? hlIn : isNew ? cmdIn : titleIn)->select();
+    if (fixedLines)
+    {
+        // Fixed lines (Search > New window): no command, nothing to keep
+        // or restart; the fields only show the values.
+        // The labels too, so that their hot keys do nothing.
+        for (TView *v : { (TView *) cmdIn, (TView *) cmdHistory, (TView *) cmdLabel, (TView *) maxIn,
+                          (TView *) maxLabel, (TView *) restartIn, (TView *) restartLabel })
+            v->setState(sfDisabled, True);
+    }
+    (focusField == 1 ? incIn : focusField == 2 ? excIn : focusField == 3 ? hlIn : isNew && !fixedLines ? cmdIn : titleIn)->select();
 }
 
 void LogViewDialog::recordValues()
 {
-    historyAdd(hiLogCommand, o.command);
+    if (!fixedLines)
+        historyAdd(hiLogCommand, o.command);
     includeHistory.add(o.include);
     excludeHistory.add(o.exclude);
     highlightHistory.add(o.highlight);
@@ -953,12 +973,12 @@ void LogViewDialog::handleEvent(TEvent &ev)
 
 } // namespace logview
 
-bool execLogViewDialog(LogViewOptions &o, bool isNew, int focusField, LogViewApply apply)
+bool execLogViewDialog(LogViewOptions &o, bool isNew, int focusField, LogViewApply apply, bool fixedLines)
 {
     using namespace logview;
     for (const auto &cmd : LogSource::commands())
         historyAdd(hiLogCommand, cmd);
-    auto *d = new LogViewDialog(o, isNew, focusField, std::move(apply));
+    auto *d = new LogViewDialog(o, isNew, focusField, std::move(apply), fixedLines);
     TView *p = TProgram::application->validView(d);
     if (!p)
         return false;
@@ -971,8 +991,15 @@ bool execLogViewDialog(LogViewOptions &o, bool isNew, int focusField, LogViewApp
 // The window.
 
 LogViewWindow::LogViewWindow(const TRect &bounds, const LogViewOptions &aOptions) noexcept :
+    LogViewWindow(bounds, aOptions, nullptr)
+{
+}
+
+LogViewWindow::LogViewWindow( const TRect &bounds, const LogViewOptions &aOptions,
+                              std::shared_ptr<LogSource> aFixedSource ) noexcept :
     TWindowInit(&initFrame),
-    TWindow(bounds, nullptr, wnNoNumber)
+    TWindow(bounds, nullptr, wnNoNumber),
+    fixedSource(std::move(aFixedSource))
 {
     using namespace logview;
     eventMask |= evBroadcast;
@@ -1026,7 +1053,8 @@ bool LogViewWindow::setOptions(const LogViewOptions &newOptions, std::string &er
             error = "exclude: " + error;
             return false;
         }
-    bool newSource = !source || newOptions.command != options.command;
+    // A window with fixed lines keeps them.
+    bool newSource = !source || (!fixedSource && newOptions.command != options.command);
     options = newOptions;
     includeRe = std::move(inc);
     excludeRe = std::move(exc);
@@ -1054,7 +1082,7 @@ bool LogViewWindow::setOptions(const LogViewOptions &newOptions, std::string &er
 void LogViewWindow::attachSource()
 {
     using namespace logview;
-    source = LogSource::acquire(options.command);
+    source = fixedSource ? fixedSource : LogSource::acquire(options.command);
     source->setUserOptions(this, effectiveMaxLines(options), options.autoRestart);
     sourceStart = source->getStartTime();
     clearedSeq = 0;
@@ -1233,6 +1261,9 @@ bool LogViewWindow::resolveHighlight()
 void LogViewWindow::checkAlerts(const std::deque<uint64_t> &lines, size_t from)
 {
     using namespace logview;
+    // Fixed lines: no alerts (the lines were seen in the other window).
+    if (fixedSource)
+        return;
     auto now = Clock::now();
     bool newLines = false;
     for (size_t i = from; i < lines.size(); ++i)
@@ -1375,7 +1406,7 @@ const char *LogViewWindow::getTitle(short)
     {
         text += " " + std::to_string(shown.size()) + "/" +
                 std::to_string(source->endSeq() - source->firstSeq());
-        if (!source->isRunning())
+        if (!source->isRunning() && !fixedSource)
             text += " (ended)";
     }
     size_t n = (paused || !follow) ? newLineCount() : 0;
@@ -1722,7 +1753,9 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogHighlight: toggleHighlight(); break;
         case cmLogDuplicate: duplicate(); break;
         case cmLogRestart:
-            if (source)
+            if (fixedSource)
+                showStatus("Fixed lines (Search > New window): there is no command to restart.");
+            else if (source)
             {
                 source->restart();
                 update();
@@ -1752,18 +1785,16 @@ void LogViewWindow::editOptions(int focusField)
         return setOptions(n, error);
     };
     // Cancel after Apply: what was applied stays.
-    if (!execLogViewDialog(o, false, focusField, apply))
+    if (!execLogViewDialog(o, false, focusField, apply, hasFixedLines()))
         return;
     std::string error;
     if (!setOptions(o, error))
         messageBox(mfError | mfOKButton, "%s", error.c_str());
 }
 
-void LogViewWindow::duplicate()
+TRect LogViewWindow::nextWindowBounds() const
 {
     using namespace logview;
-    LogViewOptions o = options;
-    o.title = (options.title.empty() ? options.command : options.title) + " (2)";
     TRect r = getBounds();
     r.move(2, 1);
     if (owner)
@@ -1776,14 +1807,28 @@ void LogViewWindow::duplicate()
         if (r.a.x < ext.a.x || r.a.y < ext.a.y)
             r = getBounds();
     }
-    // The options include the filters on/off state (F).
-    auto *copy = new LogViewWindow(r, o);
+    return r;
+}
+
+void LogViewWindow::duplicate()
+{
+    using namespace logview;
+    LogViewOptions o = options;
+    o.title = (options.title.empty() ? options.command : options.title) + " (2)";
+    // The options include the filters on/off state (F). A window with
+    // fixed lines is copied with the same lines.
+    auto *copy = new LogViewWindow(nextWindowBounds(), o, fixedSource);
     TProgram::application->insertWindow(copy);
 }
 
 void LogViewWindow::togglePause()
 {
     using namespace logview;
+    if (fixedSource)
+    {
+        showStatus("Fixed lines (Search > New window): no new lines come, nothing to pause.");
+        return;
+    }
     if (paused)
     {
         paused = false;
@@ -1860,6 +1905,71 @@ void LogViewWindow::clearWindow()
     redraw();
 }
 
+namespace logview
+{
+
+// The search dialog: Find, New window (disabled while the text is empty),
+// Cancel.
+class SearchDialog : public TDialog
+{
+public:
+
+    SearchDialog() noexcept;
+    void handleEvent(TEvent &ev) override;
+
+    TInputLine *input {nullptr};
+    TButton *newWindow {nullptr};
+
+private:
+
+    void updateButtons();
+};
+
+SearchDialog::SearchDialog() noexcept :
+    TWindowInit(&initFrame),
+    TDialog(TRect(0, 0, 62, 15), "Search")
+{
+    options |= ofCentered;
+}
+
+void SearchDialog::updateButtons()
+{
+    if (input && newWindow)
+    {
+        bool empty = !input->data || !input->data[0];
+        if (bool(newWindow->state & sfDisabled) != empty)
+        {
+            newWindow->setState(sfDisabled, Boolean(empty));
+            newWindow->drawView();
+        }
+    }
+}
+
+void SearchDialog::handleEvent(TEvent &ev)
+{
+    if (ev.what == evCommand && ev.message.command == cmLogFindNew)
+    {
+        endModal(cmLogFindNew);
+        clearEvent(ev);
+        return;
+    }
+    TDialog::handleEvent(ev);
+    updateButtons();
+}
+
+static std::string cutUtf8(const std::string &s, size_t maxBytes)
+// At most 'maxBytes' bytes, not inside a UTF-8 character.
+{
+    if (s.size() <= maxBytes)
+        return s;
+    size_t n = maxBytes;
+    while (n > 0 && ((unsigned char) s[n] & 0xC0) == 0x80)
+        --n;
+    return s.substr(0, n);
+}
+
+} // namespace logview
+
 void LogViewWindow::openSearch()
 {
     using namespace logview;
@@ -1870,27 +1980,33 @@ void LogViewWindow::openSearch()
     } data {};
     snprintf(data.text, sizeof(data.text), "%s", searchText.c_str());
     data.options = (searchCase ? 1 : 0) | (searchRegex ? 2 : 0);
+    ushort result;
     while (true)
     {
-        TDialog *d = new TDialog(TRect(0, 0, 62, 13), "Search");
-        d->options |= ofCentered;
+        auto *d = new SearchDialog;
         TInputLine *input = new TInputLine(TRect(3, 3, 59, 4), sizeof(data.text));
+        d->input = input;
         d->insert(input);
         d->insert(new TLabel(TRect(2, 2, 20, 3), "~T~ext to find", input));
         d->insert(new TCheckBoxes(TRect(3, 5, 59, 7),
             new TSItem("~C~ase sensitive",
             new TSItem("~R~egular expression (like grep -E)", nullptr))));
-        d->insert(new TStaticText(TRect(3, 7, 59, 9),
+        d->insert(new TStaticText(TRect(3, 7, 59, 10),
             "From the lines on the screen towards older ones.\n"
-            "Next: F3 or n (older), Shift-F3 or N (newer)."));
-        d->insert(new TButton(TRect(16, 10, 28, 12), "~F~ind", cmOK, bfDefault));
-        d->insert(new TButton(TRect(32, 10, 44, 12), "Cancel", cmCancel, bfNormal));
+            "Next: F3 or n (older), Shift-F3 or N (newer).\n"
+            "New window: all the matching lines, in a new window."));
+        d->insert(new TButton(TRect(8, 11, 20, 13), "~F~ind", cmOK, bfDefault));
+        d->newWindow = new TButton(TRect(23, 11, 39, 13), "~N~ew window", cmLogFindNew, bfNormal);
+        d->insert(d->newWindow);
+        d->insert(new TButton(TRect(42, 11, 54, 13), "Cancel", cmCancel, bfNormal));
         d->selectNext(False);
         d->setData(&data);
+        if (!data.text[0])
+            d->newWindow->setState(sfDisabled, True);
         TView *p = TProgram::application->validView(d);
         if (!p)
             return;
-        ushort result = TProgram::deskTop->execView(p);
+        result = TProgram::deskTop->execView(p);
         if (result != cmCancel)
             p->getData(&data);
         TObject::destroy(p);
@@ -1911,10 +2027,63 @@ void LogViewWindow::openSearch()
         hasMatch = false;
         break;
     }
-    if (!searchText.empty())
+    if (result == cmLogFindNew && !searchText.empty())
+    {
+        redraw();
+        openFindWindow();
+    }
+    else if (!searchText.empty())
         findNext(true);
     else
         redraw();
+}
+
+void LogViewWindow::openFindWindow()
+{
+    using namespace logview;
+    if (!source || searchText.empty())
+        return;
+    // The lines shown here (after the filters and X) that match the search,
+    // the same way as F3 (case, regular expression).
+    std::vector<LogLine> lines;
+    for (uint64_t seq : shown)
+    {
+        const LogLine &line = source->line(seq);
+        if (line.marker)
+            continue;
+        int b, e;
+        bool found = searchRe ? searchRe->find(line.text, 0, b, e)
+                              : findPlain(line.text, searchText, searchCase, 0, b, e);
+        if (found)
+            lines.push_back(line);
+    }
+    if (lines.empty())
+    {
+        showStatus("No matches for \"" + searchText + "\".");
+        return;
+    }
+    size_t count = lines.size();
+    LogViewOptions o = options;
+    // The title field of the settings dialog holds 128 bytes.
+    o.title = cutUtf8( "Find: " + searchText + " \xE2\x80\x94 " +
+                       (options.title.empty() ? options.command : options.title), 128 );
+    // The lines already passed the filters of this window: the new one
+    // starts without filters (F4 can add them).
+    o.include.clear();
+    o.exclude.clear();
+    o.filters = true;
+    o.autoRestart = 0;
+    auto *w = new LogViewWindow(nextWindowBounds(), o, LogSource::createFixed(options.command, std::move(lines)));
+    // The same search, so that F3 / n work at once.
+    std::string error;
+    w->searchText = searchText;
+    w->searchCase = searchCase;
+    w->searchRegex = searchRegex;
+    if (searchRegex)
+        w->searchRe = LogRegex::compile(searchText, !searchCase, true, error);
+    TProgram::application->insertWindow(w);
+    TVTermApp::note( "Log View '" + plainTitle().substr(5) + "': New window with " + std::to_string(count) +
+                     " line(s) matching \"" + searchText + "\"" );
 }
 
 void LogViewWindow::findNext(bool older)

@@ -79,6 +79,7 @@ E18. About and --version: architecture and C library of the build
 E19. Document Claude's test environment in HISTORY (section 5)
 E20. Configurable global keys: menu key, Zoom, neighbouring window
 E21. Document the real test of the global keys (E20)
+E22. Log View: search dialog button New window (the matching lines in a window with fixed lines)
 
 ---
 
@@ -298,6 +299,22 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   Paused state and selection are not saved.
 - Real test (first version, then v2, on CentOS 7.9 and Alpine): v2 tested by the user and pushed. The F state is now part of
   the window's settings (E7): F, the F4 check box, D and profiles use the same value.
+- **Search > New window** (E22): the search dialog has Find / **New window** (Alt-N, disabled while the text is empty;
+  `SearchDialog` sets `sfDisabled` on the button after every event) / Cancel. New window copies the lines of the window
+  (`shown`: after the filters and X, no `--` marker lines) that match the search (same test as F3: plain text with the
+  case option, or the regular expression) into a **fixed source** (`LogSource::createFixed`: no process, not in the
+  shared list, not polled, never trimmed, `restart()` does nothing) and opens a Log View on it
+  (`LogViewWindow(bounds, options, fixedSource)`, placed like D). Title `Find: <text> — <original title>` (cut at 128
+  bytes, the size of the Title field, on a UTF-8 boundary); options copied without include / exclude (the lines already
+  passed them) and without auto-restart; the search is copied (F3 works at once). No match: `No matches for "..."` in the
+  status line. Fixed windows: no `(ended)` in the title; Space and R show a status message; no alerts (`checkAlerts`
+  returns at once; Ctrl-B K shows a message box); F4 titled `Log View settings (fixed lines)` with Command, Max lines and
+  Restart disabled (with their labels, so the hot keys do nothing; the fields keep their normal colors); D copies the
+  window on the same fixed source; skipped by Save Profile; not in the quit list (`isSourceRunning` false); a note in
+  the Event Viewer with the number of lines. The fixed source is shared by the windows that use it and freed with the
+  last one. Agreed in chat 30 (instead of the earlier plan, a copy re-running the command with Include = the text: that
+  lost the original filters and gave nothing for sources that do not replay their history). A refresh key (new copy from
+  the original while it is open) and the large "Find all" variant (list linked to the original) are not done.
 
 ### Log View highlighting — `far2l-extended`
 - E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
@@ -665,6 +682,15 @@ examples/profiles/example.ini
   HISTORY: the entries of 31 placed before the E entries. Tested with two terminals and a Log View (the list shows both kinds,
   the summary line of E5 kept), Ctrl-F5, F5, kept size after reopening, Quit. The `-Wfree-nonheap-object` warning of GCC 13
   in the Unity unit with `quitdlg.cc` appears also before 31 (on both branches).
+- Find > New window (E22), in tmux on a generated mail log (400 lines, `include = postfix`, `exclude = amavis`): counts in
+  the title compared with `grep -E | grep -Ev | grep -iF` (105/105 for `reject`; regular expression `Reject|REJECT`, case
+  sensitive: 71/71); button colors in `capture-pane -e` (gray while the text is empty, Alt-N does nothing; green with
+  text); F3 match in the new window; Space, R, Ctrl-B K messages; F4 (title, Tab and Alt-C / Alt-X / Alt-R skip the
+  disabled fields), Include `RCPT` 34/105, New window again `smtpd` 9/9 (= grep), D `(2)` 9/9, `zzz` → no window; lines
+  appended to the log reach only the original; X in the original, then New window → only the new lines; Save Profile As
+  saves only the original; original closed with a click on `[■]` (SGR through `TIOCSTI`) → `tail` stops, the fixed
+  window still works; Quit with only fixed windows → no question. Regression: D on a normal Log View (one `tail`), F4,
+  Space, R, Alerts, Find.
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -818,3 +844,4 @@ examples/profiles/example.ini
 | Test notes (`far2l-extended`) | E19 | section 5 describes Claude's current test environment (container, tmux, reading the screen, pitfalls) and the tests of E13, E17, the merge of 28; documentation only |
 | Global keys (`far2l-extended`) | E20 | `menu-key` (list, default Ctrl-B, `` Ctrl-` `` by scan code), `key-zoom`, `key-window-*` in `[keys]`; `:not-far2l`; Ctrl-B Z = Zoom (F still works) |
 | Global keys test (`far2l-extended`) | E21 | notes of the real test of E20 (Ctrl+Alt+arrows stopped on Windows, Alt-Shift-Up/Down arrive, Ctrl+arrows in `cat -v`); MANUAL: recommended example, chapter 12 corrected; documentation only |
+| Find window (`far2l-extended`) | E22 | Log View search dialog: New window opens the matching lines in a window with fixed lines (no process; F4 / New window again filter further; not saved in profiles) |
