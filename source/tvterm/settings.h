@@ -26,6 +26,9 @@ struct Settings
     // Programs for files ('%f': the path, quoted for the shell); empty: none.
     std::string externalViewer;
     std::string externalEditor;
+    // Patterns offered in the Name field of the file dialogs (its history);
+    // the first one is the initial filter of Ctrl-B O and View file.
+    std::vector<std::string> fileFilters {"*.txt", "*"};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

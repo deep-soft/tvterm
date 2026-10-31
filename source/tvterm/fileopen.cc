@@ -178,6 +178,29 @@ static ushort askLargeFile(const std::string &path, long long size, fileopen::Ta
 namespace fileopen
 {
 
+void addFileFilters(const std::vector<std::string> &filters)
+{
+    for (unsigned char id : {hiOpenFile, hiSaveFileAs, hiViewFile})
+        for (size_t i = filters.size(); i-- > 0;)
+        {
+            const std::string &f = filters[i];
+            bool present = false;
+            for (int n = historyCount(id), j = 0; j < n && !present; ++j)
+            {
+                const char *s = historyStr(id, j);
+                present = s && f == s;
+            }
+            if (!present)
+                historyAdd(id, f);
+        }
+}
+
+std::string firstFileFilter()
+{
+    const auto &f = TVTermApp::settings().fileFilters;
+    return f.empty() ? std::string("*.txt") : f.front();
+}
+
 std::string shellQuote(const std::string &path)
 {
     std::string r = "'";

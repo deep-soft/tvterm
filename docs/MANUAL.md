@@ -245,6 +245,14 @@ For example `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
   directory. The list of files of the dialog does not change while you type.
 - Pasted text (Shift-Ins, Ctrl-V) opens the list too. At most 10 rows are shown, with a scroll bar for the rest.
 
+**Filters** (`file-filters` in `tvterm.ini`, [chapter 6](#6-settings-file-tvtermini)). In Open File in Editor, View file
+and the editor's Save file as, **Down** in the name field (with the directory list closed) offers the patterns of
+`file-filters` (default `*.txt *`), besides the names typed before; choose one and press Enter to list those files.
+Open File in Editor and View file start with the first pattern (default `*.txt`, so executables and archives are not
+listed; `*` shows everything). Save file as starts with the name of the file. One pattern at a time (`*` and `?`):
+`*.txt|*.log` does not work. Changed patterns are added when `tvterm.ini` is reloaded; names typed in the dialogs are
+kept only while tvterm runs. Load Profile and Save Profile As keep `*.ini` and have their own lists.
+
 ---
 
 ## 3. Terminals and the clipboard
@@ -349,7 +357,8 @@ Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cas
 
 ### Opening and viewing files
 
-- **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor.
+- **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
+  first `file-filters` pattern (default `*.txt`); Down in the name field offers the others ([File dialogs](#file-dialogs)).
 - **More... > View file...** shows a file: with `external-viewer` set in `tvterm.ini`, in that program, at once, whatever
   the size; otherwise in tvterm's **viewer**.
 - The **Save** dialog of the history and the Log View can open the saved file: **Open after saving**
@@ -368,8 +377,9 @@ View file without `external-viewer`, Open after saving). A dialog shows its name
 - **Cancel**.
 
 **External programs** (`external-viewer`, `external-editor` in `[general]`) run in a new terminal window titled with the
-file name; the window closes when the program ends. `%f` is the file path, quoted for the shell (spaces and quotes
-are safe); without `%f` the path is added at the end. The program is not looked up first: if it does not start, the
+file name; the window closes when the program ends. `%f` is the **full path** of the file (from `/`), quoted for the
+shell (spaces and quotes are safe); without `%f` the path is added at the end. So the program can also be a script of
+yours that changes to the file's directory first (e.g. `cd "$(dirname "$1")"`, then the viewer). The program is not looked up first: if it does not start, the
 window closes at once; the Event Viewer shows the command that was run. With far2l:
 
 ```ini
@@ -403,6 +413,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `large-file` | `5M` | files larger than this ask before they open in tvterm; `K`, `M`, `G` (×1024) or bytes; `0`: never ask ([chapter 5](#opening-and-viewing-files)) |
 | | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
 | | `external-editor` | (none) | program offered for large files, e.g. `far2l --mortal -e %f` |
+| | `file-filters` | `*.txt *` | patterns offered by Down in the name field of Open File in Editor, View file and Save file as, separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
 | | `word-chars` | `-._/@:~+%=` | characters that belong to a word on double click, besides letters and digits |
@@ -489,8 +500,8 @@ partly outside the desktop is moved inside (and shrunk if larger), with a note i
 | `max-lines` | `0` | lines kept; 0: `[logview] max-lines` of `tvterm.ini` |
 | `auto-restart` | `0` | restart the command N seconds after it ends (0: never; up to 86400) |
 | `highlight` | (none) | highlight sets, e.g. `zimbra-mta kv` ([chapter 10](#colors-highlight)) |
-| `highlight-mode` | `sets` | `words`: the colors come from `highlight-words` instead of the sets ([Words](#highlight-words)) |
-| `highlight-words` | (none) | words to color, with commas, e.g. `error, status=sent` ([Words](#highlight-words)) |
+| `highlight-mode` | `sets` | `words`: the colors come from `highlight-words` instead of the sets ([Words](#words)) |
+| `highlight-words` | (none) | words to color, with commas, e.g. `error, status=sent` ([Words](#words)) |
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown |
 
@@ -631,7 +642,7 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
-| Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `zimbra-mta kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#highlight-words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
+| Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `zimbra-mta kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
 Spaces at the end of the fields are kept (`dstport=993 ` does not match `dstport=9930`). Errors are shown in the dialog.
@@ -665,7 +676,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | F4 | settings dialog (OK / **Apply** / Cancel; Apply applies and keeps the dialog open) |
 | `I` / `E` | the dialog, on Include / Exclude |
 | `F` | filters on/off (all the lines shown) |
-| `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#highlight-words)) |
+| `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#words)) |
 | `D` | duplicate: a new window on the same source, with the same filters, colors and options (not the alerts), title + ` (2)` |
 | `R` | restart the command |
 | Space | pause / continue (new lines are kept, shown on continue) |
@@ -743,7 +754,6 @@ include = zimbra-mta
 The sets are read again with `tvterm.ini` (2 seconds after it is saved); an invalid rule is ignored and reported in the
 Event Viewer with its line.
 
-<a id="highlight-words"></a>
 #### Words
 
 For a quick look, without writing a set: in F4 choose **Words** next to Highlight (Alt-D; Alt-S goes back to Sets) and

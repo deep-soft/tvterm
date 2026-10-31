@@ -83,6 +83,7 @@ E22. Log View: search dialog button New window (the matching lines in a window w
 E23. Log View: Highlight Words (F4 Highlight: Sets / Words, a color per word)
 E24. Log View: the vertical scroll bar ends at the view at the end (thumb at the bottom = last line visible)
 E25. Ctrl-W closes windows, Save > Open after saving, View file, large files and external programs, --print-settings
+E26. File dialogs: `file-filters` patterns in the Name history, initial filter of Open / View file
 
 ---
 
@@ -214,6 +215,8 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
   E25: `[general]` `large-file` (default `5M`, `K`/`M`/`G` ×1024, `0` = never ask; `parseSize` / `sizeName`),
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
+  E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
+  is kept).
 - **`--print-settings`** (E25): prints `settingsTemplate()` (the text Edit settings writes into a new file) and exits;
   writes no file (the E11 rule: only Edit settings creates `tvterm.ini`). `--help` shows the examples with the real path
   (first time `> tvterm.ini`, beside it `> tvterm.ini.new`, `diff <(tvterm --print-settings) tvterm.ini` for new keys).
@@ -475,6 +478,17 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   the Event Viewer. Recommended with far2l: `far2l --mortal -v %f` / `-e %f` (checked by the user on Alpine, the Pi and
   the server before E25; `--mortal`: far2l does not stay in the background when tvterm closes the window); no
   `far2ledit` (not installed everywhere).
+- **File filters** (E26): `file-filters` patterns go into the history lists (↓) of the Name field of Open File in Editor
+  (id 100), Save file as (101) and View file (102): `fileopen::addFileFilters`, called after every load of
+  `tvterm.ini`, adds only the patterns a list does not have yet (typed names and their order are kept; patterns removed
+  from the key stay until tvterm exits). They are added from the last to the first, so the first pattern is the newest
+  entry: tvision's list is oldest first and records the field's text again when it opens (`THistory`), and the first
+  pattern, being the field's initial text, then keeps its place. Open and View file start with the first pattern
+  (`firstFileFilter`; before: `*`, which listed executables and archives); Save file as starts with the file name (list
+  `*`, as before). Load / Save Profile now have their own lists (ids 103, 104; before they shared 100 / 101 with Open
+  and Save file as) and keep `*.ini`. tvision takes one pattern (`*`, `?`; `findfrst.cpp`): `*.txt|*.log` would need a
+  list class of our own (Ideas). MANUAL: `%f` is the full path (the code has passed the absolute path since E25); the
+  old `#highlight-words` links now point to the heading `#words`.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -577,7 +591,8 @@ source/tvterm/             the application
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
   globalkeys.cc/.h         global keys (E20): menu-key, key-zoom, key-window-*: parsing, matching, display names
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
-  fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs
+  fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs;
+                           history ids of the file dialogs and `file-filters` (E26)
   statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
                            (keyCommand: a command per key, turned into the key event in putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
@@ -867,6 +882,12 @@ examples/profiles/example.ini
   arguments to a file): External Viewer (`%f`) and External Editor (path added) on `a b'c.txt` (one argument, exact),
   tvterm button, View file direct to the external viewer, the window closing when the script ends, the Event Viewer
   note; `D` on a View window; `--print-settings` (no file written, `XDG_CONFIG_HOME` empty) and `--help`.
+- File filters (E26), in tmux (160×45, a directory with `.txt`, `.log`, `.ini`, an executable, a subdirectory): Ctrl-B O
+  and View file start with `*.txt` (only the `.txt` file and the directories listed); ↓ shows the patterns (last at the
+  top, the first at the bottom, and it stays there when the list opens again); `*log*` from the list lists `b.log` and
+  `mail.log.1`; a pattern added to `tvterm.ini` appears after the reload (2 s) in Open and View file; Load Profile shows
+  only `*.ini`; Save file as of an untitled editor offers the patterns and saves; `file-filters =` (empty) → Event Viewer
+  note; without the key: `*.txt`, ↓ = `*`, `*.txt`.
 
 ---
 
@@ -934,3 +955,4 @@ examples/profiles/example.ini
 | Highlight Words (`far2l-extended`) | E23 | F4 Highlight: Sets / Words; words with commas, a color per word (8, repeated), case ignored (ASCII), the first word wins; title `[W]`; profile `highlight-mode`, `highlight-words` |
 | Log View scroll bar (`far2l-extended`) | E24 | the vertical thumb is at the bottom exactly when the last line is visible (few lines, W, many lines); a resize keeps a following window at the end |
 | Files (`far2l-extended`) | E25 | Ctrl-W closes Editor / Log View / Event Viewer; Save > Open after saving (Editor / Viewer); More... > View file; `large-file` dialog; `external-viewer` / `external-editor` in a terminal that closes itself; `--print-settings` |
+| File filters (`far2l-extended`) | E26 | `file-filters` in the Name history of Open / View file / Save file as; Open and View file start with the first pattern (default `*.txt`); profile dialogs: own lists |

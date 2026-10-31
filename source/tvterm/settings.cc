@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <fstream>
+#include <sstream>
 
 // Own namespace: this file is compiled together with others (Unity Build).
 namespace settingsini
@@ -89,6 +90,15 @@ static const KeyNameEntry keyNames[] =
     {"F6", kbF6}, {"F7", kbF7}, {"F8", kbF8}, {"F9", kbF9}, {"F10", kbF10},
     {"F11", kbF11}, {"F12", kbF12},
 };
+
+// {"*.txt", "*"} -> "*.txt *".
+static std::string joinWords(const std::vector<std::string> &words)
+{
+    std::string out;
+    for (auto &w : words)
+        out += (out.empty() ? "" : " ") + w;
+    return out;
+}
 
 } // namespace settingsini
 
@@ -281,6 +291,18 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 settings.externalViewer = value;
             else if (key == "external-editor")
                 settings.externalEditor = value;
+            else if (key == "file-filters")
+            {
+                std::vector<std::string> filters;
+                std::istringstream words(value);
+                for (std::string w; words >> w;)
+                    filters.push_back(w);
+                if (filters.empty())
+                    invalid("patterns separated by spaces, e.g. *.txt *log* *"),
+                    settings.fileFilters = previous.fileFilters;
+                else
+                    settings.fileFilters = std::move(filters);
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -406,12 +428,17 @@ std::string settingsTemplate()
         "# Files larger than this ask before they open in tvterm (Save with 'Open\n"
         "# after saving', Ctrl-B O, More... View file): K, M or G; 0: never ask.\n"
         "#large-file = " + sizeName(d.largeFile) + "\n"
-        "# Programs for files, run in a new terminal window: %f is the file path\n"
+        "# Programs for files, run in a new terminal window: %f is the full file path\n"
         "# (quoted for the shell; without %f, the path is added at the end).\n"
         "# More... View file uses external-viewer directly; large files offer both.\n"
         "# --mortal: far2l ends with the window (otherwise it stays in the background).\n"
         "#external-viewer = far2l --mortal -v %f\n"
         "#external-editor = far2l --mortal -e %f\n"
+        "# Patterns offered by Down in the Name field of the file dialogs (Ctrl-B O,\n"
+        "# More... View file, the editor's Save file as), separated by spaces, e.g.\n"
+        "# *.txt *log* *.ini *. The first one is the initial filter of Ctrl-B O and\n"
+        "# View file. One pattern at a time (* and ?): *.txt|*.log does not work.\n"
+        "#file-filters = " + settingsini::joinWords(d.fileFilters) + "\n"
         "\n"
         "[scrollback]\n"
         "# Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

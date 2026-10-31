@@ -10,6 +10,7 @@
 #include "cmds.h"
 #include "dircompl.h"
 #include "apputil.h"
+#include "fileopen.h"
 
 #include <stdarg.h>
 
@@ -63,7 +64,7 @@ static ushort editorDialog(int dialog, ...)
             // 'fileName' is a buffer of MAXPATH characters owned by the editor.
             char *fileName = va_arg(args, char *);
             TFileDialog *d = new TVTermFileDialog("*", "Save file as", "~N~ame",
-                                                  fdOKButton, 101);
+                                                  fdOKButton, fileopen::hiSaveFileAs);
             TView *p = TProgram::application->validView(d);
             if (p)
             {

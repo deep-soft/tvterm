@@ -237,6 +237,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
     applySettings(currentSettings);
+    // The 'file-filters' patterns, in the lists of the file dialogs.
+    fileopen::addFileFilters(currentSettings.fileFilters);
     // The first menu key, in the status line and in messages.
     globalkeys::setMenuKeyName(currentSettings.globalKeys[gaMenu].front().name());
     if (auto *sl = dynamic_cast<TVTermStatusLine *>(TProgram::statusLine))
@@ -654,8 +656,11 @@ void TVTermApp::newEditor()
 
 void TVTermApp::openEditor()
 {
-    char fileName[MAXPATH] = "*";
-    TFileDialog *d = new TVTermFileDialog("*", "Open file", "~N~ame", fdOpenButton, 100);
+    // The first 'file-filters' pattern (tvterm.ini); Down: the others.
+    std::string filter = fileopen::firstFileFilter();
+    char fileName[MAXPATH];
+    strnzcpy(fileName, filter, sizeof(fileName));
+    TFileDialog *d = new TVTermFileDialog(filter, "Open file", "~N~ame", fdOpenButton, fileopen::hiOpenFile);
     TView *p = validView(d);
     if (!p)
         return;
@@ -670,8 +675,10 @@ void TVTermApp::openEditor()
 
 void TVTermApp::viewFile()
 {
-    char fileName[MAXPATH] = "*";
-    TFileDialog *d = new TVTermFileDialog("*", "View file", "~N~ame", fdOpenButton, 102);
+    std::string filter = fileopen::firstFileFilter();
+    char fileName[MAXPATH];
+    strnzcpy(fileName, filter, sizeof(fileName));
+    TFileDialog *d = new TVTermFileDialog(filter, "View file", "~N~ame", fdOpenButton, fileopen::hiViewFile);
     TView *p = validView(d);
     if (!p)
         return;
@@ -1023,7 +1030,8 @@ static TFileDialog *newDialog(const std::string &dir, const char *title,
 void TVTermApp::loadProfile()
 {
     char fileName[MAXPATH];
-    TFileDialog *d = profiledlg::newDialog(profileDir(), "Load profile", fdOpenButton, 100);
+    TFileDialog *d = profiledlg::newDialog(profileDir(), "Load profile", fdOpenButton,
+                                              fileopen::hiLoadProfile);
     TView *p = validView(d);
     if (!p)
         return;
@@ -1253,7 +1261,8 @@ void TVTermApp::saveProfile()
     std::string dir = profileDir();
     makeDirs(dir);
     char fileName[MAXPATH];
-    TFileDialog *d = profiledlg::newDialog(dir, "Save profile as", fdOKButton, 101);
+    TFileDialog *d = profiledlg::newDialog(dir, "Save profile as", fdOKButton,
+                                              fileopen::hiSaveProfile);
     TView *p = validView(d);
     if (!p)
         return;
