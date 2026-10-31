@@ -89,6 +89,7 @@ public:
     void setState(ushort aState, Boolean enable) override;
     const char *getTitle(short maxSize) override;
     void sizeLimits(TPoint &min, TPoint &max) override;
+    void changeBounds(const TRect &bounds) override;
 
     const LogViewOptions &getOptions() const noexcept { return options; }
     // Applies new options (from the dialog, a profile...). Returns false,
@@ -215,6 +216,9 @@ private:
     bool isCursor(uint64_t seq) const;
     void ensureVisible(size_t index);
     void moveCursorTo(long index, bool extend);
+    // Vertical scroll bar: value, maximum (the view at the end), the value
+    // of the end position in lines and the extra steps after it.
+    void vScrollValue(int &value, int &maxValue, int &endPos, int &extra) const;
     void updateScrollBars();
     void redraw();
     void updateTitle();

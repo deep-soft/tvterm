@@ -1463,6 +1463,30 @@ void LogViewWindow::sizeLimits(TPoint &min, TPoint &max)
     TWindow::sizeLimits(min, max);
 }
 
+void LogViewWindow::changeBounds(const TRect &bounds)
+// After a resize (screen, Ctrl-F5, Zoom, Tile) the end position changes:
+// a window that follows stays at the end, the others are kept before it,
+// and the view and the scroll bars are updated at once.
+{
+    using namespace logview;
+    TWindow::changeBounds(bounds);
+    if (!interior || !source)
+        return;
+    if (follow)
+        scrollToEnd();
+    else
+    {
+        size_t endIndex;
+        int endRow;
+        endPosition(endIndex, endRow);
+        if (top > endIndex || (top == endIndex && topRow > endRow))
+            top = endIndex, topRow = endRow;
+        if (!shown.empty() && topRow >= rowsOf(top))
+            topRow = rowsOf(top) - 1;
+    }
+    redraw();
+}
+
 // Title.
 
 size_t LogViewWindow::newLineCount() const
@@ -1703,14 +1727,49 @@ void LogViewWindow::moveCursorTo(long index, bool extend)
     redraw();
 }
 
+void LogViewWindow::vScrollValue(int &value, int &maxValue, int &endPos, int &extra) const
+// Vertical scroll bar: the value is the first line on the screen and the
+// maximum is the view at the end (endPos). When the end position starts
+// inside a wrapped line, one more step tells it apart from the start of
+// that line. When everything fits, the bar still has a range, with the
+// thumb at the bottom.
+// tvision rounds the thumb position, so with many lines a view a few lines
+// above the end would also show the thumb in the last cell. 'extra' steps
+// are added after endPos, so that only the view at the end (value =
+// maxValue) reaches the last cell; positions between endPos and maxValue
+// are only reached with the arrows (see handleEvent).
+{
+    using namespace logview;
+    size_t endIndex;
+    int endRow;
+    endPosition(endIndex, endRow);
+    size_t maxPos = endIndex + (endRow > 0 ? 1 : 0);
+    if (maxPos == 0)
+        maxPos = 1;
+    maxPos = std::min<size_t>(maxPos, INT_MAX / 2);
+    endPos = (int) maxPos;
+    // Cells of the track minus one (as in TScrollBar::getPos).
+    int cells = vScrollBar ? std::max(3, (int) vScrollBar->size.y) - 3 : 0;
+    extra = 0;
+    if (cells > 0 && endPos >= 2 * cells)
+        extra = (endPos - 2 * cells) / (2 * cells - 1) + 1;
+    maxValue = endPos + extra;
+    bool end = top > endIndex || (top == endIndex && topRow >= endRow);
+    value = end ? maxValue : (int) std::min<size_t>(top, maxPos - 1);
+}
+
 void LogViewWindow::updateScrollBars()
 {
     using namespace logview;
     if (vScrollBar && interior)
     {
-        int count = (int) std::min<size_t>(shown.size(), INT_MAX);
-        vScrollBar->setParams( (int) std::min<size_t>(top, INT_MAX), 0,
-                               std::max(0, count - 1), std::max(1, interior->size.y - 1), 1 );
+        // The end of the bar is the view at the end (last line at the
+        // bottom), so the thumb is at the bottom exactly when the last line
+        // is visible, whatever the number of lines and with wrapping (W).
+        int value, maxValue, endPos, extra;
+        vScrollValue(value, maxValue, endPos, extra);
+        vScrollBar->setParams( value, 0, maxValue,
+                               std::max(1, interior->size.y - 1), 1 );
     }
     if (hScrollBar && interior && !options.wrap)
     {
@@ -2429,16 +2488,29 @@ void LogViewWindow::handleEvent(TEvent &ev)
         {
             if (ev.message.infoPtr == vScrollBar && vScrollBar)
             {
-                size_t value = (size_t) std::max(0, vScrollBar->value);
-                if (value != top)
+                // Same scale as updateScrollBars(): the maximum is the view
+                // at the end.
+                int current, maxValue, endPos, extra;
+                vScrollValue(current, maxValue, endPos, extra);
+                int value = std::max(0, std::min(vScrollBar->value, maxValue));
+                if (value != current)
                 {
-                    top = std::min(value, shown.empty() ? 0 : shown.size() - 1);
-                    topRow = 0;
-                    size_t endIndex;
-                    int endRow;
-                    endPosition(endIndex, endRow);
-                    if (top > endIndex || (top == endIndex && topRow > endRow))
-                        top = endIndex, topRow = endRow;
+                    // Between endPos and maxValue: from the end, ▲ goes one
+                    // line up; from below, ▼ goes to the end.
+                    if (value >= endPos && value < maxValue && current == maxValue)
+                        value = std::max(0, value - extra);
+                    if (value >= endPos)
+                        scrollToEnd();
+                    else
+                    {
+                        top = (size_t) value;
+                        topRow = 0;
+                        size_t endIndex;
+                        int endRow;
+                        endPosition(endIndex, endRow);
+                        if (top > endIndex || (top == endIndex && topRow > endRow))
+                            top = endIndex, topRow = endRow;
+                    }
                     followFromView();
                     redraw();
                 }

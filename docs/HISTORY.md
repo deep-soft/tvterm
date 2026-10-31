@@ -81,6 +81,7 @@ E20. Configurable global keys: menu key, Zoom, neighbouring window
 E21. Document the real test of the global keys (E20)
 E22. Log View: search dialog button New window (the matching lines in a window with fixed lines)
 E23. Log View: Highlight Words (F4 Highlight: Sets / Words, a color per word)
+E24. Log View: the vertical scroll bar ends at the view at the end (thumb at the bottom = last line visible)
 
 ---
 
@@ -316,6 +317,18 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   last one. Agreed in chat 30 (instead of the earlier plan, a copy re-running the command with Include = the text: that
   lost the original filters and gave nothing for sources that do not replay their history). A refresh key (new copy from
   the original while it is open) and the large "Find all" variant (list linked to the original) are not done.
+- **Vertical scroll bar** (E24): the thumb is in the last cell **exactly when the last line is visible** (the view at
+  the end), with any number of lines, with W and in a window of any height; it is in the first cell when the first line is
+  at the top. Before, the maximum of the bar was the number of lines − 1 and the value the first line on the screen, so at
+  the end the thumb stayed near the middle with few lines or with W (AOIT, chat 31). Now the maximum is the end position
+  (`endPosition`, the first line on the screen when the last line is at the bottom; one step more when that position starts
+  inside a wrapped line), and everything fitting on the screen counts as the end (thumb at the bottom). tvision rounds the
+  thumb position, so with many lines a view a few lines above the end would also reach the last cell: `vScrollValue` adds a
+  few steps after the end position (only the view at the end has the maximum); from the end, ▲ goes one line up, and ▼ from
+  the line before the end goes to the end. Clicks, dragging and the wheel use the same scale; the bar shows the view, not
+  the cursor line. A resize (screen, Ctrl-F5, Zoom, Tile) updates the view and the bar at once (`changeBounds`): a window
+  that follows stays at the end (before, the view kept its first line and the last lines could be hidden until the next
+  new line came). The horizontal bar is unchanged.
 
 ### Log View highlighting — `far2l-extended`
 - E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
@@ -810,6 +823,15 @@ examples/profiles/example.ini
 - Menu tests (E17): when the Ctrl-B menu opens nothing is selected, so the first Down selects New Term; Close Term = Down,
   Down, Enter.
 
+- Log View scroll bar (E24), in tmux (100×30, profiles with one maximized Log View; mouse through `TIOCSTI`): the thumb is
+  found in `capture-pane` (the column of `▲`, the rows down to `▼`), the last visible line read from the screen. Compared
+  with the build before E24 on: 5 lines (all fit), 100 lines (start, Home, End, cursor up, wheel up / down), W with long
+  lines (end, Home, End, the end inside a wrapped line), ▲ / ▼ / track clicks and dragging, a growing file (following,
+  scrolled up with `[+N]`, dragged to the bottom), 50000 lines (▲ ×3 and ▼ ×3 one line at a time, the thumb leaves the last
+  cell at the first ▲), a 28-row window, screen resizes (`resize-window`), W with a narrower screen, Zoom and D. The
+  rounding rule (only the maximum in the last cell, the line before the end never) was checked in Python with tvision's
+  `getPos` formula for 1–119 track cells and up to 3 million lines.
+
 ---
 
 ## 6. Known limitations
@@ -874,3 +896,4 @@ examples/profiles/example.ini
 | Global keys test (`far2l-extended`) | E21 | notes of the real test of E20 (Ctrl+Alt+arrows stopped on Windows, Alt-Shift-Up/Down arrive, Ctrl+arrows in `cat -v`); MANUAL: recommended example, chapter 12 corrected; documentation only |
 | Find window (`far2l-extended`) | E22 | Log View search dialog: New window opens the matching lines in a window with fixed lines (no process; F4 / New window again filter further; not saved in profiles) |
 | Highlight Words (`far2l-extended`) | E23 | F4 Highlight: Sets / Words; words with commas, a color per word (8, repeated), case ignored (ASCII), the first word wins; title `[W]`; profile `highlight-mode`, `highlight-words` |
+| Log View scroll bar (`far2l-extended`) | E24 | the vertical thumb is at the bottom exactly when the last line is visible (few lines, W, many lines); a resize keeps a following window at the end |
