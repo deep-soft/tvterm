@@ -290,6 +290,16 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 parseCount(0, 86400, win.logAutoRestart, "seconds, 0: off");
             else if (isLog && key == "highlight")
                 win.logHighlight = value;
+            else if (isLog && key == "highlight-mode")
+            {
+                std::string v = lower(value);
+                if (v == "sets" || v == "words")
+                    win.logHighlightWordsMode = v == "words";
+                else
+                    warn("invalid highlight-mode '" + value + "' (use sets or words)");
+            }
+            else if (isLog && key == "highlight-words")
+                win.logHighlightWords = value;
             else if (isLog && key == "highlight-on")
             {
                 if (!parseBool(value, win.logHighlightOn))
@@ -436,7 +446,13 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     file << "auto-restart = " << win.logAutoRestart << "\n";
                 if (!win.logHighlight.empty())
                     file << "highlight = " << win.logHighlight << "\n";
-                if (!win.logHighlight.empty() && !win.logHighlightOn)
+                if (win.logHighlightWordsMode)
+                    file << "highlight-mode = words\n";
+                if (!win.logHighlightWords.empty())
+                    file << "highlight-words = " << win.logHighlightWords << "\n";
+                // Off (key H): only when the mode in use has a value.
+                if ( !(win.logHighlightWordsMode ? win.logHighlightWords : win.logHighlight).empty() &&
+                     !win.logHighlightOn )
                     file << "highlight-on = no\n";
                 if (win.alertActivity)
                     file << "alert-activity = yes\n";

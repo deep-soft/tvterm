@@ -908,6 +908,8 @@ void TVTermApp::openProfile(const Profile &profile)
                 o.autoRestart = win.logAutoRestart;
                 o.highlight = win.logHighlight;
                 o.highlightOn = win.logHighlightOn;
+                o.highlightWordsMode = win.logHighlightWordsMode;
+                o.highlightWords = win.logHighlightWords;
                 auto *log = new LogViewWindow(r, o);
                 std::string error;
                 if (!log->setOptions(o, error))
@@ -1176,6 +1178,8 @@ void TVTermApp::saveProfile()
             win.logAutoRestart = o.autoRestart;
             win.logHighlight = o.highlight;
             win.logHighlightOn = o.highlightOn;
+            win.logHighlightWordsMode = o.highlightWordsMode;
+            win.logHighlightWords = o.highlightWords;
             const AlertSettings &alerts = log->getAlertSettings();
             win.alertActivity = alerts.activity;
             win.alertKeywords = alerts.keywords.text;

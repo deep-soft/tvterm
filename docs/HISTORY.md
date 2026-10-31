@@ -80,6 +80,7 @@ E19. Document Claude's test environment in HISTORY (section 5)
 E20. Configurable global keys: menu key, Zoom, neighbouring window
 E21. Document the real test of the global keys (E20)
 E22. Log View: search dialog button New window (the matching lines in a window with fixed lines)
+E23. Log View: Highlight Words (F4 Highlight: Sets / Words, a color per word)
 
 ---
 
@@ -365,6 +366,23 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   records the field when the list opens, and copies at most 255 bytes, while Include / Exclude take 512),
   `FieldListWindow` / `FieldListViewer` (`THistoryWindow` / `THistoryViewer` with their own items; the list is at least 5
   and at most 12 rows, moved up when it does not fit below the field). History id 77 is never added to.
+- E23 **Highlight Words**: in F4, `Highlight (•) Sets ( ) Words` (Alt-S / Alt-D) above one field, which holds the sets
+  or the words of the mode chosen; the value of the other mode is kept by the dialog and swapped back when the mode
+  changes (`HighlightModeButtons`, a `TRadioButtons` whose `movedTo` / `press` call the dialog). Words: separated by
+  commas, `\` makes the next character plain as in the alert keywords (`\,` `\\` `\ `), spaces at the ends removed,
+  phrases with spaces allowed, repeats (case ignored) dropped; every occurrence colored, substring, case ignored only
+  for ASCII letters (like the alert keywords); no regex, no `+` / `!`. Colors by the place of the word: bright yellow,
+  bright green, bright cyan, bright magenta, bright red, bright blue, bright white on red, black on yellow, repeated
+  from the 9th word; overlaps: the first word wins (the same `taken` rule as the sets). Code: `splitHighlightWords`,
+  `wordHighlightRules` (rule kind `Word`, searched in the line with ASCII letters in lowercase) in `highlight.cc`;
+  `LogViewOptions::highlightWordsMode` / `highlightWords` / `activeHighlight()`. The field is 512 bytes (was 256). The
+  arrow list follows the mode: Sets = sets + values used before (as E16), Words = only the words used before (its own
+  `FieldHistory`). Only the mode in use is checked (an unknown set in the hidden Sets value does not block OK). Title:
+  `[W]` while the words are used, `[H-]` when off (either mode, only if the mode in use has a value); H without words:
+  `No highlight words: …`. A new mode or value in F4 turns the highlight on. Profile: `highlight-mode = words` (written
+  only for words; default `sets`, an invalid value is reported), `highlight-words = …` (written when not empty, in
+  either mode), `highlight-on = no` only when the mode in use has a value. D and Search > New window copy both values
+  and the mode. The hint under the fields became two lines (filters / highlight examples).
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -507,7 +525,8 @@ source/tvterm/             the application
   logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
                            LogViewInterior (drawing, mouse), the settings dialog (execLogViewDialog); POSIX regex (regcomp)
   highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
-                           read), the built-in sets, highlightLine (colors of the bytes of a line)
+                           read), the built-in sets, Highlight Words (wordHighlightRules), highlightLine (colors of
+                           the bytes of a line)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
@@ -691,6 +710,15 @@ examples/profiles/example.ini
   saves only the original; original closed with a click on `[■]` (SGR through `TIOCSTI`) → `tail` stops, the fixed
   window still works; Quit with only fixed windows → no question. Regression: D on a normal Log View (one `tail`), F4,
   Space, R, Alerts, Find.
+- Highlight Words (E23): a C++ test linked with `highlight.cc` (splitting: spaces, empty items, `\,` `\+` `\\` `\ `, repeats with
+  another case; colors by position, case, every occurrence, overlap `fail, failed` both ways, phrases, palette repeated
+  from the 9th word, empty text). In tmux (`capture-pane -e`): words colored in a Log View (`fail` + `ed` in two colors,
+  `ERROR` for `error`, the cursor line without colors), title `[W]`, H → `[H-]` → `[W]`; F4: Alt-S / Alt-D swap the
+  field (sets value `kv` typed, kept across switches), ↓ shows only the words in Words and the sets in Sets; OK in Sets
+  → no `[W]`, `kv` colors; profile saved (`highlight`, `highlight-mode = words`, `highlight-words`, `highlight-on = no`),
+  loaded again (`[W]`, the same colors), D saved in the profile with the words, `highlight-mode = bogus` → message
+  `invalid highlight-mode 'bogus' (use sets or words)` and Sets; empty words + H → the message. Regression: a profile
+  without `highlight-mode` → Sets, `kv` colors as before.
 - History tests (feat E1): Alt-Shift-PgUp/PgDn `ESC[5;4~`/`ESC[6;4~`, Alt-Shift-Home/End `ESC[1;4H`/`ESC[1;4F`, F2 `ESC OQ`,
   F3 `ESC OR`, Shift-F3 `ESC[1;2R`, F7 `ESC[18~`; mouse in SGR format `ESC[<b;x;yM/m` (double/triple click = repeated
   press/release within 0.1 s; drag = button 32). The match is the `brightbrown` background in pyte.
@@ -845,3 +873,4 @@ examples/profiles/example.ini
 | Global keys (`far2l-extended`) | E20 | `menu-key` (list, default Ctrl-B, `` Ctrl-` `` by scan code), `key-zoom`, `key-window-*` in `[keys]`; `:not-far2l`; Ctrl-B Z = Zoom (F still works) |
 | Global keys test (`far2l-extended`) | E21 | notes of the real test of E20 (Ctrl+Alt+arrows stopped on Windows, Alt-Shift-Up/Down arrive, Ctrl+arrows in `cat -v`); MANUAL: recommended example, chapter 12 corrected; documentation only |
 | Find window (`far2l-extended`) | E22 | Log View search dialog: New window opens the matching lines in a window with fixed lines (no process; F4 / New window again filter further; not saved in profiles) |
+| Highlight Words (`far2l-extended`) | E23 | F4 Highlight: Sets / Words; words with commas, a color per word (8, repeated), case ignored (ASCII), the first word wins; title `[W]`; profile `highlight-mode`, `highlight-words` |

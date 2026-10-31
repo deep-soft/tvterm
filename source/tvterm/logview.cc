@@ -16,6 +16,7 @@
 #define Uses_THistoryViewer
 #define Uses_TLabel
 #define Uses_TCheckBoxes
+#define Uses_TRadioButtons
 #define Uses_TSItem
 #define Uses_TStaticText
 #define Uses_TButton
@@ -525,7 +526,8 @@ namespace logview
 
 enum : ushort { cmLogApply = 3390 };
 
-// The values used in the Include, Exclude and Highlight sets fields: kept
+// The values used in the Include, Exclude and Highlight fields (sets and
+// words, each with its own list): kept
 // while tvterm runs, shared by all Log View windows, newest first. Saved by
 // OK and Apply (not when the list is opened, unlike THistory).
 struct FieldHistory
@@ -546,7 +548,7 @@ struct FieldHistory
     }
 };
 
-static FieldHistory includeHistory, excludeHistory, highlightHistory;
+static FieldHistory includeHistory, excludeHistory, highlightHistory, wordsHistory;
 
 // The whole buffer of the field is copied by setData.
 static void setInputText(TInputLine *field, const std::string &text)
@@ -644,17 +646,19 @@ public:
 
     FieldHistoryButton(const TRect &bounds, TInputLine *aLink, FieldHistory &h, bool sets) noexcept :
         THistory(bounds, aLink, hiLogList),
-        history(h),
+        history(&h),
         withSets(sets)
     {
     }
 
     void recordHistory(const char *) override {}
     void handleEvent(TEvent &ev) override;
+    // Highlight: the list follows the mode (Sets / Words).
+    void setList(FieldHistory &h, bool sets) noexcept { history = &h; withSets = sets; }
 
 private:
 
-    FieldHistory &history;
+    FieldHistory *history;
     bool withSets;
 
     std::vector<FieldListItem> listItems() const;
@@ -668,10 +672,10 @@ std::vector<FieldListItem> FieldHistoryButton::listItems() const
     {
         for (auto &name : highlightSetNames())
             items.push_back({name, FieldListItem::Set});
-        if (!history.values.empty())
+        if (!history->values.empty())
             items.push_back({"\xE2\x94\x80\xE2\x94\x80 used before \xE2\x94\x80\xE2\x94\x80", FieldListItem::Note});
     }
-    for (auto &value : history.values)
+    for (auto &value : history->values)
         items.push_back({value, FieldListItem::Value});
     if (items.empty())
         items.push_back({"(nothing used yet)", FieldListItem::Note});
@@ -735,6 +739,34 @@ void FieldHistoryButton::handleEvent(TEvent &ev)
     }
 }
 
+// Highlight (•) Sets ( ) Words: tells the dialog when the choice changes.
+class HighlightModeButtons : public TRadioButtons
+{
+public:
+
+    HighlightModeButtons(const TRect &bounds, TSItem *items, std::function<void ()> aChanged) noexcept :
+        TRadioButtons(bounds, items),
+        changed(std::move(aChanged))
+    {
+    }
+
+    void movedTo(int item) override
+    {
+        TRadioButtons::movedTo(item);
+        changed();
+    }
+
+    void press(int item) override
+    {
+        TRadioButtons::press(item);
+        changed();
+    }
+
+private:
+
+    std::function<void ()> changed;
+};
+
 class LogViewDialog : public TDialog
 {
 public:
@@ -752,6 +784,15 @@ private:
     bool fixedLines;
     TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn;
     TCheckBoxes *checkBoxes;
+    HighlightModeButtons *hlMode;
+    FieldHistoryButton *hlList;
+    // Highlight: one field, for the sets or the words (the mode chosen);
+    // the value of the other mode is kept here.
+    bool hlWords {false};
+    std::string hlOther;
+
+    // The mode changed: the field gets the value of the new mode.
+    void highlightModeChanged();
 
     // Reads and checks the fields. On error: a message, the focus on the
     // field, and false.
@@ -801,13 +842,19 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(restartIn);
     auto *restartLabel = new TLabel(TRect(32, 15, 62, 16), "~R~estart after N s (0: no)", restartIn);
     insert(restartLabel);
-    hlIn = new TInputLine(TRect(33, 17, 69, 18), 256);
+    hlIn = new TInputLine(TRect(33, 17, 69, 18), 512);
     insert(hlIn);
-    insert(new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, true));
-    insert(new TLabel(TRect(32, 16, 72, 17), "~H~ighlight sets (e.g. zimbra-mta kv)", hlIn));
+    hlList = new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, true);
+    insert(hlList);
+    insert(new TLabel(TRect(32, 16, 44, 17), "~H~ighlight", hlIn));
+    hlMode = new HighlightModeButtons(TRect(44, 16, 72, 17),
+        new TSItem("~S~ets",
+        new TSItem("Wor~d~s", nullptr)),
+        [this] { highlightModeChanged(); });
+    insert(hlMode);
     insert(new TStaticText(TRect(3, 18, 73, 20),
-        "Regular expressions like grep -E; alternatives with |, e.g.\n"
-        "dstport=(993|465|587)  Trailing spaces are kept."));
+        "Filters: grep -E, e.g. dstport=(993|465|587); trailing spaces kept.\n"
+        "Highlight: sets (zimbra-mta kv) or words (error, status=sent)"));
     if (apply)
     {
         // Apply: the changes are applied and the dialog stays open.
@@ -830,7 +877,14 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     checkBoxes->setData(&checks);
     setField(maxIn, std::to_string(o.maxLines));
     setField(restartIn, std::to_string(o.autoRestart));
-    setField(hlIn, o.highlight);
+    hlWords = o.highlightWordsMode;
+    setField(hlIn, o.activeHighlight());
+    hlOther = hlWords ? o.highlight : o.highlightWords;
+    {
+        ushort mode = hlWords ? 1 : 0;
+        hlMode->setData(&mode);
+    }
+    hlList->setList(hlWords ? wordsHistory : highlightHistory, !hlWords);
     if (fixedLines)
     {
         // Fixed lines (Search > New window): no command, nothing to keep
@@ -850,6 +904,23 @@ void LogViewDialog::recordValues()
     includeHistory.add(o.include);
     excludeHistory.add(o.exclude);
     highlightHistory.add(o.highlight);
+    wordsHistory.add(o.highlightWords);
+}
+
+void LogViewDialog::highlightModeChanged()
+{
+    ushort mode = 0;
+    hlMode->getData(&mode);
+    bool words = mode == 1;
+    if (words == hlWords)
+        return;
+    std::string current = hlIn->data;
+    setInputText(hlIn, hlOther);
+    hlOther = current;
+    hlWords = words;
+    hlList->setList(words ? wordsHistory : highlightHistory, !words);
+    hlIn->selectAll(True);
+    hlIn->drawView();
 }
 
 void LogViewDialog::fail(TView *field, const std::string &text)
@@ -861,7 +932,7 @@ void LogViewDialog::fail(TView *field, const std::string &text)
 bool LogViewDialog::readFields(LogViewOptions &out)
 {
     char title[129] {}, command[513] {}, include[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {},
-         highlight[257] {};
+         hlField[513] {};
     ushort checks = 0;
     titleIn->getData(title);
     cmdIn->getData(command);
@@ -870,7 +941,10 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     checkBoxes->getData(&checks);
     maxIn->getData(maxLines);
     restartIn->getData(restart);
-    hlIn->getData(highlight);
+    hlIn->getData(hlField);
+    // The sets and the words: one in the field, the other kept aside.
+    std::string highlight = hlWords ? hlOther : std::string(hlField);
+    std::string words = trim(hlWords ? std::string(hlField) : hlOther);
 
     std::string error;
     std::string cmd = trim(command);
@@ -907,7 +981,8 @@ bool LogViewDialog::readFields(LogViewOptions &out)
         return false;
     }
     std::vector<std::string> hlNames = splitHighlightNames(highlight);
-    for (auto &name : hlNames)
+    // Only the mode in use is checked (the other one is not used).
+    for (auto &name : hlWords ? std::vector<std::string>() : hlNames)
     {
         HighlightRules rules;
         if (!findHighlightSet(name, rules))
@@ -932,8 +1007,11 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     out.maxLines = (int) nLines;
     out.autoRestart = (int) nRestart;
     out.highlight = hlText;
-    // Not in the dialog (key H): kept, but new sets are shown.
-    out.highlightOn = o.highlightOn || o.highlight != hlText;
+    out.highlightWords = words;
+    out.highlightWordsMode = hlWords;
+    // Not in the dialog (key H): kept, but a new mode or value is shown.
+    out.highlightOn = o.highlightOn || o.highlightWordsMode != out.highlightWordsMode ||
+                      o.activeHighlight() != out.activeHighlight();
     return true;
 }
 
@@ -1235,14 +1313,21 @@ void LogViewWindow::update()
 bool LogViewWindow::resolveHighlight()
 {
     using namespace logview;
-    if (hlGeneration == highlightGeneration() && hlResolvedFor == options.highlight)
+    // The mode is part of the value: the same text as sets or as words.
+    std::string key = (options.highlightWordsMode ? "w:" : "s:") + options.activeHighlight();
+    if (hlGeneration == highlightGeneration() && hlResolvedFor == key)
         return false;
     hlGeneration = highlightGeneration();
-    if (hlResolvedFor != options.highlight)
+    if (hlResolvedFor != key)
         hlReported.clear();
-    hlResolvedFor = options.highlight;
+    hlResolvedFor = key;
     hlRules.clear();
     hlCache.clear();
+    if (options.highlightWordsMode)
+    {
+        hlRules = wordHighlightRules(options.highlightWords);
+        return true;
+    }
     for (auto &name : splitHighlightNames(options.highlight))
     {
         HighlightRules rules;
@@ -1400,8 +1485,13 @@ const char *LogViewWindow::getTitle(short)
         if (!options.exclude.empty())
             text += " [E]";
     }
-    if (!options.highlight.empty() && !options.highlightOn)
-        text += " [H-]";
+    if (!options.activeHighlight().empty())
+    {
+        if (!options.highlightOn)
+            text += " [H-]";
+        else if (options.highlightWordsMode)
+            text += " [W]";
+    }
     if (source)
     {
         text += " " + std::to_string(shown.size()) + "/" +
@@ -1862,9 +1952,11 @@ void LogViewWindow::toggleFilters()
 void LogViewWindow::toggleHighlight()
 {
     using namespace logview;
-    if (options.highlight.empty())
+    if (options.activeHighlight().empty())
     {
-        showStatus("No highlight sets: choose them in F4 (Highlight), e.g. zimbra-mta kv.");
+        showStatus(options.highlightWordsMode ?
+                   "No highlight words: write them in F4 (Highlight, Words), e.g. error, status=sent." :
+                   "No highlight sets: choose them in F4 (Highlight), e.g. zimbra-mta kv.");
         return;
     }
     options.highlightOn = !options.highlightOn;

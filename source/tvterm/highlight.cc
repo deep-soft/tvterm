@@ -10,10 +10,11 @@
 
 struct HighlightRule
 {
-    enum Kind { Line, Match, Groups, Hash };
+    enum Kind { Line, Match, Groups, Hash, Word };
 
     Kind kind {Match};
     int color {-1}; // Not used by 'hash'.
+    std::string word; // 'Word': the text, ASCII lowercase (no regex).
     regex_t re;
     bool compiled {false};
     size_t groups {0};
@@ -362,12 +363,73 @@ std::vector<std::string> splitHighlightNames(const std::string &text)
     return names;
 }
 
+std::vector<std::string> splitHighlightWords(const std::string &text)
+{
+    using namespace highlightini;
+    std::vector<std::string> out, seen;
+    // The characters of the current word; 'plain': after a backslash (a
+    // space kept at the ends, a comma that does not separate).
+    std::string cur;
+    std::vector<bool> plain;
+    auto flush = [&] {
+        size_t a = 0, b = cur.size();
+        while (a < b && (cur[a] == ' ' || cur[a] == '\t') && !plain[a])
+            ++a;
+        while (b > a && (cur[b - 1] == ' ' || cur[b - 1] == '\t') && !plain[b - 1])
+            --b;
+        std::string w = cur.substr(a, b - a);
+        cur.clear();
+        plain.clear();
+        if (w.empty())
+            return;
+        std::string key = lower(w);
+        if (std::find(seen.begin(), seen.end(), key) != seen.end())
+            return;
+        seen.push_back(key);
+        out.push_back(w);
+    };
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        if (text[i] == '\\' && i + 1 < text.size())
+            cur += text[++i], plain.push_back(true);
+        else if (text[i] == ',')
+            flush();
+        else
+            cur += text[i], plain.push_back(false);
+    }
+    flush();
+    return out;
+}
+
+HighlightRules wordHighlightRules(const std::string &text)
+{
+    using namespace highlightini;
+    // bright-yellow, bright-green, bright-cyan, bright-magenta, bright-red,
+    // bright-blue, bright-white on red, black on yellow.
+    static const int palette[] = {0x0E, 0x0A, 0x0B, 0x0D, 0x0C, 0x09, 0x4F, 0x60};
+    const size_t n = sizeof(palette) / sizeof(palette[0]);
+    HighlightRules rules;
+    size_t i = 0;
+    for (auto &w : splitHighlightWords(text))
+    {
+        std::shared_ptr<HighlightRule> rule(new HighlightRule);
+        rule->kind = HighlightRule::Word;
+        rule->word = lower(w);
+        rule->color = palette[i++ % n];
+        rules.push_back(std::move(rule));
+    }
+    return rules;
+}
+
 void highlightLine(const HighlightRules &rules, const std::string &text, std::vector<int> &colors)
 {
     using namespace highlightini;
     colors.assign(text.size(), -1);
     if (text.empty() || rules.empty())
         return;
+    // Words: searched in the line with the ASCII letters in lowercase (same
+    // length, so the positions are the same).
+    std::string lowered;
     std::vector<char> taken(text.size(), 0);
     auto paint = [&] (size_t a, size_t b, int color) {
         for (size_t i = a; i < b && i < text.size(); ++i)
@@ -386,6 +448,17 @@ void highlightLine(const HighlightRules &rules, const std::string &text, std::ve
     {
         if (rule->kind == HighlightRule::Line)
             continue;
+        if (rule->kind == HighlightRule::Word)
+        {
+            if (rule->word.empty())
+                continue;
+            if (lowered.empty())
+                lowered = lower(text);
+            for (size_t p = lowered.find(rule->word); p != std::string::npos;
+                 p = lowered.find(rule->word, p + rule->word.size()))
+                paint(p, p + rule->word.size(), rule->color);
+            continue;
+        }
         size_t nm = std::min<size_t>(rule->groups + 1, 10);
         size_t pos = 0;
         while (pos <= text.size())

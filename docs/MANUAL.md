@@ -432,6 +432,8 @@ partly outside the desktop is moved inside (and shrunk if larger), with a note i
 | `max-lines` | `0` | lines kept; 0: `[logview] max-lines` of `tvterm.ini` |
 | `auto-restart` | `0` | restart the command N seconds after it ends (0: never; up to 86400) |
 | `highlight` | (none) | highlight sets, e.g. `zimbra-mta kv` ([chapter 10](#colors-highlight)) |
+| `highlight-mode` | `sets` | `words`: the colors come from `highlight-words` instead of the sets ([Words](#highlight-words)) |
+| `highlight-words` | (none) | words to color, with commas, e.g. `error, status=sent` ([Words](#highlight-words)) |
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown |
 
@@ -571,17 +573,18 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
-| Highlight sets | colors, e.g. `zimbra-mta kv` ([below](#colors-highlight)); empty: none; ↓ shows the sets and values used before |
+| Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `zimbra-mta kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#highlight-words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
 Spaces at the end of the fields are kept (`dstport=993 ` does not match `dstport=9930`). Errors are shown in the dialog.
 
-**Lists of the fields:** the arrow next to Command, Include, Exclude and Highlight sets (a click, or **↓** in the field)
+**Lists of the fields:** the arrow next to Command, Include, Exclude and Highlight (a click, or **↓** in the field)
 opens a list; Enter or a double click takes the value, Esc closes the list. A value used before **replaces** the field
 (a quick way back, e.g. after turning an Exclude off for a while). At Highlight sets the list starts with the sets; a set
 is **added** to the end of the field (unless it is there already), then the values used before follow, after
 `── used before ──`. The values are saved by OK and Apply (not empty ones, at most 20 per field, the newest first, without
-repeats), are shared by all Log Views and are kept while tvterm runs.
+repeats), are shared by all Log Views and are kept while tvterm runs. In mode Words the list has only the words used
+before (a list of its own), without the sets.
 
 The command runs with `$SHELL -c` in a pseudo-terminal, so programs like awk write each line at once. Colors and
 escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that log rotation is followed.
@@ -592,7 +595,7 @@ escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that l
 ### Title
 
 `[!keyword] Log: <title> [I] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude are
-set, `[F-]` when the filters are off, `[H-]` when the colors are off, lines shown / lines in the buffer, `(ended)` when the command has ended,
+set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off, lines shown / lines in the buffer, `(ended)` when the command has ended,
 `[PAUSE +N]` while paused, `[+N]` new lines below the view.
 
 ### Keys
@@ -604,7 +607,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | F4 | settings dialog (OK / **Apply** / Cancel; Apply applies and keeps the dialog open) |
 | `I` / `E` | the dialog, on Include / Exclude |
 | `F` | filters on/off (all the lines shown) |
-| `H` | colors on/off ([highlight sets](#colors-highlight)) |
+| `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#highlight-words)) |
 | `D` | duplicate: a new window on the same source, with the same filters, colors and options (not the alerts), title + ` (2)` |
 | `R` | restart the command |
 | Space | pause / continue (new lines are kept, shown on continue) |
@@ -680,6 +683,27 @@ include = zimbra-mta
 
 The sets are read again with `tvterm.ini` (2 seconds after it is saved); an invalid rule is ignored and reported in the
 Event Viewer with its line.
+
+<a id="highlight-words"></a>
+#### Words
+
+For a quick look, without writing a set: in F4 choose **Words** next to Highlight (Alt-D; Alt-S goes back to Sets) and
+write the words in the field, separated by commas: `fail, status=sent, timed out`. Each word is colored wherever it
+appears in a line (also inside a longer word: `fail` colors the start of `failed`), with **no difference between
+upper and lower case** for the letters a–z (as in the alert keywords; `ș` does not match `Ș`). A word may hold spaces
+(`timed out`); spaces at its ends are ignored. As in the alert keywords, `\` makes the next character plain text: `\,`
+is a comma inside a word, `\\` a backslash, `\ ` a space kept at an end. No regular expressions and no `+` / `!` groups:
+the rest of the text is taken as it is.
+
+Each word has its own color, by its place in the list: bright yellow, bright green, bright cyan, bright magenta, bright
+red, bright blue, white on red, black on yellow; from the 9th word the colors repeat. Where two words overlap, **the
+first one in the list wins** (`fail, failed`: `failed` shows `fail` in the first color and `ed` in the second; put
+`failed` first to color it whole). Repeated words count once.
+
+The field keeps both values: Sets and Words each have their own text, and switching between them in F4 shows the text of
+that mode (the other one is kept, also in profiles: `highlight` and `highlight-words`, with `highlight-mode`). The title
+shows `[W]` while the words are used; **H** turns them off and on like the sets (`[H-]`). **D** and Search > New window
+copy the mode and both values.
 
 ### Search: New window
 

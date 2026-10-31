@@ -8,7 +8,7 @@
 //
 // Keys, when the window is focused (also in its menu: F9 or right click):
 //   F4 settings · I / E edit include / exclude · F filters on/off
-//   H highlight on/off (colors from tvterm.ini, see highlight.h)
+//   H highlight on/off (sets from tvterm.ini, see highlight.h, or words)
 //   D duplicate · R restart the source · Space pause/continue
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
 //   / search (New window: the matching lines in a new window) ·
@@ -48,7 +48,13 @@ struct LogViewOptions
     bool wrap {false};
     bool filters {true};    // F: the include / exclude filters are used.
     std::string highlight;  // Highlight sets, e.g. "zimbra-mta kv"; empty: none.
-    bool highlightOn {true}; // H: the highlight sets are used.
+    bool highlightOn {true}; // H: the highlight (sets or words) is used.
+    bool highlightWordsMode {false}; // F4 Highlight: Words instead of Sets.
+    std::string highlightWords; // e.g. "error, status=sent" (see splitHighlightWords).
+
+    // The value of the highlight mode in use (sets or words).
+    const std::string &activeHighlight() const noexcept
+        { return highlightWordsMode ? highlightWords : highlight; }
     int maxLines {0};       // Lines kept by the source; 0: the default (tvterm.ini).
     int autoRestart {0};    // Restart the source N seconds after it ends; 0: never.
 };
@@ -153,8 +159,9 @@ private:
     uint64_t matchSeq {0};
     int matchBegin {0}, matchEnd {0}; // Bytes in the line.
 
-    // Highlight: the rules of the sets in 'options.highlight', taken again
-    // when the sets change (tvterm.ini reloaded) or the option changes.
+    // Highlight: the rules of the sets in 'options.highlight' (or of the
+    // words, in mode Words), taken again when the sets change (tvterm.ini
+    // reloaded) or the options change.
     HighlightRules hlRules;
     unsigned hlGeneration {0};
     std::string hlResolvedFor;

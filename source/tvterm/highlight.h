@@ -61,6 +61,19 @@ std::vector<std::string> splitHighlightNames(const std::string &text);
 // style: background * 16 + foreground).
 void highlightLine(const HighlightRules &rules, const std::string &text, std::vector<int> &colors);
 
+// Highlight Words (Log View, F4 > Highlight > Words): the words of 'text',
+// separated by commas, spaces at their ends removed, repeated words dropped
+// (case ignored). A word may hold spaces. As in the alert keywords, a
+// backslash makes the next character plain: \, a comma, \\ a backslash,
+// '\ ' a space kept at an end.
+std::vector<std::string> splitHighlightWords(const std::string &text);
+
+// One rule per word of 'text' (see splitHighlightWords): every occurrence,
+// case ignored for ASCII letters (as in the alert keywords), a color of
+// its own (a palette of 8, repeated from the 9th word). Where words
+// overlap, the first one in the list wins.
+HighlightRules wordHighlightRules(const std::string &text);
+
 // The built-in sets, in the format of tvterm.ini.
 const char *builtinHighlightText();
 

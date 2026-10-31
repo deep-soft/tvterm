@@ -39,6 +39,8 @@ struct WindowProfile
     int logAutoRestart {0};
     std::string logHighlight;   // Highlight sets (see highlight.h).
     bool logHighlightOn {true};
+    bool logHighlightWordsMode {false}; // highlight-mode = words.
+    std::string logHighlightWords;      // Comma-separated (see splitHighlightWords).
     // Terminal and Log View alerts (see alerts.h).
     bool alertActivity {false};
     std::string alertKeywords; // Comma-separated.
