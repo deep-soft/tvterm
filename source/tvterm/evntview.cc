@@ -9,6 +9,7 @@
 
 #include "cmds.h"
 #include "evntview.h"
+#include "apputil.h"
 
 #include <iomanip>
 #include <ostream>
@@ -175,6 +176,8 @@ void TEventViewer::clear()
 
 void TEventViewer::handleEvent(TEvent &ev)
 {
+    // Ctrl-W: closes the window (see apputil.h).
+    closeKeyToCommand(*this, ev);
     if (char c = (state & sfFocused) ? evntview::ownKey(ev) : 0)
     {
         switch (c)

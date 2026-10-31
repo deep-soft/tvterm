@@ -22,6 +22,7 @@
 #include "statline.h"
 #include "profile.h"
 #include "procinfo.h"
+#include "fileopen.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 #include <tvterm/termopts.h>
@@ -257,21 +258,28 @@ public:
     }
 };
 
+// "Open after saving": the last choice, kept until tvterm exits (not in
+// tvterm.ini).
+enum { openNo = 0, openEditor = 1, openViewer = 2 };
+static ushort sessionOpenAfter = openNo;
+
 static bool runSaveDialog( const char *title, const std::string &dir, TStringView name,
                            TSItem *whatItems, bool hasSelection, const char *note,
                            ushort &what, std::string &path )
 // The Save dialog shared by the history and the Log View. 'dir' has no
 // final '/'. On Save: 'path' = the typed path (absolute, '~' expanded;
-// a relative one is taken from 'dir'), 'what' = the "What to save" choice.
+// a relative one is taken from 'dir'), 'what' = the "What to save" choice;
+// the "Open after saving" choice goes to 'sessionOpenAfter'.
 {
     struct
     {
         char path[MAXPATH];
         ushort order; // orderDateFirst or orderNameFirst.
         ushort what;  // 0: everything, 1: selection only.
+        ushort openAfter; // openNo, openEditor or openViewer.
     } data {};
 
-    SaveDialog *d = new SaveDialog(TRect(0, 0, 70, 16), title);
+    SaveDialog *d = new SaveDialog(TRect(0, 0, 70, 18), title);
     d->options |= ofCentered;
     d->dir = dir;
     d->name = sanitize(name);
@@ -279,6 +287,7 @@ static bool runSaveDialog( const char *title, const std::string &dir, TStringVie
     d->shown = initialDateFirst() ? orderDateFirst : orderNameFirst;
     data.order = (ushort) d->shown;
     data.what = what;
+    data.openAfter = sessionOpenAfter;
     std::string proposed = d->proposal(d->shown);
     strncpy(data.path, proposed.c_str(), sizeof(data.path) - 1);
 
@@ -296,8 +305,14 @@ static bool runSaveDialog( const char *title, const std::string &dir, TStringVie
     d->insert(whatButtons);
     d->insert(new TLabel(TRect(2, 8, 20, 9), "~W~hat to save", whatButtons));
     d->insert(new TStaticText(TRect(3, 11, 67, 12), note));
-    d->insert(new TButton(TRect(21, 13, 33, 15), "~S~ave", cmOK, bfDefault));
-    d->insert(new TButton(TRect(37, 13, 49, 15), "Cancel", cmCancel, bfNormal));
+    TRadioButtons *openButtons = new TRadioButtons(TRect(3, 13, 67, 14),
+        new TSItem("No",
+        new TSItem("~E~ditor",
+        new TSItem("Viewe~r~", nullptr))));
+    d->insert(openButtons);
+    d->insert(new TLabel(TRect(2, 12, 24, 13), "~O~pen after saving", openButtons));
+    d->insert(new TButton(TRect(21, 15, 33, 17), "~S~ave", cmOK, bfDefault));
+    d->insert(new TButton(TRect(37, 15, 49, 17), "Cancel", cmCancel, bfNormal));
     // Last, so that the list opens on top of the other fields.
     d->completion.attach(d, d->input, [d] { return d->dir; });
     d->selectNext(False);
@@ -305,6 +320,7 @@ static bool runSaveDialog( const char *title, const std::string &dir, TStringVie
         return false;
 
     rememberDateFirst(data.order == orderDateFirst);
+    sessionOpenAfter = data.openAfter;
     what = data.what;
     path = expandHome(sanitizePathInput(data.path));
     if (!path.empty() && path[0] != '/')
@@ -327,6 +343,16 @@ static ushort askOverwrite(const std::string &path)
     d->insert(new TButton(TRect(39, 6, 54, 8), "Cancel", cmCancel, bfNormal));
     d->selectNext(False);
     return execDlg(d, nullptr);
+}
+
+static void openAfterSave(const std::string &path)
+// Save > Open after saving: the saved file in the editor or the viewer
+// (a large file asks first, see fileopen.h).
+{
+    if (sessionOpenAfter == openEditor)
+        fileopen::open(path, fileopen::Target::Editor);
+    else if (sessionOpenAfter == openViewer)
+        fileopen::open(path, fileopen::Target::Viewer);
 }
 
 static int countLines(const std::string &text)
@@ -436,6 +462,7 @@ void openHistorySave(tvterm::TerminalView &view)
                       (onlyScreen ? " (visible screen)" : "") + " to " + path;
     TVTermStatusLine::showMessage(msg + ".");
     TVTermApp::note(msg);
+    openAfterSave(path);
 }
 
 void openTextSave( const char *dialogTitle, const std::string &name, bool hasSelection,
@@ -488,4 +515,5 @@ void openTextSave( const char *dialogTitle, const std::string &name, bool hasSel
                       std::to_string(countLines(text)) + " line(s) to " + path;
     TVTermStatusLine::showMessage(msg + ".");
     TVTermApp::note(msg);
+    openAfterSave(path);
 }

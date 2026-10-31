@@ -9,6 +9,7 @@
 #include "editwnd.h"
 #include "cmds.h"
 #include "dircompl.h"
+#include "apputil.h"
 
 #include <stdarg.h>
 
@@ -18,6 +19,12 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
 {
     // Selects the status line shown while the editor is focused.
     helpCtx = hcEditor;
+}
+
+void TVTermEditWindow::handleEvent(TEvent &ev)
+{
+    closeKeyToCommand(*this, ev);
+    TEditWindow::handleEvent(ev);
 }
 
 static ushort editorDialog(int dialog, ...)

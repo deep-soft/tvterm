@@ -25,6 +25,11 @@ public:
     std::string launchCommand;
     std::string launchDir;
     bool launchKeepOpen {true};
+    // Opened for an external viewer / editor (see fileopen.h): closed by
+    // the application as soon as its program ends.
+    bool closeWhenDone {false};
+    // Whether the program of the terminal has ended.
+    bool programEnded() const noexcept { return isDisconnected(); }
 
     enum class Alert { None, Activity, Silence, Keyword };
 

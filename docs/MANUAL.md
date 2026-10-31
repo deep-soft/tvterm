@@ -53,7 +53,19 @@ Usage: tvterm [-p PROFILE]
   -p, --profile PROFILE   open the windows described in PROFILE
                           ('none': do not open the default profile)
   -V, --version           show the version and build information
+      --print-settings    print a settings file with every key commented
+                          out (default values) and exit; writes no file
   -h, --help              show this help
+```
+
+`--print-settings` prints the same text that **More... > Edit settings** writes into a new `tvterm.ini`
+([chapter 6](#6-settings-file-tvtermini)); it only writes to the screen. `--help` shows these examples with the real path:
+
+```sh
+mkdir -p ~/.config/tvterm                                          # if it does not exist yet
+tvterm --print-settings > ~/.config/tvterm/tvterm.ini              # first time (overwrites the file!)
+tvterm --print-settings > ~/.config/tvterm/tvterm.ini.new          # beside it, to compare or copy from
+diff <(tvterm --print-settings) ~/.config/tvterm/tvterm.ini        # the keys added by a newer version
 ```
 
 `PROFILE` is a path (if it contains `/`) or a name, looked up as `~/.config/tvterm/profiles/NAME.ini`
@@ -124,7 +136,7 @@ writes Ctrl-B.
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
 | `P` | Paste | pastes the clipboard into the terminal |
 | `E` | New Editor | empty editor |
-| `O` | Open File in Editor... | |
+| `O` | Open File in Editor... | a file larger than `large-file` asks first ([Opening files](#opening-and-viewing-files)) |
 | `V` | Event Viewer | opens it; if already open, pauses / resumes it |
 | `D` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `L` | Load Profile... | |
@@ -134,7 +146,10 @@ writes Ctrl-B.
 | `Q` | Exit | asks first if terminals or Log Views are running |
 
 **More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Cascade · Grab Input ·
-Edit settings (tvterm.ini) · Reload settings · About tvterm.
+View file ([chapter 5](#opening-and-viewing-files)) · Edit settings (tvterm.ini) · Reload settings · About tvterm.
+
+**Ctrl-W** closes the focused Editor, Log View or Event Viewer (an editor with unsaved changes asks first). In a
+terminal Ctrl-W is not taken: it goes to the program (in bash it deletes the word before the cursor).
 
 ### Tile and Cascade
 
@@ -215,7 +230,7 @@ The dialog opens large enough to show every line whole (when the screen allows) 
 
 ### File dialogs
 
-In the name field of the file dialogs (Open File in Editor, the editor's Save file as, Load Profile, Save Profile As,
+In the name field of the file dialogs (Open File in Editor, View file, the editor's Save file as, Load Profile, Save Profile As,
 and the File field of the Save dialog of the history and the Log View), a list of directories opens by itself below the
 field while you type a path: the subdirectories of the part before the last `/` whose names begin with what follows it.
 For example `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
@@ -318,6 +333,9 @@ in the terminal; a relative name is relative to that directory. Directory names 
 - **What to save**: everything (history + screen) or the selection only.
 - Plain UTF-8 text, without colors; trailing spaces removed, wrapped lines joined.
 - Existing file: **Overwrite**, **Append** or Cancel. The result is shown in the status line and the Event Viewer.
+- **Open after saving**: `No`, `Editor` (Alt-E: the saved file in a tvterm editor) or `Viewer` (Alt-R: in a viewer,
+  [chapter 5](#opening-and-viewing-files)). After Append, the whole file is opened. The choice is kept until tvterm
+  exits (not in `tvterm.ini`). A file larger than `large-file` asks first.
 
 ---
 
@@ -327,7 +345,43 @@ in the terminal; a relative name is relative to that directory. Directory names 
 is wider than 100 columns. **F2** saves (an untitled editor asks for a name). Clipboard: Ctrl-Ins copy, Shift-Del cut,
 Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
 
-**More... > Edit settings** opens `tvterm.ini` in an editor.
+**More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
+
+### Opening and viewing files
+
+- **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor.
+- **More... > View file...** shows a file: with `external-viewer` set in `tvterm.ini`, in that program, at once, whatever
+  the size; otherwise in tvterm's **viewer**.
+- The **Save** dialog of the history and the Log View can open the saved file: **Open after saving**
+  ([chapter 4](#save)).
+
+The **viewer** is a Log View with fixed lines (like [Search: New window](#search-new-window)): title `View: <path>`,
+no command, no `(ended)`. It opens at the end of the file, like a log (**Home**: the first line); search, colors (F4,
+H), filters, selection, copy, save, `W`, `D` work as in any Log View. Escape sequences (colors) and carriage returns
+are removed, as for the output of commands. Profiles do not save it; **Ctrl-W** closes it.
+
+**Large files.** A file larger than `large-file` (default `5M`; `0`: never ask) does not open in tvterm at once (Ctrl-B O,
+View file without `external-viewer`, Open after saving). A dialog shows its name and size, with the buttons:
+
+- **External Viewer** / **External Editor**: only when `external-viewer` / `external-editor` are set;
+- **tvterm** (or **Open**, when no external program is set): opens it in tvterm anyway;
+- **Cancel**.
+
+**External programs** (`external-viewer`, `external-editor` in `[general]`) run in a new terminal window titled with the
+file name; the window closes when the program ends. `%f` is the file path, quoted for the shell (spaces and quotes
+are safe); without `%f` the path is added at the end. The program is not looked up first: if it does not start, the
+window closes at once; the Event Viewer shows the command that was run. With far2l:
+
+```ini
+[general]
+external-viewer = far2l --mortal -v %f
+external-editor = far2l --mortal -e %f
+```
+
+`--mortal` is needed: without it, far2l (`--immortal` by default outside the Linux console) goes on in the background
+when its window closes. F10 in far2l ends it, and the window closes. `far2ledit` is not used, because it is not
+installed everywhere (it depends on the package). far2l can also show the output of a command:
+`far2l -v - <command>` / `far2l -e - <command>`.
 
 ---
 
@@ -335,7 +389,7 @@ Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cas
 
 `~/.config/tvterm/tvterm.ini`. tvterm never creates or rewrites it by itself: **More... > Edit settings** creates it,
 if missing, with every key commented out, and opens it. Keys added in newer versions are added by hand
-(see `examples/tvterm.ini`).
+(see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - `#` or `;` at the start of a line: comment. Section and key names ignore case.
 - Changes apply when the file is saved (checked every 2 seconds), or with **More... > Reload settings**.
@@ -346,6 +400,9 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 |---|---|---|---|
 | `[general]` | `profile` | (none) | profile opened at startup without `-p` (name or path); only read at startup |
 | | `auto-reload` | `yes` | reload the file when it changes |
+| | `large-file` | `5M` | files larger than this ask before they open in tvterm; `K`, `M`, `G` (×1024) or bytes; `0`: never ask ([chapter 5](#opening-and-viewing-files)) |
+| | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
+| | `external-editor` | (none) | program offered for large files, e.g. `far2l --mortal -e %f` |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
 | | `word-chars` | `-._/@:~+%=` | characters that belong to a word on double click, besides letters and digits |
@@ -496,6 +553,7 @@ Keys, while it is focused (each one is also a status line item):
 | `N` | clears the window and shows the kept messages again |
 | `A` | lists the active alerts ([chapter 9](#9-alerts)) |
 | `X` | clears the window |
+| Ctrl-W | closes the window |
 
 The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
 counted (`Received event #N` skips numbers). Profiles keep the filters (`[eventviewer]`).
@@ -624,6 +682,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Esc | clears the selection, then the search match |
 | double click | copies a word |
 | Ctrl-B K | alerts |
+| Ctrl-W | closes the window |
 
 **Cursor line** (black on cyan): with the cursor on the last line, new lines are followed; anywhere higher, the view
 stays put and `[+N]` counts the new lines; **End** follows again. The mouse wheel and the scroll bar move only the view;

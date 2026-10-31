@@ -41,6 +41,10 @@ struct TVTermApp : public TApplication
     void changeDir();
     void newEditor();
     void openEditor();
+    // More... > View file.
+    void viewFile();
+    // Where a new editor goes (80 columns on the right of a wide desktop).
+    static TRect editorRect();
     void toggleEventViewer();
     void newLogView();
     void loadProfile();

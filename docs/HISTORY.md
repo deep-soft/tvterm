@@ -82,6 +82,7 @@ E21. Document the real test of the global keys (E20)
 E22. Log View: search dialog button New window (the matching lines in a window with fixed lines)
 E23. Log View: Highlight Words (F4 Highlight: Sets / Words, a color per word)
 E24. Log View: the vertical scroll bar ends at the view at the end (thumb at the bottom = last line visible)
+E25. Ctrl-W closes windows, Save > Open after saving, View file, large files and external programs, --print-settings
 
 ---
 
@@ -211,6 +212,11 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
   `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `save-name` (E11), `search-case-sensitive`, `shift-click-select`),
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
+  E25: `[general]` `large-file` (default `5M`, `K`/`M`/`G` ×1024, `0` = never ask; `parseSize` / `sizeName`),
+  `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
+- **`--print-settings`** (E25): prints `settingsTemplate()` (the text Edit settings writes into a new file) and exits;
+  writes no file (the E11 rule: only Edit settings creates `tvterm.ini`). `--help` shows the examples with the real path
+  (first time `> tvterm.ini`, beside it `> tvterm.ini.new`, `diff <(tvterm --print-settings) tvterm.ini` for new keys).
 - **Default profile**: `profile = NAME` is opened when tvterm starts without `-p`; `-p OTHER` wins; `-p none` starts without it.
   If it is missing or has errors: a normal terminal opens, the reason goes to the Event Viewer and the status line.
 - Reloaded automatically (checked every 2 s, by modification time and size) and with More... > Reload settings;
@@ -448,6 +454,28 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   it touches when something visible changes (keys, settings, profile keys, display, messages); internal fixes go only
   into HISTORY.
 
+### Files: Ctrl-W, Open after saving, View file, large files — `far2l-extended`
+- **Ctrl-W** (E25) closes the focused Editor (asks for unsaved changes), Log View (also Find / View windows) and Event
+  Viewer, like the close button: `closeKeyToCommand` (`apputil.h`) turns the key into `cmClose` for the window, so
+  `TWindow::handleEvent` → `close()` → `valid(cmClose)` runs as usual. Terminals do not take it (bash: delete word).
+- **Save > Open after saving** (E25): `No / Editor / Viewer` in the Save dialog of the history, the screen and the Log
+  View (`histdlg.cc`, one dialog); the choice is kept while tvterm runs (`sessionOpenAfter`), not in `tvterm.ini`.
+  After Append the whole file opens.
+- **More... > View file...** (E25, `cmViewFile`): file dialog (with directory completion, history id 102); with
+  `external-viewer` set, that program at once, without the size check; otherwise tvterm's viewer.
+- **Viewer** (E25): a Log View with fixed lines read from the file (`LogSource::createFixedFromText`: the same cleaning
+  as command output, escape sequences and `\r` removed), title `View: <path>` (`setFileView`; `D` keeps it), no
+  `(ended)`, not saved in profiles. Opens at the end, like a log.
+- **Large files** (E25, `fileopen.cc`): above `large-file`, Ctrl-B O, View file (without an external viewer) and Open
+  after saving show a "Large file" dialog (name, size, the limit): External Viewer / External Editor (only those set),
+  tvterm (or Open, when none is set), Cancel.
+- **External programs** (E25): a new terminal (`$SHELL -c command`, `keepOpen = false`) titled with the file name;
+  `TerminalWindow::closeWhenDone`: the application closes it in `idle()` when its program ends. `%f` → the path in
+  single quotes (`'` written as `'\''`); without `%f` the path is added at the end; no PATH lookup. The command goes to
+  the Event Viewer. Recommended with far2l: `far2l --mortal -v %f` / `-e %f` (checked by the user on Alpine, the Pi and
+  the server before E25; `--mortal`: far2l does not stay in the background when tvterm closes the window); no
+  `far2ledit` (not installed everywhere).
+
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
   `Alerts: N (Ctrl-B G)` counter drawn over the right end covers it less often).
@@ -549,6 +577,7 @@ source/tvterm/             the application
   settings.cc/.h           tvterm.ini: Settings, loadSettings/applySettings, key names, template, FileStamp
   globalkeys.cc/.h         global keys (E20): menu-key, key-zoom, key-window-*: parsing, matching, display names
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
+  fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs
   statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
                            (keyCommand: a command per key, turned into the key event in putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
@@ -831,6 +860,13 @@ examples/profiles/example.ini
   cell at the first ▲), a 28-row window, screen resizes (`resize-window`), W with a narrower screen, Zoom and D. The
   rounding rule (only the maximum in the last cell, the line before the end never) was checked in Python with tvision's
   `getPos` formula for 1–119 track cells and up to 3 million lines.
+- Files (E25), in tmux (160×45, `XDG_CONFIG_HOME` with several `tvterm.ini`): Ctrl-W in a terminal (bash deletes the word),
+  Event Viewer, new editor, modified editor (asks), Log View and Find window; the Save dialog (history and Log View) with
+  Editor and Viewer, the choice kept; `large-file = 1K` without external programs (Open / Cancel, for the editor and
+  the viewer), `0` (no dialog), an invalid value (Event Viewer); with a fake external program (a script writing its
+  arguments to a file): External Viewer (`%f`) and External Editor (path added) on `a b'c.txt` (one argument, exact),
+  tvterm button, View file direct to the external viewer, the window closing when the script ends, the Event Viewer
+  note; `D` on a View window; `--print-settings` (no file written, `XDG_CONFIG_HOME` empty) and `--help`.
 
 ---
 
@@ -897,3 +933,4 @@ examples/profiles/example.ini
 | Find window (`far2l-extended`) | E22 | Log View search dialog: New window opens the matching lines in a window with fixed lines (no process; F4 / New window again filter further; not saved in profiles) |
 | Highlight Words (`far2l-extended`) | E23 | F4 Highlight: Sets / Words; words with commas, a color per word (8, repeated), case ignored (ASCII), the first word wins; title `[W]`; profile `highlight-mode`, `highlight-words` |
 | Log View scroll bar (`far2l-extended`) | E24 | the vertical thumb is at the bottom exactly when the last line is visible (few lines, W, many lines); a resize keeps a following window at the end |
+| Files (`far2l-extended`) | E25 | Ctrl-W closes Editor / Log View / Event Viewer; Save > Open after saving (Editor / Viewer); More... > View file; `large-file` dialog; `external-viewer` / `external-editor` in a terminal that closes itself; `--print-settings` |

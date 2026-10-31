@@ -102,6 +102,39 @@ std::string settingsPath()
     return std::string(home ? home : ".") + "/.config/tvterm/tvterm.ini";
 }
 
+bool parseSize(const std::string &text, long long &bytes)
+// "5M", "500k", "1G", "1048576", "0".
+{
+    using namespace settingsini;
+    std::string t = trim(text);
+    if (t.empty() || !isdigit((unsigned char) t[0]))
+        return false;
+    char *end;
+    long long n = strtoll(t.c_str(), &end, 10);
+    std::string unit = lower(trim(end));
+    long long mult = unit.empty() || unit == "b" ? 1 :
+                     unit == "k" || unit == "kb" ? 1024LL :
+                     unit == "m" || unit == "mb" ? 1024LL * 1024 :
+                     unit == "g" || unit == "gb" ? 1024LL * 1024 * 1024 : 0;
+    if (mult == 0 || n < 0 || n > (1LL << 40) / mult)
+        return false;
+    bytes = n * mult;
+    return true;
+}
+
+std::string sizeName(long long bytes)
+// The shortest exact form: "5M", "500K", "1234".
+{
+    static const char units[] = {'G', 'M', 'K'};
+    for (int i = 0; i < 3; ++i)
+    {
+        long long mult = 1LL << (10 * (3 - i));
+        if (bytes > 0 && bytes % mult == 0)
+            return std::to_string(bytes / mult) + units[i];
+    }
+    return std::to_string(bytes);
+}
+
 bool parseKey(const std::string &text, TKey &key)
 // "Alt-Shift-PgUp", "ctrl+f5", "none"...
 {
@@ -239,6 +272,15 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseBool(value, settings.autoReload))
                     invalid("use yes or no"), settings.autoReload = previous.autoReload;
             }
+            else if (key == "large-file")
+            {
+                if (!parseSize(value, settings.largeFile))
+                    invalid("e.g. 5M, 500K, 1G or 0"), settings.largeFile = previous.largeFile;
+            }
+            else if (key == "external-viewer")
+                settings.externalViewer = value;
+            else if (key == "external-editor")
+                settings.externalEditor = value;
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -361,6 +403,15 @@ std::string settingsTemplate()
         "#profile = server-mail\n"
         "# Reload this file automatically when it changes (checked every 2 seconds).\n"
         "#auto-reload = yes\n"
+        "# Files larger than this ask before they open in tvterm (Save with 'Open\n"
+        "# after saving', Ctrl-B O, More... View file): K, M or G; 0: never ask.\n"
+        "#large-file = " + sizeName(d.largeFile) + "\n"
+        "# Programs for files, run in a new terminal window: %f is the file path\n"
+        "# (quoted for the shell; without %f, the path is added at the end).\n"
+        "# More... View file uses external-viewer directly; large files offer both.\n"
+        "# --mortal: far2l ends with the window (otherwise it stays in the background).\n"
+        "#external-viewer = far2l --mortal -v %f\n"
+        "#external-editor = far2l --mortal -e %f\n"
         "\n"
         "[scrollback]\n"
         "# Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

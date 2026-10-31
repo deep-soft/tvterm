@@ -32,6 +32,7 @@
 #include "app.h"
 #include "cmds.h"
 #include "editwnd.h"
+#include "apputil.h"
 #include "histdlg.h"
 #include "settings.h"
 #include "statline.h"
@@ -1336,7 +1337,7 @@ bool LogViewWindow::resolveHighlight()
         else if (std::find(hlReported.begin(), hlReported.end(), name) == hlReported.end())
         {
             hlReported.push_back(name);
-            TVTermApp::note( "Log View '" + plainTitle().substr(5) + "': unknown highlight set '" +
+            TVTermApp::note( "Log View '" + titleText() + "': unknown highlight set '" +
                              name + "' (not in tvterm.ini nor built in)" );
         }
     }
@@ -1535,7 +1536,13 @@ const char *LogViewWindow::getTitle(short)
 std::string LogViewWindow::plainTitle() const
 {
     using namespace logview;
-    return "Log: " + (options.title.empty() ? options.command : options.title);
+    return (fileView ? "View: " : "Log: ") + titleText();
+}
+
+std::string LogViewWindow::titleText() const
+{
+    using namespace logview;
+    return options.title.empty() ? options.command : options.title;
 }
 
 void LogViewWindow::updateTitle()
@@ -1967,6 +1974,7 @@ void LogViewWindow::duplicate()
     // The options include the filters on/off state (F). A window with
     // fixed lines is copied with the same lines.
     auto *copy = new LogViewWindow(nextWindowBounds(), o, fixedSource);
+    copy->fileView = fileView;
     TProgram::application->insertWindow(copy);
 }
 
@@ -2233,7 +2241,7 @@ void LogViewWindow::openFindWindow()
     if (searchRegex)
         w->searchRe = LogRegex::compile(searchText, !searchCase, true, error);
     TProgram::application->insertWindow(w);
-    TVTermApp::note( "Log View '" + plainTitle().substr(5) + "': New window with " + std::to_string(count) +
+    TVTermApp::note( "Log View '" + titleText() + "': New window with " + std::to_string(count) +
                      " line(s) matching \"" + searchText + "\"" );
 }
 
@@ -2529,6 +2537,8 @@ void LogViewWindow::handleEvent(TEvent &ev)
             }
         }
     }
+    // Ctrl-W: closes the window (see apputil.h).
+    closeKeyToCommand(*this, ev);
     if (ev.what == evKeyDown && (state & sfFocused))
     {
         TKey key(ev.keyDown);

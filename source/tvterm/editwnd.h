@@ -17,6 +17,9 @@ public:
 
     TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept;
 
+    // Ctrl-W closes the window (asks to save the changes).
+    void handleEvent(TEvent &ev) override;
+
     // Must be called once at startup: installs the dialogs used by the
     // editor (Save As, 'file modified', errors...).
     static void initEditorDialogs();

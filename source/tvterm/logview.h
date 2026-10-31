@@ -20,7 +20,10 @@
 //
 // A window made by Search > New window has fixed lines (a copy of the
 // matching lines of the other window, see LogSource::createFixed): no
-// command, no pause, no restart, no alerts, not saved in profiles.
+// command, no pause, no restart, no alerts, not saved in profiles. So has
+// a file shown by More... > View file or Save > Open after saving > Viewer
+// (title "View: <file>").
+// Ctrl-W closes the window.
 
 #define Uses_TWindow
 #define Uses_TView
@@ -97,8 +100,11 @@ public:
     bool setOptions(const LogViewOptions &newOptions, std::string &error);
     void setCustomTitle(const std::string &title);
     bool isSourceRunning() const noexcept { return source && source->isRunning(); }
-    // Made by Search > New window: fixed lines, no command.
+    // Made by Search > New window or View file: fixed lines, no command.
     bool hasFixedLines() const noexcept { return fixedSource != nullptr; }
+    // A file shown with fixed lines (View file, Save > Open after saving >
+    // Viewer): title "View: <file>" instead of "Log: ...".
+    void setFileView(bool on) noexcept { fileView = on; updateTitle(); }
 
     // AlertTarget.
     const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }
@@ -121,6 +127,7 @@ private:
     std::shared_ptr<LogSource> source;
     // Windows with fixed lines: their source (kept by D and setOptions).
     std::shared_ptr<LogSource> fixedSource;
+    bool fileView {false};
     std::unique_ptr<LogRegex> includeRe, excludeRe;
 
     LogViewInterior *interior {nullptr};
@@ -198,6 +205,8 @@ private:
     void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
     // The title without the alert mark.
     std::string plainTitle() const;
+    // The title without "Log: " / "View: " (for messages).
+    std::string titleText() const;
     void clearAlert() noexcept;
 
     // Scrolling.

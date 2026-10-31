@@ -20,6 +20,12 @@ struct Settings
     // [general]
     std::string profile;    // Profile opened when tvterm starts without -p.
     bool autoReload {true}; // Reload the file when it changes.
+    // Files larger than this (bytes) ask before they open in tvterm (Save >
+    // Open after saving, Ctrl-B O, More... > View file); 0: never ask.
+    long long largeFile {5LL * 1024 * 1024};
+    // Programs for files ('%f': the path, quoted for the shell); empty: none.
+    std::string externalViewer;
+    std::string externalEditor;
     // [scrollback]
     int lines {10000};
     int wheelLines {3};
@@ -57,6 +63,10 @@ void applySettings(const Settings &settings);
 // Contents of a new settings file: every key, commented out, with its
 // default value.
 std::string settingsTemplate();
+
+// Sizes as in 'large-file': bytes, or a number with K, M or G (1024).
+bool parseSize(const std::string &text, long long &bytes);
+std::string sizeName(long long bytes);
 
 // Key names, e.g. "Alt-Shift-PgUp". 'parseKey' accepts "none" (TKey()).
 bool parseKey(const std::string &text, TKey &key);

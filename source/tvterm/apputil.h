@@ -4,6 +4,8 @@
 #define Uses_TProgram
 #define Uses_TDeskTop
 #define Uses_TMenuPopup
+#define Uses_TKeys
+#define Uses_TEvent
 #include <tvision/tv.h>
 
 inline ushort execDialog(TDialog *d)
@@ -36,5 +38,22 @@ public:
         bounds.b.y = bounds.a.y + size.y;
     }
 };
+
+// Ctrl-W in the Editor, the Log View and the Event Viewer closes the window,
+// like its close button (an editor asks to save its changes). Not in
+// terminals: there Ctrl-W goes to the program (bash, far2l, mc).
+// Turns the key into cmClose for 'window'; returns whether it did.
+inline bool closeKeyToCommand(TView &window, TEvent &ev)
+{
+    if ( ev.what == evKeyDown && (window.state & sfFocused) &&
+         TKey(ev.keyDown) == TKey(kbCtrlW) )
+    {
+        ev.what = evCommand;
+        ev.message.command = cmClose;
+        ev.message.infoPtr = &window;
+        return true;
+    }
+    return false;
+}
 
 #endif // TVTERM_APPUTIL_H

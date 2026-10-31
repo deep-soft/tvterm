@@ -107,6 +107,16 @@ std::shared_ptr<LogSource> LogSource::createFixed(const std::string &command, st
     return std::shared_ptr<LogSource>(new LogSource(FixedTag {}, command, std::move(lines)));
 }
 
+std::shared_ptr<LogSource> LogSource::createFixedFromText(const std::string &command, const std::string &text)
+{
+    std::shared_ptr<LogSource> src(new LogSource(FixedTag {}, command, {}));
+    src->addData(text.data(), text.size());
+    if (!src->partial.empty())
+        src->endLine();
+    src->esc = Esc::None;
+    return src;
+}
+
 bool LogSource::pollAll()
 {
     using namespace logsrc;

@@ -38,6 +38,7 @@
 #include "dlgclip.h"
 #include "dircompl.h"
 #include "globalkeys.h"
+#include "fileopen.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -127,6 +128,8 @@ static void printUsage(FILE *f, const char *argv0)
         "  -p, --profile PROFILE   open the windows described in PROFILE\n"
         "                          ('none': do not open the default profile)\n"
         "  -V, --version           show the version and build information\n"
+        "      --print-settings    print a settings file with every key commented\n"
+        "                          out (default values) and exit; writes no file\n"
         "  -h, --help              show this help\n"
         "\n"
         "PROFILE is a file path (if it contains '/') or a name, looked up as\n"
@@ -134,8 +137,13 @@ static void printUsage(FILE *f, const char *argv0)
         "See examples/profiles/example.ini in the tvterm sources for the format.\n"
         "\n"
         "Settings (default profile, history, keys): %s\n"
-        "See examples/tvterm.ini in the tvterm sources.\n",
-        argv0, profileDir().c_str(), settingsPath().c_str());
+        "See examples/tvterm.ini in the tvterm sources, or --print-settings:\n"
+        "  first time:  %s --print-settings > %s\n"
+        "  beside it:   %s --print-settings > %s.new\n"
+        "  new keys:    diff <(%s --print-settings) %s\n",
+        argv0, profileDir().c_str(), settingsPath().c_str(),
+        argv0, settingsPath().c_str(), argv0, settingsPath().c_str(),
+        argv0, settingsPath().c_str());
 }
 
 int main(int argc, char **argv)
@@ -153,6 +161,13 @@ int main(int argc, char **argv)
         else if (!strcmp(arg, "-V") || !strcmp(arg, "--version"))
         {
             fputs(versionText().c_str(), stdout);
+            return 0;
+        }
+        else if (!strcmp(arg, "--print-settings"))
+        {
+            // Like the file made by More... > Edit settings; nothing is
+            // written (tvterm.ini is only created by Edit settings).
+            fputs(settingsTemplate().c_str(), stdout);
             return 0;
         }
         else if ((!strcmp(arg, "-p") || !strcmp(arg, "--profile")) && i + 1 < argc)
@@ -417,6 +432,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmChangeDir: changeDir(); break;
                 case cmNewEditor: newEditor(); break;
                 case cmOpenEditor: openEditor(); break;
+                case cmViewFile: viewFile(); break;
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
@@ -492,6 +508,11 @@ void TVTermApp::idle()
     // Log Views take the new lines of their sources during the broadcast.
     LogSource::pollAll();
     message(this, evBroadcast, cmCheckTerminalUpdates, nullptr);
+    // Terminals of the external viewer / editor: closed when it ends.
+    for (TWindow *w : getDeskTopWindows(*deskTop))
+        if (auto *term = dynamic_cast<TerminalWindow *>(w))
+            if (term->closeWhenDone && term->programEnded())
+                term->close();
     TVTermStatusLine::checkExpired();
     checkSettingsFile();
     if (auto *sl = dynamic_cast<AlertStatusLine *>(statusLine))
@@ -568,6 +589,8 @@ void TVTermApp::openMenu()
             *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             newLine() +
+            *new TMenuItem("~V~iew file...", cmViewFile, kbNoKey) +
+            newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
             *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +
             newLine() +
@@ -640,8 +663,29 @@ void TVTermApp::openEditor()
     if (result != cmCancel)
         p->getData(fileName);
     TObject::destroy(p);
+    // A large file asks first (see fileopen.h).
     if (result != cmCancel)
-        insertWindow(new TVTermEditWindow(editorBounds(deskTop->getExtent()), fileName));
+        fileopen::open(fileName, fileopen::Target::Editor);
+}
+
+void TVTermApp::viewFile()
+{
+    char fileName[MAXPATH] = "*";
+    TFileDialog *d = new TVTermFileDialog("*", "View file", "~N~ame", fdOpenButton, 102);
+    TView *p = validView(d);
+    if (!p)
+        return;
+    ushort result = deskTop->execView(p);
+    if (result != cmCancel)
+        p->getData(fileName);
+    TObject::destroy(p);
+    if (result != cmCancel)
+        fileopen::view(fileName);
+}
+
+TRect TVTermApp::editorRect()
+{
+    return editorBounds(TProgram::deskTop->getExtent());
 }
 
 void TVTermApp::toggleEventViewer()

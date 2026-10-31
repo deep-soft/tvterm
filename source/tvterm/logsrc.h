@@ -15,7 +15,8 @@
 // without threads.
 //
 // A fixed source (LogSource::createFixed) has no process: it holds lines
-// copied from another Log View (Search > New window). It is not shared by
+// copied from another Log View (Search > New window) or read from a file
+// (createFixedFromText). It is not shared by
 // command, not polled, never trimmed and cannot be restarted.
 
 #include <chrono>
@@ -45,6 +46,9 @@ public:
     static std::shared_ptr<LogSource> acquire(const std::string &command);
     // A fixed source holding 'lines' ('command': the one they came from).
     static std::shared_ptr<LogSource> createFixed(const std::string &command, std::vector<LogLine> lines);
+    // A fixed source holding the lines of 'text' (a file: View file, Save >
+    // Open after saving > Viewer), cleaned like the output of a command.
+    static std::shared_ptr<LogSource> createFixedFromText(const std::string &command, const std::string &text);
     // Reads the output of every source. Called in the application's idle
     // time. Returns true if any source received something.
     static bool pollAll();
