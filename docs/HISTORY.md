@@ -84,6 +84,7 @@ E23. Log View: Highlight Words (F4 Highlight: Sets / Words, a color per word)
 E24. Log View: the vertical scroll bar ends at the view at the end (thumb at the bottom = last line visible)
 E25. Ctrl-W closes windows, Save > Open after saving, View file, large files and external programs, --print-settings
 E26. File dialogs: `file-filters` patterns in the Name history, initial filter of Open / View file
+E27. Log View: Ctrl-Down / Ctrl-Up go to the next / previous line with a highlighted word (Highlight Words)
 
 ---
 
@@ -405,6 +406,13 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   only for words; default `sets`, an invalid value is reported), `highlight-words = …` (written when not empty, in
   either mode), `highlight-on = no` only when the mode in use has a value. D and Search > New window copy both values
   and the mode. The hint under the fields became two lines (filters / highlight examples).
+- **Ctrl-Down / Ctrl-Up** (E27, `findHighlighted`; F9: Next highlighted ~l~ine / Previo~u~s highlighted line,
+  `cmLogNextHighlighted` / `cmLogPrevHighlighted`): the cursor goes to the next / previous line in `shown` (so after the
+  filters and X; marker lines skipped) where `highlightLine` with the word rules colors at least one byte; moved with
+  `moveCursorTo` (as Up/Down: following stops unless it is the last line). From a hidden cursor line, Ctrl-Up starts at
+  the line before it. Only in Words mode with words and the colors on; otherwise a status message (Sets: almost every
+  line has colors). Not found: `No highlighted line below.` / `above.`. The cursor line keeps its black-on-cyan color
+  (no highlight on it, as before); a variant for the word under the cursor: maybe later.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -888,6 +896,9 @@ examples/profiles/example.ini
   `mail.log.1`; a pattern added to `tvterm.ini` appears after the reload (2 s) in Open and View file; Load Profile shows
   only `*.ini`; Save file as of an untitled editor offers the patterns and saves; `file-filters =` (empty) → Event Viewer
   note; without the key: `*.txt`, ↓ = `*`, `*.txt`.
+- Ctrl-Down / Ctrl-Up (E27), in tmux: a Log View on a script with 60 lines (words in lines 5, 20, 41, mixed case):
+  Ctrl-Up from the end 41 → 20 → 5 → `No highlighted line above.`, Ctrl-Down 20 → 41 → `below.`; with `exclude = status`
+  line 20 is skipped; a window with sets → the Sets message; H off → its message; F9 → `l` from line 5 → 41.
 
 ---
 
@@ -956,3 +967,4 @@ examples/profiles/example.ini
 | Log View scroll bar (`far2l-extended`) | E24 | the vertical thumb is at the bottom exactly when the last line is visible (few lines, W, many lines); a resize keeps a following window at the end |
 | Files (`far2l-extended`) | E25 | Ctrl-W closes Editor / Log View / Event Viewer; Save > Open after saving (Editor / Viewer); More... > View file; `large-file` dialog; `external-viewer` / `external-editor` in a terminal that closes itself; `--print-settings` |
 | File filters (`far2l-extended`) | E26 | `file-filters` in the Name history of Open / View file / Save file as; Open and View file start with the first pattern (default `*.txt`); profile dialogs: own lists |
+| Highlighted lines (`far2l-extended`) | E27 | Log View, Highlight Words: Ctrl-Down / Ctrl-Up (and F9) move the cursor to the next / previous line with a highlighted word |

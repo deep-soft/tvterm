@@ -249,6 +249,9 @@ private:
     void clearWindow();
     void openSearch();
     void findNext(bool older);
+    // Ctrl-Down / Ctrl-Up (Highlight Words): the next / previous line shown
+    // with at least one colored word.
+    void findHighlighted(bool down);
     void copySelection();
     void sendToEditor(bool newEditor);
     void save();

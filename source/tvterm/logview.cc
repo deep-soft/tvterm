@@ -124,6 +124,8 @@ enum : ushort
     cmLogAlerts,
     cmLogChooseEditor,
     cmLogHighlight,
+    cmLogNextHighlighted,
+    cmLogPrevHighlighted,
     // Button of the search dialog.
     cmLogFindNew,
 };
@@ -1885,6 +1887,8 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("Searc~h~...", cmLogSearch, kbNoKey, hcNoContext, "/") +
         *new TMenuItem("Find ~o~lder", cmLogFindOlder, kbNoKey, hcNoContext, "F3 n") +
         *new TMenuItem("Find ~n~ewer", cmLogFindNewer, kbNoKey, hcNoContext, "Shift-F3 N") +
+        *new TMenuItem("Next highlighted ~l~ine", cmLogNextHighlighted, kbNoKey, hcNoContext, "Ctrl-Down") +
+        *new TMenuItem("Previo~u~s highlighted line", cmLogPrevHighlighted, kbNoKey, hcNoContext, "Ctrl-Up") +
         newLine() +
         *new TMenuItem("~C~opy (selection or line)", cmLogCopy, kbNoKey, hcNoContext, "Ctrl-C") +
         *new TMenuItem("To new edi~t~or", cmLogToNewEditor, kbNoKey, hcNoContext, "Ctrl-E") +
@@ -1923,6 +1927,8 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogSearch: openSearch(); break;
         case cmLogFindOlder: findNext(true); break;
         case cmLogFindNewer: findNext(false); break;
+        case cmLogNextHighlighted: findHighlighted(true); break;
+        case cmLogPrevHighlighted: findHighlighted(false); break;
         case cmLogCopy: copySelection(); break;
         case cmLogToNewEditor: sendToEditor(true); break;
         case cmLogToEditor: sendToEditor(false); break;
@@ -2320,6 +2326,48 @@ void LogViewWindow::findNext(bool older)
                 searchText + "\"." );
 }
 
+void LogViewWindow::findHighlighted(bool down)
+{
+    using namespace logview;
+    // Only with Highlight Words: with the sets, almost every line has colors.
+    if (!options.highlightWordsMode)
+    {
+        showStatus("Ctrl-Down / Ctrl-Up: only with Highlight Words (F4, Highlight: Words).");
+        return;
+    }
+    if (options.highlightWords.empty())
+    {
+        showStatus("No highlight words: write them in F4 (Highlight, Words), e.g. error, status=sent.");
+        return;
+    }
+    if (!options.highlightOn)
+    {
+        showStatus("Highlight is off: H turns it on.");
+        return;
+    }
+    resolveHighlight();
+    if (shown.empty() || !source || hlRules.empty())
+        return;
+    // From the cursor line; when it is hidden (filters), cursorIndex() is
+    // the line before it, so going up starts there.
+    size_t cur = cursorIndex();
+    long index = (long) cur + (down ? 1 : (shown[cur] == cursorSeq ? -1 : 0));
+    std::vector<int> colors;
+    for (; index >= 0 && index < (long) shown.size(); index += down ? 1 : -1)
+    {
+        const LogLine &line = source->line(shown[index]);
+        if (line.marker)
+            continue;
+        highlightLine(hlRules, line.text, colors);
+        if (std::any_of(colors.begin(), colors.end(), [] (int c) { return c >= 0; }))
+        {
+            moveCursorTo(index, false);
+            return;
+        }
+    }
+    showStatus(down ? "No highlighted line below." : "No highlighted line above.");
+}
+
 void LogViewWindow::copySelection()
 {
     using namespace logview;
@@ -2551,6 +2599,8 @@ void LogViewWindow::handleEvent(TEvent &ev)
         else if (key == TKey(kbF2)) save();
         else if (key == TKey(kbF3)) findNext(true);
         else if (key == TKey(kbShiftF3)) findNext(false);
+        else if (key == TKey(kbCtrlDown)) findHighlighted(true);
+        else if (key == TKey(kbCtrlUp)) findHighlighted(false);
         else if (key == TKey(kbCtrlC) || key == TKey(kbCtrlIns)) copySelection();
         else if (key == TKey(kbCtrlE)) sendToEditor(true);
         else if (key == TKey(kbCtrlA)) sendToEditor(false);

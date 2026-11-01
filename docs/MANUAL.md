@@ -684,6 +684,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | `X` | clear this window (not the source) |
 | `/` | search (plain text or regular expression; match black on yellow); **New window** in the dialog: all the matching lines in a new window ([below](#search-new-window)) |
 | F3 or `n` / Shift-F3 or `N` | next match, older / newer |
+| Ctrl-Down / Ctrl-Up | next / previous line with a highlighted word (only with [Words](#words)) |
 | Up / Down, PgUp / PgDn, Home / End | move the cursor line |
 | Shift + those keys, Shift+click, drag | select lines |
 | Ctrl-C or Ctrl-Ins | copy the selection, or else the cursor line |
@@ -773,6 +774,12 @@ The field keeps both values: Sets and Words each have their own text, and switch
 that mode (the other one is kept, also in profiles: `highlight` and `highlight-words`, with `highlight-mode`). The title
 shows `[W]` while the words are used; **H** turns them off and on like the sets (`[H-]`). **D** and Search > New window
 copy the mode and both values.
+
+**Ctrl-Down** / **Ctrl-Up** (also in the F9 menu: Next / Previous highlighted line) move the cursor line to the next /
+previous line that has at least one of the words, among the lines shown (lines hidden by the filters or by `X` are
+skipped). Without one, the status line says `No highlighted line below.` / `above.`. They work only with Words and with
+the colors on (with the sets almost every line has colors); otherwise the status line says why. The cursor line is
+drawn black on cyan, so the colors of that line show again once the cursor moves on.
 
 ### Search: New window
 
