@@ -253,6 +253,14 @@ listed; `*` shows everything). Save file as starts with the name of the file. On
 `*.txt|*.log` does not work. Changed patterns are added when `tvterm.ini` is reloaded; names typed in the dialogs are
 kept only while tvterm runs. Load Profile and Save Profile As keep `*.ini` and have their own lists.
 
+**Size and columns** (`file-dialog-size`, `file-list-columns` in `tvterm.ini`). Open File in Editor, View file, Save file
+as, Load Profile and Save Profile As open with the size of `file-dialog-size` (e.g. `120x40`, columns x rows; without it,
+the size chosen by tvision), always centered; on a smaller screen they open shrunk to fit. Resize one with the mouse
+(bottom right corner) or with **Ctrl-F5** (arrows move it, Shift+arrows change its size, Enter ends): the next file
+dialogs open with that size until tvterm exits (not written to `tvterm.ini`), or until `file-dialog-size` changes.
+`file-list-columns = 1` lists the files in one column, so long names are shown whole (the bottom line shows the size
+and date of the chosen file); the default is `2`. The Save dialog of the history and the Log View does not change.
+
 ---
 
 ## 3. Terminals and the clipboard
@@ -414,6 +422,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
 | | `external-editor` | (none) | program offered for large files, e.g. `far2l --mortal -e %f` |
 | | `file-filters` | `*.txt *` | patterns offered by Down in the name field of Open File in Editor, View file and Save file as, separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
+| | `file-dialog-size` | (none) | size of the file dialogs when they open, columns x rows, e.g. `120x40` (at least `49x19`); smaller if the screen is smaller; empty or `none`: tvision's size ([File dialogs](#file-dialogs)) |
+| | `file-list-columns` | `2` | columns of the list of files in the file dialogs: `1` (long names whole) or `2` ([File dialogs](#file-dialogs)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
 | | `word-chars` | `-._/@:~+%=` | characters that belong to a word on double click, besides letters and digits |

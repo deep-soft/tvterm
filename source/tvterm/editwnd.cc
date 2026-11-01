@@ -63,8 +63,8 @@ static ushort editorDialog(int dialog, ...)
         {
             // 'fileName' is a buffer of MAXPATH characters owned by the editor.
             char *fileName = va_arg(args, char *);
-            TFileDialog *d = new TVTermFileDialog("*", "Save file as", "~N~ame",
-                                                  fdOKButton, fileopen::hiSaveFileAs);
+            TFileDialog *d = fileopen::newFileDialog("*", "Save file as",
+                                                     fdOKButton, fileopen::hiSaveFileAs);
             TView *p = TProgram::application->validView(d);
             if (p)
             {

@@ -15,6 +15,10 @@
 #include <vector>
 #include <time.h>
 
+// The smallest file dialog (TFileDialog::sizeLimits).
+const int minFileDialogWidth = 49;
+const int minFileDialogHeight = 19;
+
 struct Settings
 {
     // [general]
@@ -29,6 +33,12 @@ struct Settings
     // Patterns offered in the Name field of the file dialogs (its history);
     // the first one is the initial filter of Ctrl-B O and View file.
     std::vector<std::string> fileFilters {"*.txt", "*"};
+    // Size of the file dialogs when they open (columns x rows); 0: the size
+    // chosen by tvision. Made smaller to fit the screen.
+    int fileDialogWidth {0};
+    int fileDialogHeight {0};
+    // Columns of the list of files in the file dialogs (1 or 2).
+    int fileListColumns {2};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

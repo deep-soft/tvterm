@@ -4,9 +4,13 @@
 #define Uses_TProgram
 #define Uses_TDeskTop
 #define Uses_MsgBox
+#define Uses_TFileDialog
+#define Uses_TFileList
+#define Uses_TScrollBar
 #include <tvision/tv.h>
 
 #include "fileopen.h"
+#include "dircompl.h"
 #include "app.h"
 #include "editwnd.h"
 #include "logview.h"
@@ -173,6 +177,90 @@ static ushort askLargeFile(const std::string &path, long long size, fileopen::Ta
     return result;
 }
 
+// The size the user gave to a file dialog, kept until tvterm exits; it is
+// dropped when 'file-dialog-size' changes.
+struct RememberedSize
+{
+    bool set {false};
+    TPoint size;
+    int settingWidth {0}, settingHeight {0};
+};
+
+static RememberedSize rememberedSize;
+
+class SizedFileDialog : public TVTermFileDialog
+{
+public:
+    SizedFileDialog(const std::string &wildCard, const char *title,
+                    unsigned short options, unsigned char histId) noexcept;
+    void handleEvent(TEvent &ev) override;
+    void shutDown() override;
+
+private:
+    TPoint initialSize;
+};
+
+SizedFileDialog::SizedFileDialog(const std::string &wildCard, const char *title,
+                                 unsigned short options, unsigned char histId) noexcept :
+    TWindowInit(&TFileDialog::initFrame),
+    TVTermFileDialog(wildCard, title, "~N~ame", options, histId)
+{
+    const Settings &s = TVTermApp::settings();
+    TPoint want {0, 0};
+    if ( rememberedSize.set && rememberedSize.settingWidth == s.fileDialogWidth &&
+         rememberedSize.settingHeight == s.fileDialogHeight )
+        want = rememberedSize.size;
+    else
+    {
+        rememberedSize.set = false;
+        want = {s.fileDialogWidth, s.fileDialogHeight};
+    }
+    if (want.x > 0 && want.y > 0)
+    {
+        // Smaller than the desktop; at least tvision's minimum (locate).
+        TPoint desk = TProgram::deskTop ? TProgram::deskTop->size : want;
+        want.x = min(want.x, (int) desk.x);
+        want.y = min(want.y, (int) desk.y);
+        // Centered when inserted (ofCentered).
+        TRect r(0, 0, want.x, want.y);
+        locate(r);
+    }
+    initialSize = size;
+    if (fileList && s.fileListColumns == 1)
+    {
+        fileList->numCols = 1;
+        if (fileList->vScrollBar)
+            fileList->vScrollBar->setStep(max(1, fileList->size.y - 1), 1);
+        fileList->drawView();
+    }
+}
+
+void SizedFileDialog::handleEvent(TEvent &ev)
+{
+    // Ctrl-F5: resize / move with the keyboard (arrows move, Shift+arrows
+    // resize, Enter ends), as in the Quit dialog.
+    if (ev.what == evKeyDown && ev.keyDown.keyCode == kbCtrlF5)
+    {
+        ev.what = evCommand;
+        ev.message.command = cmResize;
+        ev.message.infoPtr = nullptr;
+    }
+    TVTermFileDialog::handleEvent(ev);
+}
+
+void SizedFileDialog::shutDown()
+{
+    if (size != initialSize)
+    {
+        const Settings &s = TVTermApp::settings();
+        rememberedSize.set = true;
+        rememberedSize.size = size;
+        rememberedSize.settingWidth = s.fileDialogWidth;
+        rememberedSize.settingHeight = s.fileDialogHeight;
+    }
+    TVTermFileDialog::shutDown();
+}
+
 } // namespace fileopenimpl
 
 namespace fileopen
@@ -261,6 +349,12 @@ void view(const std::string &path)
         runExternal(s.externalViewer, path, "external viewer");
     else
         open(path, Target::Viewer);
+}
+
+TFileDialog *newFileDialog(const std::string &wildCard, const char *title,
+                           unsigned short options, unsigned char histId)
+{
+    return new fileopenimpl::SizedFileDialog(wildCard, title, options, histId);
 }
 
 } // namespace fileopen

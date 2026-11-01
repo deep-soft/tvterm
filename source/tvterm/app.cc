@@ -660,7 +660,7 @@ void TVTermApp::openEditor()
     std::string filter = fileopen::firstFileFilter();
     char fileName[MAXPATH];
     strnzcpy(fileName, filter, sizeof(fileName));
-    TFileDialog *d = new TVTermFileDialog(filter, "Open file", "~N~ame", fdOpenButton, fileopen::hiOpenFile);
+    TFileDialog *d = fileopen::newFileDialog(filter, "Open file", fdOpenButton, fileopen::hiOpenFile);
     TView *p = validView(d);
     if (!p)
         return;
@@ -678,7 +678,7 @@ void TVTermApp::viewFile()
     std::string filter = fileopen::firstFileFilter();
     char fileName[MAXPATH];
     strnzcpy(fileName, filter, sizeof(fileName));
-    TFileDialog *d = new TVTermFileDialog(filter, "View file", "~N~ame", fdOpenButton, fileopen::hiViewFile);
+    TFileDialog *d = fileopen::newFileDialog(filter, "View file", fdOpenButton, fileopen::hiViewFile);
     TView *p = validView(d);
     if (!p)
         return;
@@ -1012,9 +1012,8 @@ static TFileDialog *newDialog(const std::string &dir, const char *title,
                               ushort options, uchar histId)
 {
     if (dir.empty() || access(dir.c_str(), F_OK) != 0)
-        return new TVTermFileDialog("*.ini", title, "~N~ame", options, histId);
-    TFileDialog *d = new TVTermFileDialog("*.ini", title, "~N~ame",
-                                          options | fdNoLoadDir, histId);
+        return fileopen::newFileDialog("*.ini", title, options, histId);
+    TFileDialog *d = fileopen::newFileDialog("*.ini", title, options | fdNoLoadDir, histId);
     std::string path = dir;
     if (path.back() != '/')
         path += '/';

@@ -303,6 +303,30 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 else
                     settings.fileFilters = std::move(filters);
             }
+            else if (key == "file-dialog-size")
+            {
+                // "120x40"; empty or "none": the size chosen by tvision.
+                std::string v = lower(value);
+                size_t x = v.find('x');
+                int w = 0, h = 0;
+                if (v.empty() || v == "none")
+                    settings.fileDialogWidth = settings.fileDialogHeight = 0;
+                else if ( x != std::string::npos &&
+                          parseInt(trim(v.substr(0, x)), minFileDialogWidth, 1000, w) &&
+                          parseInt(trim(v.substr(x + 1)), minFileDialogHeight, 1000, h) )
+                    settings.fileDialogWidth = w, settings.fileDialogHeight = h;
+                else
+                    invalid("columns x rows, e.g. 120x40; at least " +
+                            std::to_string(minFileDialogWidth) + "x" +
+                            std::to_string(minFileDialogHeight)),
+                    settings.fileDialogWidth = previous.fileDialogWidth,
+                    settings.fileDialogHeight = previous.fileDialogHeight;
+            }
+            else if (key == "file-list-columns")
+            {
+                if (!parseInt(value, 1, 2, settings.fileListColumns))
+                    invalid("1 or 2"), settings.fileListColumns = previous.fileListColumns;
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -439,6 +463,14 @@ std::string settingsTemplate()
         "# *.txt *log* *.ini *. The first one is the initial filter of Ctrl-B O and\n"
         "# View file. One pattern at a time (* and ?): *.txt|*.log does not work.\n"
         "#file-filters = " + settingsini::joinWords(d.fileFilters) + "\n"
+        "# Size of the file dialogs (Ctrl-B O, More... View file, Save file as, Load /\n"
+        "# Save Profile) when they open, columns x rows; smaller if the screen is\n"
+        "# smaller. Without it, tvision's size. A dialog resized with the mouse (or\n"
+        "# Ctrl-F5) keeps its size until tvterm exits.\n"
+        "#file-dialog-size = 120x40\n"
+        "# Columns of the list of files in those dialogs: 1 shows long names whole\n"
+        "# (the date and size of the chosen file are on the bottom line), or 2.\n"
+        "#file-list-columns = " + std::to_string(d.fileListColumns) + "\n"
         "\n"
         "[scrollback]\n"
         "# Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

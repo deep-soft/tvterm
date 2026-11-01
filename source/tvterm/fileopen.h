@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+class TFileDialog;
+
 namespace fileopen
 {
 
@@ -47,6 +49,14 @@ void addFileFilters(const std::vector<std::string> &filters);
 
 // The initial filter of Ctrl-B O and View file: the first 'file-filters'.
 std::string firstFileFilter();
+
+// The file dialogs of tvterm (Open, View file, Save file as, Load / Save
+// Profile): a TVTermFileDialog (directory completion) with the size of
+// 'file-dialog-size' and the columns of 'file-list-columns' (tvterm.ini).
+// A dialog resized by the user gives its size to the next ones, until
+// tvterm exits or 'file-dialog-size' changes.
+TFileDialog *newFileDialog(const std::string &wildCard, const char *title,
+                           unsigned short options, unsigned char histId);
 
 // The path quoted for the shell ('...', with ' written as '\'').
 std::string shellQuote(const std::string &path);

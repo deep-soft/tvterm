@@ -85,6 +85,7 @@ E24. Log View: the vertical scroll bar ends at the view at the end (thumb at the
 E25. Ctrl-W closes windows, Save > Open after saving, View file, large files and external programs, --print-settings
 E26. File dialogs: `file-filters` patterns in the Name history, initial filter of Open / View file
 E27. Log View: Ctrl-Down / Ctrl-Up go to the next / previous line with a highlighted word (Highlight Words)
+E28. File dialogs: `file-dialog-size`, `file-list-columns`, Ctrl-F5, size kept while tvterm runs
 
 ---
 
@@ -497,6 +498,16 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   and Save file as) and keep `*.ini`. tvision takes one pattern (`*`, `?`; `findfrst.cpp`): `*.txt|*.log` would need a
   list class of our own (Ideas). MANUAL: `%f` is the full path (the code has passed the absolute path since E25); the
   old `#highlight-words` links now point to the heading `#words`.
+- **Size and columns of the file dialogs** (E28): `fileopen::newFileDialog` (a `TVTermFileDialog` subclass in
+  `fileopen.cc`; `dircompl.cc`, shared with `far2l-integration`, is not changed) replaces `new TVTermFileDialog` in Open,
+  View file, Save file as and Load / Save Profile As. `file-dialog-size` (`WxH`, at least 49x19 = `TFileDialog::sizeLimits`)
+  sets the size with `locate` after tvision's own sizing; it is cut to the desktop; `ofCentered` centers it when it is
+  inserted. A size different from the opening one at `shutDown` (mouse, Ctrl-F5, i.e. the user resized it) is kept
+  while tvterm runs, together with the `file-dialog-size` it was made under; a changed key drops it. Without the key the
+  resize is kept too. `file-list-columns = 1` sets `TListViewer::numCols` (public) and the scroll bar steps (1 / page);
+  tvision lists only names, so one column shows long names whole (date and size stay on the info line). **Ctrl-F5**
+  becomes `cmResize` (as in the Quit Dialog); F5 does nothing (`TFileDialog` has no `wfZoom`). The Save dialog of the
+  history / Log View (`histdlg.cc`) is not changed.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -600,7 +611,8 @@ source/tvterm/             the application
   globalkeys.cc/.h         global keys (E20): menu-key, key-zoom, key-window-*: parsing, matching, display names
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
   fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs;
-                           history ids of the file dialogs and `file-filters` (E26)
+                           history ids of the file dialogs and `file-filters` (E26); newFileDialog: size and
+                           columns of the file dialogs (E28)
   statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
                            (keyCommand: a command per key, turned into the key event in putEvent)
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
@@ -900,6 +912,11 @@ examples/profiles/example.ini
   Ctrl-Up from the end 41 → 20 → 5 → `No highlighted line above.`, Ctrl-Down 20 → 41 → `below.`; with `exclude = status`
   line 20 is skipped; a window with sets → the Sets message; H off → its message; F9 → `l` from line 5 → 41.
 
+- File dialogs (E28), in tmux (160×45, a directory with 6 names of 80 characters, one with 60 files): without the key
+  79×29 as before; `120x40` + `file-list-columns = 1` → 120×40 centered, names whole; screen 100×30 → 100×29; Ctrl-F5 +
+  Shift+arrows → 115×38, kept at the next Open, in View file, Load Profile and Save file as (which saves); key changed
+  to `100x30` (reload) → 100×30, the kept size dropped; 2 columns as before; `30x10` and `3` → Event Viewer notes, old
+  values kept; one column with 60 files: Down scrolls one row, PgDn a page, the bottom line follows; `--print-settings`.
 ---
 
 ## 6. Known limitations
@@ -968,3 +985,4 @@ examples/profiles/example.ini
 | Files (`far2l-extended`) | E25 | Ctrl-W closes Editor / Log View / Event Viewer; Save > Open after saving (Editor / Viewer); More... > View file; `large-file` dialog; `external-viewer` / `external-editor` in a terminal that closes itself; `--print-settings` |
 | File filters (`far2l-extended`) | E26 | `file-filters` in the Name history of Open / View file / Save file as; Open and View file start with the first pattern (default `*.txt`); profile dialogs: own lists |
 | Highlighted lines (`far2l-extended`) | E27 | Log View, Highlight Words: Ctrl-Down / Ctrl-Up (and F9) move the cursor to the next / previous line with a highlighted word |
+| File dialog size (`far2l-extended`) | E28 | `file-dialog-size` (e.g. `120x40`) and `file-list-columns` (1 / 2) for Open, View file, Save file as, Load / Save Profile; Ctrl-F5; a resized dialog keeps its size while tvterm runs |
