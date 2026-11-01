@@ -88,6 +88,7 @@ E27. Log View: Ctrl-Down / Ctrl-Up go to the next / previous line with a highlig
 E28. File dialogs: `file-dialog-size`, `file-list-columns`, Ctrl-F5, size kept while tvterm runs
 E29. Log View: transformations (`[transform <name>]`, `replace`), key T, F4 Transform, profile `transform`
 E30. Log View transformations: `fields`, `fields-format`, widths (`key:>W` / `key:<W` / `!`)
+E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015`
 
 ---
 
@@ -382,6 +383,10 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   time (`2026-10-29T10:06:17`, `2026-10-29^10:06:17`, `2026-10-29 10:06:17`), with optional fractions of a second and time
   zone (`.123`, `+02:00`, `Z`), as well as `Oct 29 10:06:17`, so logs merged from different sources look the same.
   Only that rule changed: `[T^ ]` instead of `T` (a `^` that is not first inside `[ ]` is literal in POSIX).
+- E31 (postponed from E15, two more forms of the user's logs): the same rule takes `/` in the date
+  (`2026/10/29 14:28:36`, both separators the same: `-[0-9]{2}-` or `/[0-9]{2}/`) and a comma before the fraction
+  (`2026-10-29 14:32:35,015`); the fraction is now `([.,][0-9]+)?` instead of `[.0-9]*`, so a `.` or `,` without digits
+  right after the seconds (`10:06:17. `) is no longer dimmed. The `timestamps` set already had both forms.
 - E16: an arrow next to Include, Exclude and Highlight sets in F4 (like Command): a click or Down in the field opens a
   list. Include / Exclude: the values used before (one replaces the field; a quick way back, e.g. after turning an
   Exclude off with `!(…)`). Highlight sets: first the sets (built-in + `tvterm.ini`, sorted; one is added to the end of
@@ -911,6 +916,11 @@ examples/profiles/example.ini
   a space, `.123`, `+02:00`, `Z` and `Oct 29` (time dimmed up to the space, program name with `hash`), plus a line with
   no space after the time (not dimmed); the new expression gives the same groups on glibc and musl; in tmux, a Log View
   with `syslog` on a file with all the forms.
+- `syslog` test (E31): a C++ test linked with `highlight.cc` (20 checks, 6 of them fail on E30): `2026/10/29 14:28:36`,
+  `2026-10-29 14:32:35,015`, `,5`, `/` with `T`, `.123+02:00`, the E15 forms, `Oct  9`; not dimmed: no space after the
+  time, mixed `-` / `/`, `,` or `.` without digits, a date not at the start; the program name still hashed; `zimbra-mta`
+  (includes `syslog`). In tmux (`capture-pane -e`): a Log View with `syslog` on the four forms, each time dimmed up to
+  the space.
 - Field list tests (E16), in tmux with `LANG=C.UTF-8` (without it tvision shows UTF-8 typed through tmux as `�`, in the
   fields and in the Command list too): arrows next to the four fields; empty list `(nothing used yet)`, Enter keeps the
   field; 22 Exclude values applied → `v22` first, `v03` last; an empty value applied is not recorded; a value applied
@@ -1056,3 +1066,4 @@ examples/profiles/example.ini
 | File dialog size (`far2l-extended`) | E28 | `file-dialog-size` (e.g. `120x40`) and `file-list-columns` (1 / 2) for Open, View file, Save file as, Load / Save Profile; Ctrl-F5; a resized dialog keeps its size while tvterm runs |
 | Transformations (`far2l-extended`) | E29 | Log View: `[transform <name>]` sets with `replace = "regex" "template"` (groups, alignment, cut); the text shown is transformed (filters and alerts on the original); T, `[T-]`, F4 Transform with ↓, profile `transform`, `transform-on` |
 | Fields (`far2l-extended`) | E30 | `[transform <name>]`: `fields = k1 k2:>W k3:<W!` (the values of `key=value` words, quoted values whole), `fields-format = pairs / values`; missing fields left out (blanks with a width); before the `replace` rules |
+| `syslog` time forms (`far2l-extended`) | E31 | also `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015` |
