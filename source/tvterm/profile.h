@@ -54,6 +54,9 @@ struct WindowProfile
     // All windows: position and size in percent of the desktop, if 'hasPos'.
     bool hasPos {false};
     double x {0}, y {0}, w {100}, h {100};
+    // Desktop (1-9; see desktops.h). Not for the Event Viewer, which is on
+    // every desktop.
+    int desktop {1};
 };
 
 struct Profile
@@ -63,6 +66,7 @@ struct Profile
     std::string path;
     Layout layout {Auto};
     int focus {0}; // 1-based index of the window to focus; 0: the last one.
+    int desktop {1}; // The desktop shown after loading (1-9).
     std::vector<WindowProfile> windows;
     // Things changed while loading that are not errors (e.g. a position
     // moved inside the desktop), one per line.

@@ -61,6 +61,12 @@ struct TVTermApp : public TApplication
     // 'startup': first reading, only problems are reported.
     void reloadSettings(bool manual, bool startup = false);
     void about();
+    // Desktops (see desktops.h).
+    void switchDesktop(int n);
+    void desktopMenu();
+    void moveWindowMenu();
+    // A menu of the desktops 1-9; returns the chosen one, or 0.
+    int chooseDesktop(bool moving);
 
     // Current settings (tvterm.ini).
     static const Settings &settings();

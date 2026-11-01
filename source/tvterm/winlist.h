@@ -15,7 +15,8 @@ void execWindowList(TDeskTop &deskTop);
 // Returns false otherwise.
 bool renameTerminal(TWindow *window);
 
-// Windows on the desktop, from front to back.
+// Windows on the desktop, from front to back, with those hidden on the
+// other desktops (see desktops.h).
 std::vector<TWindow *> getDeskTopWindows(TDeskTop &deskTop);
 
 #endif // TVTERM_WINLIST_H

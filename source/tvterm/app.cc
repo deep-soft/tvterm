@@ -39,6 +39,7 @@
 #include "dircompl.h"
 #include "globalkeys.h"
 #include "fileopen.h"
+#include "desktops.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -52,6 +53,7 @@
 #include <vector>
 #include <deque>
 #include <chrono>
+#include <algorithm>
 
 namespace appsettings
 {
@@ -446,6 +448,9 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmEditSettings: editSettings(); break;
                 case cmReloadSettings: reloadSettings(true); break;
                 case cmAbout: about(); break;
+                case cmSwitchDesktop: switchDesktop(event.message.infoInt); break;
+                case cmDesktopMenu: desktopMenu(); break;
+                case cmMoveWindowMenu: moveWindowMenu(); break;
                 case cmShowNotes:
                     if (event.message.infoPtr)
                         showNotes(*(TEventViewer *) event.message.infoPtr, true);
@@ -519,12 +524,15 @@ void TVTermApp::idle()
                 term->close();
     TVTermStatusLine::checkExpired();
     checkSettingsFile();
+    // Closed windows of the other desktops.
+    desktops::prune(*deskTop);
     if (auto *sl = dynamic_cast<AlertStatusLine *>(statusLine))
     {
         size_t count = countAlerts(*deskTop);
-        if (count != sl->alertCount)
+        if (count != sl->alertCount || sl->desktop != desktops::current())
         {
             sl->alertCount = count;
+            sl->desktop = desktops::current();
             sl->drawView();
         }
     }
@@ -534,7 +542,8 @@ namespace appmenu
 {
 
 // The Ctrl-B menu. F, the former letter of Zoom (Maximize/Restore), still
-// works.
+// works. The digits 1-9 show that desktop: the command is sent once the
+// menu is closed (TMenuView::execute puts back the evCommand that ends it).
 class MainMenuPopup : public CenteredMenuPopup
 {
 public:
@@ -544,7 +553,16 @@ public:
     void getEvent(TEvent &event) override
     {
         CenteredMenuPopup::getEvent(event);
-        if (event.what == evKeyDown && TKey(event.keyDown) == TKey('F'))
+        if ( event.what == evKeyDown && event.keyDown.textLength == 1 &&
+             event.keyDown.text[0] >= '1' && event.keyDown.text[0] <= '9' &&
+             !(event.keyDown.controlKeyState & (kbCtrlShift | kbAltShift)) )
+        {
+            int n = event.keyDown.text[0] - '0';
+            event.what = evCommand;
+            event.message.command = cmSwitchDesktop;
+            event.message.infoInt = n;
+        }
+        else if (event.what == evKeyDown && TKey(event.keyDown) == TKey('F'))
         {
             event.keyDown.keyCode = 'z';
             event.keyDown.controlKeyState = 0;
@@ -573,6 +591,9 @@ void TVTermApp::openMenu()
         *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
+        newLine() +
+        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~1~-~9~") +
+        *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
         newLine() +
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
         *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
@@ -893,7 +914,10 @@ void TVTermApp::openProfile(const Profile &profile)
     TRect ext = deskTop->getExtent();
     bool anyPos = false;
     std::vector<TWindow *> windows;
+    std::vector<int> windowDesktops; // Beside 'windows'.
     VTermEmulatorFactory factory;
+    // Windows closed just before (Load Profile): forgotten first.
+    desktops::prune(*deskTop);
 
     for (const auto &win : profile.windows)
     {
@@ -985,22 +1009,50 @@ void TVTermApp::openProfile(const Profile &profile)
         }
         if (window)
             if (TWindow *inserted = insertWindow(window))
+            {
                 windows.push_back(inserted);
+                windowDesktops.push_back(win.kind == WindowProfile::EventViewer ? 0 : win.desktop);
+            }
     }
 
-    Profile::Layout layout = profile.layout;
-    if (layout == Profile::Auto)
-        layout = anyPos || windows.size() < 2 ? Profile::Manual : Profile::TileColumns;
-    switch (layout)
+    // Each window on its desktop (the Event Viewer: on all of them). The
+    // layout is applied to each desktop that got windows, the one to show
+    // last.
+    int target = profile.desktop;
+    std::vector<int> used;
+    for (size_t i = 0; i < windows.size(); ++i)
     {
-        case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
-        case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
-        case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); noteNoFreeArea(); break;
-        default: break;
+        int d = windowDesktops[i];
+        if (d == 0)
+            continue;
+        desktops::moveTo(*deskTop, windows[i], d);
+        if (d != target && std::find(used.begin(), used.end(), d) == used.end())
+            used.push_back(d);
+    }
+    std::sort(used.begin(), used.end());
+    used.push_back(target);
+    for (int d : used)
+    {
+        desktops::switchTo(*deskTop, d);
+        size_t count = 0;
+        for (size_t i = 0; i < windows.size(); ++i)
+            count += windowDesktops[i] == d;
+        Profile::Layout layout = profile.layout;
+        if (layout == Profile::Auto)
+            layout = anyPos || count < 2 ? Profile::Manual : Profile::TileColumns;
+        if (count == 0)
+            layout = Profile::Manual;
+        switch (layout)
+        {
+            case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
+            case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
+            case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); noteNoFreeArea(); break;
+            default: break;
+        }
     }
 
     if (profile.focus > 0 && (size_t) profile.focus <= windows.size())
-        windows[profile.focus - 1]->select();
+        desktops::selectWindow(*deskTop, windows[profile.focus - 1]);
 }
 
 namespace profiledlg
@@ -1190,8 +1242,10 @@ void TVTermApp::saveProfile()
 {
     // Windows, from back to front, so that the stacking order is the
     // same when the profile is loaded again.
+    // With those of the other desktops (hidden).
     std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
     Profile profile;
+    profile.desktop = desktops::current();
     TRect ext = deskTop->getExtent();
     int untitledWithText = 0, modifiedFiles = 0;
     for (auto it = windows.rbegin(); it != windows.rend(); ++it)
@@ -1254,6 +1308,8 @@ void TVTermApp::saveProfile()
         }
         else
             continue;
+        // The Event Viewer is on every desktop (no key).
+        profile.windows.back().desktop = std::max(1, desktops::of(w));
         if (w == deskTop->current)
             profile.focus = (int) profile.windows.size();
     }
@@ -1317,4 +1373,78 @@ void TVTermApp::about()
         if (dynamic_cast<TerminalWindow *>(w))
             ++info.terminals;
     showAbout(info);
+}
+
+// Desktops (see desktops.h).
+
+void TVTermApp::switchDesktop(int n)
+{
+    if (n < 1 || n > desktops::count)
+        return;
+    desktops::switchTo(*deskTop, n);
+}
+
+int TVTermApp::chooseDesktop(bool moving)
+// A menu with the desktops 1-9 (and the windows on each); the digits choose.
+{
+    auto counts = desktops::windowCounts(*deskTop);
+    TMenuItem *first = nullptr, *last = nullptr;
+    for (int n = 1; n <= desktops::count; ++n)
+    {
+        std::string text = (moving ? "Move to Desktop " : "Desktop ") + std::to_string(n);
+        std::string info;
+        if (n == desktops::current())
+            info = "current";
+        if (counts[n])
+            info += (info.empty() ? "" : ", ") + std::to_string(counts[n]) +
+                    (counts[n] == 1 ? " window" : " windows");
+        if (!info.empty())
+            text += "  (" + info + ")";
+        std::string key = "~" + std::to_string(n) + "~";
+        auto *item = new TMenuItem(text.c_str(), cmDesktopPick + n, '0' + n, hcNoContext, key.c_str());
+        if (last)
+            last->next = item;
+        else
+            first = item;
+        last = item;
+    }
+    TMenu *menu = new TMenu(*first);
+    // The current desktop is the default item.
+    TMenuItem *item = first;
+    for (int n = 1; n < desktops::current() && item->next; ++n)
+        item = item->next;
+    menu->deflt = item;
+    TMenuPopup *popup = new CenteredMenuPopup(menu);
+    popup->helpCtx = hcMenu;
+    ushort cmd = execView(popup);
+    TObject::destroy(popup);
+    if (cmd > cmDesktopPick && cmd <= cmDesktopPick + desktops::count)
+        return cmd - cmDesktopPick;
+    return 0;
+}
+
+void TVTermApp::desktopMenu()
+{
+    if (int n = chooseDesktop(false))
+        switchDesktop(n);
+}
+
+void TVTermApp::moveWindowMenu()
+{
+    auto *w = dynamic_cast<TWindow *>(deskTop->current);
+    if (!w)
+    {
+        messageBox("There is no window to move.", mfInformation | mfOKButton);
+        return;
+    }
+    if (desktops::isGlobal(w))
+    {
+        messageBox("The Event Viewer is on every desktop.", mfInformation | mfOKButton);
+        return;
+    }
+    int n = chooseDesktop(true);
+    if (n == 0 || n == desktops::current())
+        return;
+    desktops::moveTo(*deskTop, w, n);
+    appsettings::showStatus("Window moved to desktop " + std::to_string(n) + ".");
 }

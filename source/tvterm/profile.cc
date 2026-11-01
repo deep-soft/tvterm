@@ -240,6 +240,8 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else
                     profile.focus = (int) n;
             }
+            else if (key == "desktop")
+                parseCount(1, 9, profile.desktop, "1-9");
             else
                 warn("unknown key '" + key + "' in [profile]");
         }
@@ -256,6 +258,13 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             {
                 if (!parsePos(value, win, profile.notes))
                     warn("invalid pos '" + value + "' (use: x y width height, in percent)");
+            }
+            else if (key == "desktop")
+            {
+                if (win.kind == WindowProfile::EventViewer)
+                    warn("desktop in [eventviewer]: the Event Viewer is on every desktop");
+                else
+                    parseCount(1, 9, win.desktop, "1-9");
             }
             else if ((isTerm || isLog) && key == "title")
                 win.title = value;
@@ -408,6 +417,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
             "layout = manual\n";
     if (profile.focus > 0)
         file << "focus = " << profile.focus << "\n";
+    if (profile.desktop != 1)
+        file << "desktop = " << profile.desktop << "\n";
     for (const auto &win : profile.windows)
     {
         switch (win.kind)
@@ -492,6 +503,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
         if (win.hasPos)
             file << "pos = " << formatPercent(win.x) << " " << formatPercent(win.y)
                  << " " << formatPercent(win.w) << " " << formatPercent(win.h) << "\n";
+        if (win.desktop != 1 && win.kind != WindowProfile::EventViewer)
+            file << "desktop = " << win.desktop << "\n";
     }
     file.close();
     if (!file)

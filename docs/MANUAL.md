@@ -108,7 +108,8 @@ together with the settings file, the last profile loaded, the uptime and the num
 
 The screen has the desktop (the windows) and, at the bottom, the **status line**. The status line changes with the
 focused window and shows its main keys; a click on an item works like its key. `WinList` opens the Window List.
-When windows have alerts, `Alerts: N (Ctrl-B G)` appears at its right end. Short messages (e.g. "Settings reloaded.")
+Its right end shows the current desktop (` D1 `, [Desktops](#desktops)) and, when windows have alerts,
+`Alerts: N (Ctrl-B G)`. Short messages (e.g. "Settings reloaded.")
 replace the status line for 5 seconds.
 
 Windows are moved with the mouse by their title, resized by their lower right corner and closed with the `[■]` button,
@@ -132,6 +133,8 @@ writes Ctrl-B.
 | `G` | Go to Next Alert | goes to the window with the oldest alert |
 | `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
 | `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
+| `1`–`9` | Desktop... | shows that desktop; the item itself (arrows + Enter) lists the desktops ([Desktops](#desktops)) |
+| `Y` | Move Window to Desktop... | moves the focused window to another desktop |
 | `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
 | `P` | Paste | pastes the clipboard into the terminal |
@@ -153,7 +156,7 @@ terminal Ctrl-W is not taken: it goes to the program (in bash it deletes the wor
 
 ### Tile and Cascade
 
-Tile and Cascade arrange the terminals and Log Views. The **Event Viewer and the editors stay where they are**; the other
+Tile and Cascade arrange the terminals and Log Views of the current desktop. The **Event Viewer and the editors stay where they are**; the other
 windows use the largest rectangle that overlaps none of them. If that rectangle is smaller than 20 columns × 6 rows
 (or there is no fixed window), the whole desktop is used and the Event Viewer gets the note
 "no free area beside the fixed windows, using the whole desktop".
@@ -161,7 +164,24 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 ### Window List
 
 **Ctrl-B W** or a click on `WinList`. Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
-with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Cancel.
+with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Cancel. The list has the windows of every
+desktop; Go on a window of another desktop shows that desktop.
+
+### Desktops
+
+There are 9 desktops. Only the windows of the current one are shown; the others keep running (programs, Log Views,
+alerts). The status line shows the current desktop (` D2 `).
+
+- **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops with the
+  number of windows on each; a digit or Enter chooses. An empty desktop can be shown.
+- New windows open on the current desktop.
+- **Ctrl-B Y** moves the focused window to another desktop (same list); you stay on the current one.
+- The **Event Viewer is on every desktop** and cannot be moved.
+- Each desktop remembers its focused window. Tab / Shift-Tab, the `key-window-*` keys, Tile and Cascade work on the
+  current desktop only.
+- **Ctrl-B G** goes to the window with the oldest alert, showing its desktop. The Window List and the Go to button of
+  the Quit list do the same; the alert counter counts every desktop.
+- Profiles keep the desktop of each window ([Profiles](#format)).
 
 ### Grab Input
 
@@ -214,7 +234,7 @@ key-window-down = Alt-Down:not-far2l, Shift-Alt-Down
 ### Quitting
 
 **Ctrl-B Q** lists the open terminals and Log Views with what runs in each (e.g. `tail -F /var/log/maillog`,
-`bash, idle`), the busy ones first. Buttons: **Quit**, **Go to** (goes to the chosen window, does not quit), Cancel.
+`bash, idle`), the busy ones first. Buttons: **Quit**, **Go to** (goes to the chosen window and shows its desktop, does not quit), Cancel.
 Editors with unsaved changes ask afterwards. Programs receive SIGHUP; far2l stays in the background and can be reattached.
 
 The dialog opens large enough to show every line whole (when the screen allows) and can be changed while it is open:
@@ -483,9 +503,12 @@ with **Ctrl-B L**, or as the default profile. **Ctrl-B A** saves the open window
 |---|---|---|
 | `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade` |
 | `focus` | last window | window focused at start, 1 = the first window section |
+| `desktop` | `1` | desktop shown after loading (1–9) |
 
 All the window sections accept `pos = x y width height`, in **percent** of the desktop (decimals allowed). A position
 partly outside the desktop is moved inside (and shrunk if larger), with a note in the Event Viewer.
+`[terminal]`, `[logview]` and `[editor]` accept `desktop = N` (1–9, default 1; [Desktops](#desktops)); `layout` is
+applied to each desktop separately. Profiles without `desktop` open everything on desktop 1.
 
 `[terminal]`:
 
@@ -546,7 +569,8 @@ pos = 50 60 50 40
 
 ### Saving (Ctrl-B A)
 
-Saves every window with its position (inside the desktop, one decimal), the stacking order and the focused window.
+Saves every window of every desktop with its position (inside the desktop, one decimal), its desktop (when not 1),
+the stacking order, the focused window and the current desktop.
 For a terminal: the fixed title, the current directory of the program running in it, the command from the profile or
 else the command running in the foreground (e.g. `tail -f ...`, saved with `keep-open = yes`), the alerts.
 For a Log View: all its settings. The text of untitled editors is not saved, and editors with unsaved changes keep only

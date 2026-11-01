@@ -2,6 +2,7 @@
 #define TVTERM_APPUTIL_H
 
 #define Uses_TProgram
+#define Uses_TDialog
 #define Uses_TDeskTop
 #define Uses_TMenuPopup
 #define Uses_TKeys

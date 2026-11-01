@@ -89,6 +89,7 @@ E28. File dialogs: `file-dialog-size`, `file-list-columns`, Ctrl-F5, size kept w
 E29. Log View: transformations (`[transform <name>]`, `replace`), key T, F4 Transform, profile `transform`
 E30. Log View transformations: `fields`, `fields-format`, widths (`key:>W` / `key:<W` / `!`)
 E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015`
+E32. Desktops 1-9 (core): Ctrl-B 1-9, Ctrl-B Y, `D2` in the status line, `desktop` in profiles
 
 ---
 
@@ -99,7 +100,7 @@ E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `202
 `R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, I, J, X, Y (`M` opens More...).
+Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` Move Window to Desktop (E32).
 - E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
   key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
   the close box of the frame still close windows). MANUAL chapter 2 and `examples/profiles/example.ini` updated.
@@ -464,6 +465,42 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   fields, a `fields-format` other than `pairs` / `values` → `pairs`, `fields-format` without `fields`) → Event Viewer.
   Example `fortigate-fields` (commented) in the template, `examples/tvterm.ini` and MANUAL (Transformations: Fields).
 
+### Desktops — `far2l-extended`
+E32 (the core; agreed in chats 25 and 38). Desktops 1-9 are groups of windows: only the windows of the current desktop
+are shown, the others are hidden (`TView::hide`) but keep running (processes, Log View sources, alerts).
+- **Ctrl-B 1-9** shows that desktop (the digits are taken by the menu popup, `MainMenuPopup::getEvent`, and sent as
+  `cmSwitchDesktop` once the menu is closed); **Ctrl-B, Desktop...** (no letter, shown as `1-9`) opens a list of the 9
+  desktops with the current one and the number of windows on each. Empty desktops can be shown; new windows (terminals,
+  editors, Log Views, Find > New window, View file) go to the current desktop.
+- **Ctrl-B Y** (Move Window to Desktop...): the same list, the focused window goes to the chosen desktop and the current
+  desktop stays shown (status message "Window moved to desktop N."). The Event Viewer cannot be moved.
+- The **Event Viewer is on every desktop** (never hidden); Tile / Cascade still leave it in place.
+- Each desktop remembers its focused window; when that was the Event Viewer (or it was closed), the frontmost window of the
+  desktop gets the focus. Tab / Shift-Tab, `key-window-*`, Tile and Cascade see only the current desktop (hidden windows are
+  not `sfVisible`).
+- Going to a window on another desktop shows that desktop first: Ctrl-B G (alerts), Window List Go, Go to in the Quit /
+  Close windows lists (`desktops::selectWindow`). The Window List, the Quit / Close lists, alerts, About and Save Profile
+  count the windows of every desktop (`getDeskTopWindows` includes the hidden ones).
+- Status line: ` D2 ` at the right end, before `Alerts: N (Ctrl-B G)` (`AlertStatusLine::desktop`).
+- Profiles: `desktop = N` in a window section (1-9, default 1; refused with a warning in `[eventviewer]`) and in
+  `[profile]` (the desktop shown after loading, default 1); saved only when not 1, so old profiles load unchanged (all on
+  desktop 1, and desktop 1 is shown). `layout` is applied to each desktop that gets windows (`auto`: by the number of
+  windows of that desktop); `focus` can switch to the desktop of its window.
+- Implementation: only the hidden windows are recorded (`std::map<TView*, int>`); the visible ones are on the current
+  desktop. Closed windows are forgotten in `idle` and before a profile is opened (`desktops::prune`); a stale entry cannot
+  harm, because every lookup starts from the desktop's children and checks `sfVisible` first. Hiding or showing a window
+  that is not the focused one is done without `ofSelectable` for the moment: `TView::setState(sfVisible)` calls
+  `resetCurrent()`, which would select (and so clear the alert of) the frontmost window of the desktop.
+- Found at the real test (v2): after a switch, the window to focus could already be the frontmost one; `TView::select`
+  then does nothing (`makeFirst` only, the focus comes from `resetCurrent`), so the window had no focus and took no keys
+  or clicks (e.g. a window moved with Ctrl-B Y, or a single window, on the desktop shown again) until another switch.
+  `desktops::focusWindow` also calls `setCurrent`.
+- `apputil.h` defines `Uses_TDialog` (it uses `TDialog`): with the new file, the Unity build grouped the sources so that
+  `evntview.cc` saw `execDialog` without `TDialog`.
+- Planned next (E33): `D2:1·2·4` with a click, column `D` in the Window List and the Quit list, `Alerts: 3 (D2 D4)`,
+  Ctrl-B 0 = previous desktop, desktop names in profiles; proposed at the real test: a resizable Window List with
+  desktop, title and command, reachable from the status line like `WinList`.
+
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
 - **OSC 52**: programs inside tvterm (vim, tmux, scripts) can write to the clipboard; reading is refused on purpose (security).
@@ -638,7 +675,8 @@ source/tvterm/             the application
   app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help/--version
   about.cc/.h              version text and About dialog; declarations of the generated build information
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
-  winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows
+  winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows (with the windows of other desktops)
+  desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, AlertStatusLine (a TVTermStatusLine with the alert counter),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
@@ -1067,3 +1105,4 @@ examples/profiles/example.ini
 | Transformations (`far2l-extended`) | E29 | Log View: `[transform <name>]` sets with `replace = "regex" "template"` (groups, alignment, cut); the text shown is transformed (filters and alerts on the original); T, `[T-]`, F4 Transform with ↓, profile `transform`, `transform-on` |
 | Fields (`far2l-extended`) | E30 | `[transform <name>]`: `fields = k1 k2:>W k3:<W!` (the values of `key=value` words, quoted values whole), `fields-format = pairs / values`; missing fields left out (blanks with a width); before the `replace` rules |
 | `syslog` time forms (`far2l-extended`) | E31 | also `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015` |
+| Desktops (`far2l-extended`) | E32 | desktops 1-9: Ctrl-B 1-9 / Desktop..., Ctrl-B Y, Event Viewer on all, focus per desktop, G / Window List / Go to switch, ` D2 ` in the status line, profile `desktop` |

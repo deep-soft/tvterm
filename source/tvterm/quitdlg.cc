@@ -17,6 +17,7 @@
 #include "winlist.h"
 #include "wnd.h"
 #include "logview.h"
+#include "desktops.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 
@@ -380,6 +381,6 @@ bool confirmQuit(TDeskTop &deskTop, bool closing)
     if (result == cmOK)
         return true;
     if (result == cmQuitGoTo && focused >= 0 && (size_t) focused < terms.size())
-        terms[focused].window->select();
+        desktops::selectWindow(deskTop, terms[focused].window);
     return false;
 }

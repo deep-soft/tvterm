@@ -13,6 +13,7 @@
 #include <tvision/tv.h>
 
 #include "alerts.h"
+#include "desktops.h"
 #include "globalkeys.h"
 #include "wnd.h"
 #include "winlist.h"
@@ -409,7 +410,8 @@ bool goToNextAlert(TDeskTop &deskTop)
 {
     if (TWindow *w = oldestAlert(deskTop))
     {
-        w->select();
+        // On another desktop: that desktop is shown.
+        desktops::selectWindow(deskTop, w);
         return true;
     }
     return false;
@@ -452,11 +454,15 @@ std::string listAlerts(TDeskTop &deskTop)
 void AlertStatusLine::draw()
 {
     TVTermStatusLine::draw();
-    if (alertCount == 0 || TVTermStatusLine::hasMessage())
+    if (TVTermStatusLine::hasMessage())
         return;
-    char text[96];
-    snprintf( text, sizeof(text), " Alerts: %zu (%s G) ", alertCount,
-              globalkeys::menuKeyName().c_str() );
+    // The current desktop, then the alerts, if any.
+    char text[112];
+    if (alertCount == 0)
+        snprintf(text, sizeof(text), " D%d ", desktop);
+    else
+        snprintf( text, sizeof(text), " D%d  Alerts: %zu (%s G) ", desktop, alertCount,
+                  globalkeys::menuKeyName().c_str() );
     int width = (int) strwidth(text);
     if (width >= size.x)
         return;

@@ -128,6 +128,8 @@ public:
 
     // Number of windows with an alert.
     size_t alertCount {0};
+    // The current desktop (see desktops.h), shown before the alerts.
+    int desktop {1};
 
     void draw() override;
 };

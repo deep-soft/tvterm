@@ -35,6 +35,11 @@ enum : ushort
     cmNewLogView,
     cmShowAlerts, // From the Event Viewer (infoPtr): list the active alerts.
     cmViewFile,
+    cmSwitchDesktop,  // infoInt: the desktop (1-9).
+    cmDesktopMenu,    // Choose the desktop to show.
+    cmMoveWindowMenu, // Choose the desktop to move the current window to.
+    // Items of the desktop menus: the desktop is the difference (1-9).
+    cmDesktopPick = 2200,
 };
 
 enum : ushort

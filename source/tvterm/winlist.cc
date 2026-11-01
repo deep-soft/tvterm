@@ -14,6 +14,7 @@
 #include "wnd.h"
 #include "evntview.h"
 #include "logview.h"
+#include "desktops.h"
 
 #include <string.h>
 #include <string>
@@ -124,7 +125,7 @@ std::vector<TWindow *> getDeskTopWindows(TDeskTop &deskTop)
     if (TView *v = deskTop.first())
         do {
             if (auto *w = dynamic_cast<TWindow *>(v))
-                if (w->state & sfVisible)
+                if ((w->state & sfVisible) || desktops::isHidden(w))
                     windows.push_back(w);
             v = v->next;
         } while (v != deskTop.first());
@@ -190,7 +191,7 @@ void execWindowList(TDeskTop &deskTop)
         switch (result)
         {
             case cmOK:
-                w->select();
+                desktops::selectWindow(deskTop, w);
                 return;
             case cmWinListRename:
                 if (!renameTerminal(w))
