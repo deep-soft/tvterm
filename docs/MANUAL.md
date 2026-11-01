@@ -816,8 +816,31 @@ One rule per line, applied in order, each one on the result of the one before:
 
 ```ini
 [transform <name>]
+fields = <key> <key>:>W <key>:<W! ...
+fields-format = pairs | values
 replace = "<regex>" "<template>" [icase]
 ```
+
+#### Fields
+
+`fields` keeps the values of the `key=value` words of the line (FortiGate, many firewalls and mail filters), in the
+order given; the other words go away. A value in quotes (`msg="a b c"`) is read whole, spaces included (`\"` inside is a
+quote). A key is matched exactly (`policyid` does not match `xpolicyid`); if a key appears twice, the first one is used.
+
+| Setting | Meaning |
+|---|---|
+| `fields = k1 k2 …` | the fields, in this order |
+| `k:>W` / `k:<W` | the value aligned to the right / left in `W` characters (a longer value stays whole) |
+| `k:>W!` / `k:<W!` | the same, a longer value is cut to `W` characters |
+| `fields-format = pairs` | (default) `key=value`, the value as written (with its quotes); the width applies to the value |
+| `fields-format = values` | only the values (without quotes), separated by a tab, or by a space when a field has a width |
+
+A missing field is left out; a missing field **with a width** gives blanks, so the next columns stay in place. A line
+without any of the fields stays as it is (**T** shows the same). One `fields` per set (given twice: the last one is
+used, with a note in the Event Viewer); the fields are taken **before** the `replace` rules of the set, wherever they
+are written, so `replace` can change their result.
+
+#### Replace
 
 Every match of the regular expression (like `grep -E`) is replaced by the template, like `sed 's/…/…/g'`; lines without
 a match stay as they are. In the template:
@@ -857,7 +880,15 @@ replace = "app=\"([a-z]+)/([0-9]+)\"" "app=\"\1/${2:>5}\""
 replace = "devname=.* srcip=" ""
 replace = "srcport=.* dstport=" ""
 replace = "policytype=.* policyname=" ""
+
+# FortiGate lines as aligned columns: date, time, source and destination IP, port, action, policy
+[transform fortigate-fields]
+fields = date time srcip:>15 dstip:>15 dstport:<5 action:<7 policyid
+fields-format = values
 ```
+
+The last set shows `2026-11-01 08:00:01        10.0.0.5         8.8.8.8 53    accept  37`. With
+`fields-format = pairs` the same line would be `date=2026-11-01 … srcip=       10.0.0.5 …`.
 
 ### Search: New window
 

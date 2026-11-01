@@ -19,6 +19,15 @@
 //   \\  \$         a backslash, a dollar
 // An empty template ("") removes the match. Inside the quotes, \" is a
 // quote (in the expression and in the template).
+//   fields = k1 k2:>W k3:<W! ...
+//   fields-format = pairs | values
+// The values of the 'key=value' words of the line, in the order given (a
+// value in quotes may hold spaces); 'pairs' (default) shows key=value,
+// 'values' only the values, separated by a tab (by a space when a field has
+// a width). ':>W' / ':<W' align the value right / left in W characters, '!'
+// cuts a longer value. A missing field is left out (with a width: blanks);
+// a line without any of the fields stays as it is. One 'fields' per set,
+// applied before the replace rules.
 // Order in Log View: the filters (include / exclude) and the alerts use the
 // original line; the transformation gives the text shown; the highlight,
 // the search, copy and save use the text shown.
@@ -46,8 +55,8 @@ bool findTransformSet(const std::string &name, TransformRules &rules);
 // Names of the sets, sorted.
 std::vector<std::string> transformSetNames();
 
-// One rule: 'key' (only 'replace') and its value. False, with 'error' set,
-// if the rule is invalid.
+// One rule: 'key' ('replace' or 'fields', the latter as pairs) and its
+// value. False, with 'error' set, if the rule is invalid.
 bool parseTransformRule( const std::string &key, const std::string &value,
                          std::shared_ptr<const TransformRule> &rule, std::string &error );
 

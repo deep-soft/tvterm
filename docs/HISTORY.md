@@ -87,6 +87,7 @@ E26. File dialogs: `file-filters` patterns in the Name history, initial filter o
 E27. Log View: Ctrl-Down / Ctrl-Up go to the next / previous line with a highlighted word (Highlight Words)
 E28. File dialogs: `file-dialog-size`, `file-list-columns`, Ctrl-F5, size kept while tvterm runs
 E29. Log View: transformations (`[transform <name>]`, `replace`), key T, F4 Transform, profile `transform`
+E30. Log View transformations: `fields`, `fields-format`, widths (`key:>W` / `key:<W` / `!`)
 
 ---
 
@@ -444,6 +445,19 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   first version matched no line; awk splits on any spaces), and `fortigate-short` with the alignments tried on the
   server (host in 20, `srcip` in 15, `dstport` in 5, `dstintf="…"` in 6, `app="tcp/N"` in 5) before the rules that
   remove the keys.
+- E30: `fields = k1 k2:>W k3:<W! …` and `fields-format = pairs | values` (`transform.cc`: `TransformRule::isFields`,
+  `findFields`, `applyFields`, `parseFields`; `appendPadded` shared with the `${n:>W}` template pieces). The line is read
+  as words; a word `key=value` (key: letters, digits, `_` `-` `.`) gives a field, the first occurrence of each key wins;
+  a value starting with `"` goes to the closing quote (spaces included, `\"` = quote; without a closing quote, to the end
+  of the line), otherwise to the next space or tab; other words are skipped. `pairs` (default): `key=` + the value as
+  written (quotes kept), the width on that value; `values`: the value without quotes, tab between fields, a space when
+  any field has a width. Widths and `!` as in the template (UTF-8 characters, 1–999). A missing field is left out;
+  **with a width it gives blanks** (key + `=` + width for `pairs`), so the columns stay in place (decided at generation:
+  the agreed rule "missing fields left out" would shift the columns of aligned output). A line with none of the fields is
+  unchanged. One `fields` and one `fields-format` per set (again → Event Viewer note, the last one used); the fields
+  rule is put first in the set, before every `replace`, wherever it is written. Errors (invalid field or width, no
+  fields, a `fields-format` other than `pairs` / `values` → `pairs`, `fields-format` without `fields`) → Event Viewer.
+  Example `fortigate-fields` (commented) in the template, `examples/tvterm.ini` and MANUAL (Transformations: Fields).
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -631,7 +645,7 @@ source/tvterm/             the application
   highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
                            read), the built-in sets, Highlight Words (wordHighlightRules), highlightLine (colors of
                            the bytes of a line)
-  transform.cc/.h          Log View transformation sets (E29): [transform <name>] rules (replace), compiled when
+  transform.cc/.h          Log View transformation sets (E29, E30): [transform <name>] rules (replace, fields), compiled when
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
@@ -965,6 +979,12 @@ examples/profiles/example.ini
   Real test (server, CentOS 7.9, musl static build): 10/10 after correcting show-tls (two spaces in the user's log).
   v2 (examples only): every example rule taken from `--print-settings` (uncommented) parses, and gives the expected
   text on the user's two real TLS line forms (= awk) and on FortiGate-like lines.
+- Fields (E30): the C++ test linked with `transform.cc` (34 checks: `pairs` / `values`, tab or space, widths and `!` with
+  UTF-8, quoted values with spaces and `\"`, missing fields with and without a width, a line without fields unchanged,
+  first occurrence, exact key, unterminated quote, empty value, fields before `replace` whatever the order, `fields` twice,
+  bad / lonely `fields-format`, 9 invalid field specs, unknown key, `replace` unchanged); 50000 FortiGate-like lines of
+  443 bytes in ~0.17 s (`-O2`). In tmux: a Log View on a generated FortiGate log with the `fortigate-fields` example
+  (from `--print-settings`, uncommented) → aligned columns, T → original lines, search in the text shown, F2 save.
 ---
 
 ## 6. Known limitations
@@ -1035,3 +1055,4 @@ examples/profiles/example.ini
 | Highlighted lines (`far2l-extended`) | E27 | Log View, Highlight Words: Ctrl-Down / Ctrl-Up (and F9) move the cursor to the next / previous line with a highlighted word |
 | File dialog size (`far2l-extended`) | E28 | `file-dialog-size` (e.g. `120x40`) and `file-list-columns` (1 / 2) for Open, View file, Save file as, Load / Save Profile; Ctrl-F5; a resized dialog keeps its size while tvterm runs |
 | Transformations (`far2l-extended`) | E29 | Log View: `[transform <name>]` sets with `replace = "regex" "template"` (groups, alignment, cut); the text shown is transformed (filters and alerts on the original); T, `[T-]`, F4 Transform with ↓, profile `transform`, `transform-on` |
+| Fields (`far2l-extended`) | E30 | `[transform <name>]`: `fields = k1 k2:>W k3:<W!` (the values of `key=value` words, quoted values whole), `fields-format = pairs / values`; missing fields left out (blanks with a width); before the `replace` rules |
