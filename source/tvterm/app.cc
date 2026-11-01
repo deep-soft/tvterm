@@ -246,6 +246,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     // Log View highlight sets: the built-in ones and those in the file. The
     // windows take them at their next update.
     rebuildHighlightSets(currentSettings.highlight, path, warnings);
+    // Log View transformation sets (none built in).
+    rebuildTransformSets(currentSettings.transform, path, warnings);
 
     int problems = 0;
     for (size_t pos = 0; (pos = warnings.find('\n', pos)) != std::string::npos; ++pos)
@@ -961,6 +963,8 @@ void TVTermApp::openProfile(const Profile &profile)
                 o.highlightOn = win.logHighlightOn;
                 o.highlightWordsMode = win.logHighlightWordsMode;
                 o.highlightWords = win.logHighlightWords;
+                o.transform = win.logTransform;
+                o.transformOn = win.logTransformOn;
                 auto *log = new LogViewWindow(r, o);
                 std::string error;
                 if (!log->setOptions(o, error))
@@ -1231,6 +1235,8 @@ void TVTermApp::saveProfile()
             win.logHighlightOn = o.highlightOn;
             win.logHighlightWordsMode = o.highlightWordsMode;
             win.logHighlightWords = o.highlightWords;
+            win.logTransform = o.transform;
+            win.logTransformOn = o.transformOn;
             const AlertSettings &alerts = log->getAlertSettings();
             win.alertActivity = alerts.activity;
             win.alertKeywords = alerts.keywords.text;

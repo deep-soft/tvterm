@@ -9,6 +9,7 @@
 // Keys, when the window is focused (also in its menu: F9 or right click):
 //   F4 settings · I / E edit include / exclude · F filters on/off
 //   H highlight on/off (sets from tvterm.ini, see highlight.h, or words)
+//   T transform on/off (sets from tvterm.ini, see transform.h)
 //   D duplicate · R restart the source · Space pause/continue
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
 //   / search (New window: the matching lines in a new window) ·
@@ -17,6 +18,9 @@
 //   Up/Down PgUp/PgDn Home/End move the cursor line (Shift: select);
 //   with the cursor on the last line, new lines are followed.
 // The copy keys use the selection or, without one, the cursor line.
+// With a transformation, the filters, X and the alerts use the original
+// lines; the screen, the highlight, the search, copy and save use the text
+// shown (T, copy, T: the original lines).
 //
 // A window made by Search > New window has fixed lines (a copy of the
 // matching lines of the other window, see LogSource::createFixed): no
@@ -32,6 +36,7 @@
 #include "alerts.h"
 #include "highlight.h"
 #include "logsrc.h"
+#include "transform.h"
 
 #include <deque>
 #include <functional>
@@ -54,6 +59,8 @@ struct LogViewOptions
     bool highlightOn {true}; // H: the highlight (sets or words) is used.
     bool highlightWordsMode {false}; // F4 Highlight: Words instead of Sets.
     std::string highlightWords; // e.g. "error, status=sent" (see splitHighlightWords).
+    std::string transform;  // Transformation sets, e.g. "show-tls"; empty: none.
+    bool transformOn {true}; // T: the transformation is used.
 
     // The value of the highlight mode in use (sets or words).
     const std::string &activeHighlight() const noexcept
@@ -178,6 +185,16 @@ private:
     // Colors of the lines drawn last (by column, -1: none), by sequence.
     std::unordered_map<uint64_t, std::vector<int>> hlCache;
 
+    // Transformation: the rules of the sets in 'options.transform', taken
+    // again when the sets change (tvterm.ini reloaded) or the options change.
+    TransformRules tfRules;
+    unsigned tfGeneration {0};
+    std::string tfResolvedFor;
+    // Unknown sets already reported (once per window and value).
+    std::vector<std::string> tfReported;
+    // The text shown of the lines used last, by sequence.
+    mutable std::unordered_map<uint64_t, std::string> tfCache;
+
     // Alerts.
     AlertSettings alertSettings;
     Alert alert {Alert::None};
@@ -202,6 +219,14 @@ private:
     // if they changed.
     bool resolveHighlight();
     bool highlightActive() const noexcept { return options.highlightOn && !hlRules.empty(); }
+    // Takes the rules of the transformation sets again, if needed. Returns
+    // true if they changed.
+    bool resolveTransform();
+    bool transformActive() const noexcept { return options.transformOn && !tfRules.empty(); }
+    // The text shown for line 'seq': transformed, or the original line.
+    std::string displayText(uint64_t seq) const;
+    // The text shown changed (T, other sets): the caches and the positions.
+    void transformChanged();
     void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
     // The title without the alert mark.
     std::string plainTitle() const;
@@ -245,6 +270,7 @@ private:
     void togglePause();
     void toggleFilters();
     void toggleHighlight();
+    void toggleTransform();
     void toggleWrap();
     void clearWindow();
     void openSearch();

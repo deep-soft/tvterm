@@ -126,6 +126,7 @@ enum : ushort
     cmLogHighlight,
     cmLogNextHighlighted,
     cmLogPrevHighlighted,
+    cmLogTransform,
     // Button of the search dialog.
     cmLogFindNew,
 };
@@ -333,7 +334,9 @@ void LogViewInterior::draw()
         {
             uint64_t seq = w.shown[i];
             const LogLine &line = w.source->line(seq);
-            text = expandTabs(line.text);
+            // The text shown (transformed or not): everything below uses it.
+            const std::string raw = w.displayText(seq);
+            text = expandTabs(raw);
             bool isCursor = (w.state & sfFocused) && w.isCursor(seq);
             TColorAttr attr = isCursor ? colCursor :
                               w.isSelected(seq) ? colSelected :
@@ -343,8 +346,8 @@ void LogViewInterior::draw()
             int matchB = -1, matchE = -1;
             if (w.hasMatch && w.matchSeq == seq)
             {
-                matchB = columnOf(line.text, w.matchBegin);
-                matchE = columnOf(line.text, w.matchEnd);
+                matchB = columnOf(raw, w.matchBegin);
+                matchE = columnOf(raw, w.matchEnd);
             }
             int startCol;
             int rowWidth = INT_MAX;
@@ -369,9 +372,9 @@ void LogViewInterior::draw()
                 auto it = w.hlCache.find(seq);
                 if (it == w.hlCache.end())
                 {
-                    highlightLine(w.hlRules, line.text, byteColors);
+                    highlightLine(w.hlRules, raw, byteColors);
                     it = w.hlCache.emplace(seq, std::vector<int>()).first;
-                    columnColors(line.text, byteColors, it->second);
+                    columnColors(raw, byteColors, it->second);
                 }
                 const std::vector<int> &cols = it->second;
                 for (int x = 0; x < size.x && x < rowWidth; ++x)
@@ -417,7 +420,7 @@ void LogViewInterior::copyWordAt(TPoint p)
     int row;
     if (!w.source || !lineAt(p.y, index, row))
         return;
-    std::string text = expandTabs(w.source->line(w.shown[index]).text);
+    std::string text = expandTabs(w.displayText(w.shown[index]));
     int col = p.x;
     if (w.options.wrap)
     {
@@ -529,8 +532,8 @@ namespace logview
 
 enum : ushort { cmLogApply = 3390 };
 
-// The values used in the Include, Exclude and Highlight fields (sets and
-// words, each with its own list): kept
+// The values used in the Include, Exclude, Highlight (sets and words, each
+// with its own list) and Transform fields: kept
 // while tvterm runs, shared by all Log View windows, newest first. Saved by
 // OK and Apply (not when the list is opened, unlike THistory).
 struct FieldHistory
@@ -551,7 +554,7 @@ struct FieldHistory
     }
 };
 
-static FieldHistory includeHistory, excludeHistory, highlightHistory, wordsHistory;
+static FieldHistory includeHistory, excludeHistory, highlightHistory, wordsHistory, transformHistory;
 
 // The whole buffer of the field is copied by setData.
 static void setInputText(TInputLine *field, const std::string &text)
@@ -640,29 +643,33 @@ private:
 
 std::vector<FieldListItem> FieldListWindow::pending;
 
+// The names of the sets offered in a list (highlight or transform sets).
+using SetNamesFunc = std::vector<std::string> (*)();
+
 // The arrow next to a field (like THistory): a click, or Down in the field,
-// opens the list. A value replaces the field; with 'withSets', the list
-// starts with the highlight sets, and a set is added to the field.
+// opens the list. A value replaces the field; with 'setNames', the list
+// starts with the sets, and a set is added to the field.
 class FieldHistoryButton : public THistory
 {
 public:
 
-    FieldHistoryButton(const TRect &bounds, TInputLine *aLink, FieldHistory &h, bool sets) noexcept :
+    FieldHistoryButton( const TRect &bounds, TInputLine *aLink, FieldHistory &h,
+                        SetNamesFunc names ) noexcept :
         THistory(bounds, aLink, hiLogList),
         history(&h),
-        withSets(sets)
+        setNames(names)
     {
     }
 
     void recordHistory(const char *) override {}
     void handleEvent(TEvent &ev) override;
     // Highlight: the list follows the mode (Sets / Words).
-    void setList(FieldHistory &h, bool sets) noexcept { history = &h; withSets = sets; }
+    void setList(FieldHistory &h, SetNamesFunc names) noexcept { history = &h; setNames = names; }
 
 private:
 
     FieldHistory *history;
-    bool withSets;
+    SetNamesFunc setNames;
 
     std::vector<FieldListItem> listItems() const;
     void choose(const FieldListItem &item);
@@ -671,9 +678,9 @@ private:
 std::vector<FieldListItem> FieldHistoryButton::listItems() const
 {
     std::vector<FieldListItem> items;
-    if (withSets)
+    if (setNames)
     {
-        for (auto &name : highlightSetNames())
+        for (auto &name : setNames())
             items.push_back({name, FieldListItem::Set});
         if (!history->values.empty())
             items.push_back({"\xE2\x94\x80\xE2\x94\x80 used before \xE2\x94\x80\xE2\x94\x80", FieldListItem::Note});
@@ -785,7 +792,7 @@ private:
     LogViewOptions &o;
     LogViewApply apply;
     bool fixedLines;
-    TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn;
+    TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn, *tfIn;
     TCheckBoxes *checkBoxes;
     HighlightModeButtons *hlMode;
     FieldHistoryButton *hlList;
@@ -826,11 +833,11 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(cmdLabel);
     incIn = new TInputLine(TRect(3, 9, 69, 10), 512);
     insert(incIn);
-    insert(new FieldHistoryButton(TRect(69, 9, 72, 10), incIn, includeHistory, false));
+    insert(new FieldHistoryButton(TRect(69, 9, 72, 10), incIn, includeHistory, nullptr));
     insert(new TLabel(TRect(2, 8, 72, 9), "~I~nclude: show only lines matching (empty: all)", incIn));
     excIn = new TInputLine(TRect(3, 12, 69, 13), 512);
     insert(excIn);
-    insert(new FieldHistoryButton(TRect(69, 12, 72, 13), excIn, excludeHistory, false));
+    insert(new FieldHistoryButton(TRect(69, 12, 72, 13), excIn, excludeHistory, nullptr));
     insert(new TLabel(TRect(2, 11, 72, 12), "~E~xclude: hide lines matching (empty: none)", excIn));
     checkBoxes = new TCheckBoxes(TRect(3, 14, 30, 17),
         new TSItem("I~g~nore case",
@@ -847,7 +854,7 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(restartLabel);
     hlIn = new TInputLine(TRect(33, 17, 69, 18), 512);
     insert(hlIn);
-    hlList = new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, true);
+    hlList = new FieldHistoryButton(TRect(69, 17, 72, 18), hlIn, highlightHistory, highlightSetNames);
     insert(hlList);
     insert(new TLabel(TRect(32, 16, 44, 17), "~H~ighlight", hlIn));
     hlMode = new HighlightModeButtons(TRect(44, 16, 72, 17),
@@ -855,9 +862,14 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
         new TSItem("Wor~d~s", nullptr)),
         [this] { highlightModeChanged(); });
     insert(hlMode);
+    // Transform: below the check boxes, left of Highlight.
+    tfIn = new TInputLine(TRect(14, 17, 28, 18), 512);
+    insert(tfIn);
+    insert(new FieldHistoryButton(TRect(28, 17, 31, 18), tfIn, transformHistory, transformSetNames));
+    insert(new TLabel(TRect(2, 17, 14, 18), "Transfor~m~", tfIn));
     insert(new TStaticText(TRect(3, 18, 73, 20),
         "Filters: grep -E, e.g. dstport=(993|465|587); trailing spaces kept.\n"
-        "Highlight: sets (zimbra-mta kv) or words (error, status=sent)"));
+        "Highlight: sets (zimbra-mta kv) or words; Transform: sets (show-tls)"));
     if (apply)
     {
         // Apply: the changes are applied and the dialog stays open.
@@ -887,7 +899,8 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
         ushort mode = hlWords ? 1 : 0;
         hlMode->setData(&mode);
     }
-    hlList->setList(hlWords ? wordsHistory : highlightHistory, !hlWords);
+    hlList->setList(hlWords ? wordsHistory : highlightHistory, hlWords ? nullptr : highlightSetNames);
+    setField(tfIn, o.transform);
     if (fixedLines)
     {
         // Fixed lines (Search > New window): no command, nothing to keep
@@ -908,6 +921,7 @@ void LogViewDialog::recordValues()
     excludeHistory.add(o.exclude);
     highlightHistory.add(o.highlight);
     wordsHistory.add(o.highlightWords);
+    transformHistory.add(o.transform);
 }
 
 void LogViewDialog::highlightModeChanged()
@@ -921,7 +935,7 @@ void LogViewDialog::highlightModeChanged()
     setInputText(hlIn, hlOther);
     hlOther = current;
     hlWords = words;
-    hlList->setList(words ? wordsHistory : highlightHistory, !words);
+    hlList->setList(words ? wordsHistory : highlightHistory, words ? nullptr : highlightSetNames);
     hlIn->selectAll(True);
     hlIn->drawView();
 }
@@ -935,7 +949,7 @@ void LogViewDialog::fail(TView *field, const std::string &text)
 bool LogViewDialog::readFields(LogViewOptions &out)
 {
     char title[129] {}, command[513] {}, include[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {},
-         hlField[513] {};
+         hlField[513] {}, tfField[513] {};
     ushort checks = 0;
     titleIn->getData(title);
     cmdIn->getData(command);
@@ -945,6 +959,7 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     maxIn->getData(maxLines);
     restartIn->getData(restart);
     hlIn->getData(hlField);
+    tfIn->getData(tfField);
     // The sets and the words: one in the field, the other kept aside.
     std::string highlight = hlWords ? hlOther : std::string(hlField);
     std::string words = trim(hlWords ? std::string(hlField) : hlOther);
@@ -1000,6 +1015,24 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     std::string hlText;
     for (auto &name : hlNames)
         hlText += (hlText.empty() ? "" : " ") + name;
+    std::vector<std::string> tfNames = splitHighlightNames(tfField);
+    for (auto &name : tfNames)
+    {
+        TransformRules rules;
+        if (!findTransformSet(name, rules))
+        {
+            std::string known;
+            for (auto &n : transformSetNames())
+                known += (known.empty() ? "" : " ") + n;
+            fail(tfIn, "Unknown transform set '" + name + "'.\n" +
+                       (known.empty() ? std::string("There are no [transform <name>] sections in tvterm.ini.")
+                                      : "Sets: " + known));
+            return false;
+        }
+    }
+    std::string tfText;
+    for (auto &name : tfNames)
+        tfText += (tfText.empty() ? "" : " ") + name;
     out.title = trim(title);
     out.command = cmd;
     out.include = include;
@@ -1015,6 +1048,9 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     // Not in the dialog (key H): kept, but a new mode or value is shown.
     out.highlightOn = o.highlightOn || o.highlightWordsMode != out.highlightWordsMode ||
                       o.activeHighlight() != out.activeHighlight();
+    out.transform = tfText;
+    // Not in the dialog (key T): kept, but other sets are shown.
+    out.transformOn = o.transformOn || o.transform != out.transform;
     return true;
 }
 
@@ -1140,6 +1176,8 @@ bool LogViewWindow::setOptions(const LogViewOptions &newOptions, std::string &er
     includeRe = std::move(inc);
     excludeRe = std::move(exc);
     resolveHighlight();
+    if (resolveTransform())
+        transformChanged();
     if (hScrollBar)
     {
         if (options.wrap)
@@ -1286,6 +1324,11 @@ void LogViewWindow::update()
         sourceStart = source->getStartTime();
     // tvterm.ini reloaded: the highlight sets may have changed.
     bool recolor = resolveHighlight();
+    if (resolveTransform())
+    {
+        transformChanged();
+        recolor = true;
+    }
     dropOldLines();
     uint64_t end = source->endSeq();
     nextSeq = std::max({nextSeq, source->firstSeq(), clearedSeq});
@@ -1344,6 +1387,66 @@ bool LogViewWindow::resolveHighlight()
         }
     }
     return true;
+}
+
+bool LogViewWindow::resolveTransform()
+{
+    using namespace logview;
+    const std::string &key = options.transform;
+    if (tfGeneration == transformGeneration() && tfResolvedFor == key)
+        return false;
+    tfGeneration = transformGeneration();
+    if (tfResolvedFor != key)
+        tfReported.clear();
+    tfResolvedFor = key;
+    TransformRules newRules;
+    for (auto &name : splitHighlightNames(options.transform))
+    {
+        TransformRules rules;
+        if (findTransformSet(name, rules))
+            newRules.insert(newRules.end(), rules.begin(), rules.end());
+        else if (std::find(tfReported.begin(), tfReported.end(), name) == tfReported.end())
+        {
+            tfReported.push_back(name);
+            TVTermApp::note( "Log View '" + titleText() + "': unknown transform set '" +
+                             name + "' (not in tvterm.ini)" );
+        }
+    }
+    // Without sets before and after (most windows), nothing changed.
+    if (newRules == tfRules)
+        return false;
+    tfRules = std::move(newRules);
+    return true;
+}
+
+std::string LogViewWindow::displayText(uint64_t seq) const
+{
+    using namespace logview;
+    const LogLine &line = source->line(seq);
+    if (line.marker || !transformActive())
+        return line.text;
+    auto it = tfCache.find(seq);
+    if (it != tfCache.end())
+        return it->second;
+    std::string text = transformLine(tfRules, line.text);
+    // Only the lines used last are kept (the screen, mostly).
+    if (tfCache.size() >= 4096)
+        tfCache.clear();
+    tfCache.emplace(seq, text);
+    return text;
+}
+
+void LogViewWindow::transformChanged()
+{
+    using namespace logview;
+    tfCache.clear();
+    hlCache.clear();
+    // The match positions were in the old text.
+    hasMatch = false;
+    leftCol = 0;
+    topRow = 0;
+    if (follow)
+        scrollToEnd();
 }
 
 void LogViewWindow::checkAlerts(const std::deque<uint64_t> &lines, size_t from)
@@ -1519,6 +1622,8 @@ const char *LogViewWindow::getTitle(short)
         else if (options.highlightWordsMode)
             text += " [W]";
     }
+    if (!options.transform.empty() && !options.transformOn)
+        text += " [T-]";
     if (source)
     {
         text += " " + std::to_string(shown.size()) + "/" +
@@ -1567,7 +1672,7 @@ int LogViewWindow::rowsOf(size_t index) const
     if (!options.wrap || !interior || !source || index >= shown.size())
         return 1;
     std::vector<size_t> starts;
-    rowStarts(expandTabs(source->line(shown[index]).text), interior->size.x, starts);
+    rowStarts(expandTabs(displayText(shown[index])), interior->size.x, starts);
     return (int) starts.size();
 }
 
@@ -1789,7 +1894,7 @@ void LogViewWindow::updateScrollBars()
             size_t index = top + y;
             if (index >= shown.size())
                 break;
-            width = std::max(width, (int) TText::width(expandTabs(source->line(shown[index]).text)));
+            width = std::max(width, (int) TText::width(expandTabs(displayText(shown[index]))));
         }
         int maxCol = std::max(leftCol, width - interior->size.x + 1);
         hScrollBar->setParams(leftCol, 0, std::max(0, maxCol), std::max(1, interior->size.x - 1), 8);
@@ -1835,7 +1940,7 @@ std::string LogViewWindow::selectedText() const
     auto it = std::lower_bound(shown.begin(), shown.end(), a);
     for (; it != shown.end() && *it <= b; ++it)
     {
-        out += source->line(*it).text;
+        out += displayText(*it);
         out += '\n';
     }
     return out;
@@ -1848,7 +1953,7 @@ std::string LogViewWindow::selectedOrCursorText() const
         return selectedText();
     if (!source || shown.empty())
         return {};
-    return source->line(shown[cursorIndex()]).text + '\n';
+    return displayText(shown[cursorIndex()]) + '\n';
 }
 
 std::string LogViewWindow::shownText() const
@@ -1859,7 +1964,7 @@ std::string LogViewWindow::shownText() const
         return out;
     for (uint64_t seq : shown)
     {
-        out += source->line(seq).text;
+        out += displayText(seq);
         out += '\n';
     }
     return out;
@@ -1876,6 +1981,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("~E~xclude filter...", cmLogExclude, kbNoKey, hcNoContext, "E") +
         *new TMenuItem("~F~ilters on/off", cmLogFilters, kbNoKey, hcNoContext, "F") +
         *new TMenuItem("Hi~g~hlight on/off", cmLogHighlight, kbNoKey, hcNoContext, "H") +
+        *new TMenuItem("Transfor~m~ on/off", cmLogTransform, kbNoKey, hcNoContext, "T") +
         newLine() +
         *new TMenuItem("~D~uplicate window", cmLogDuplicate, kbNoKey, hcNoContext, "D") +
         *new TMenuItem("~R~estart source", cmLogRestart, kbNoKey, hcNoContext, "R") +
@@ -1911,6 +2017,7 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogExclude: editOptions(2); break;
         case cmLogFilters: toggleFilters(); break;
         case cmLogHighlight: toggleHighlight(); break;
+        case cmLogTransform: toggleTransform(); break;
         case cmLogDuplicate: duplicate(); break;
         case cmLogRestart:
             if (fixedSource)
@@ -2035,6 +2142,25 @@ void LogViewWindow::toggleHighlight()
     options.highlightOn = !options.highlightOn;
     redraw();
     showStatus(options.highlightOn ? "Highlight on." : "Highlight off: the lines are shown without colors.");
+}
+
+void LogViewWindow::toggleTransform()
+{
+    using namespace logview;
+    if (options.transform.empty())
+    {
+        showStatus("No transformation: choose the sets in F4 (Transform), e.g. show-tls.");
+        return;
+    }
+    options.transformOn = !options.transformOn;
+    transformChanged();
+    redraw();
+    if (!options.transformOn)
+        showStatus("Transform off: the original lines are shown.");
+    else if (tfRules.empty())
+        showStatus("Transform on, but its sets have no valid rules (see the Event Viewer).");
+    else
+        showStatus("Transform on.");
 }
 
 void LogViewWindow::toggleWrap()
@@ -2216,9 +2342,12 @@ void LogViewWindow::openFindWindow()
         const LogLine &line = source->line(seq);
         if (line.marker)
             continue;
+        // Searched in the text shown; the new window gets the original
+        // line (and the same transformation, in its options).
+        std::string text = displayText(seq);
         int b, e;
-        bool found = searchRe ? searchRe->find(line.text, 0, b, e)
-                              : findPlain(line.text, searchText, searchCase, 0, b, e);
+        bool found = searchRe ? searchRe->find(text, 0, b, e)
+                              : findPlain(text, searchText, searchCase, 0, b, e);
         if (found)
             lines.push_back(line);
     }
@@ -2278,10 +2407,10 @@ void LogViewWindow::findNext(bool older)
         index = (long) top;
     for (; index >= 0 && index < (long) shown.size(); index += older ? -1 : 1)
     {
-        const LogLine &line = source->line(shown[index]);
+        const std::string text = displayText(shown[index]);
         int b, e;
-        bool found = searchRe ? searchRe->find(line.text, 0, b, e)
-                              : findPlain(line.text, searchText, searchCase, 0, b, e);
+        bool found = searchRe ? searchRe->find(text, 0, b, e)
+                              : findPlain(text, searchText, searchCase, 0, b, e);
         if (found)
         {
             hasMatch = true;
@@ -2313,8 +2442,8 @@ void LogViewWindow::findNext(bool older)
             follow = !paused && cursorIsLast() && atEnd();
             if (!options.wrap && interior)
             {
-                int col = columnOf(line.text, b);
-                int colEnd = columnOf(line.text, matchEnd);
+                int col = columnOf(text, b);
+                int colEnd = columnOf(text, matchEnd);
                 if (col < leftCol || colEnd > leftCol + interior->size.x)
                     leftCol = std::max(0, col - interior->size.x / 3);
             }
@@ -2358,7 +2487,7 @@ void LogViewWindow::findHighlighted(bool down)
         const LogLine &line = source->line(shown[index]);
         if (line.marker)
             continue;
-        highlightLine(hlRules, line.text, colors);
+        highlightLine(hlRules, displayText(shown[index]), colors);
         if (std::any_of(colors.begin(), colors.end(), [] (int c) { return c >= 0; }))
         {
             moveCursorTo(index, false);
@@ -2648,6 +2777,7 @@ void LogViewWindow::handleEvent(TEvent &ev)
                 case 'e': editOptions(2); break;
                 case 'f': toggleFilters(); break;
                 case 'h': toggleHighlight(); break;
+                case 't': toggleTransform(); break;
                 case 'w': toggleWrap(); break;
                 case 'x': clearWindow(); break;
                 case 's': save(); break;

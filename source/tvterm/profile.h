@@ -41,6 +41,8 @@ struct WindowProfile
     bool logHighlightOn {true};
     bool logHighlightWordsMode {false}; // highlight-mode = words.
     std::string logHighlightWords;      // Comma-separated (see splitHighlightWords).
+    std::string logTransform;   // Transformation sets (see transform.h).
+    bool logTransformOn {true};
     // Terminal and Log View alerts (see alerts.h).
     bool alertActivity {false};
     std::string alertKeywords; // Comma-separated.

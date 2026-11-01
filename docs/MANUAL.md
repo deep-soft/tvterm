@@ -433,6 +433,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `shift-click-select` | `yes` | Shift+click selects in programs that use the mouse |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
+| `[transform <name>]` | rules | (none) | Log View transformations: the text shown ([chapter 10](#transformations)) |
 | `[keys]` | `history-page-up` | `Alt-Shift-PgUp` | direct history keys |
 | | `history-page-down` | `Alt-Shift-PgDn` | |
 | | `history-top` | `Alt-Shift-Home` | |
@@ -513,6 +514,8 @@ partly outside the desktop is moved inside (and shrunk if larger), with a note i
 | `highlight-mode` | `sets` | `words`: the colors come from `highlight-words` instead of the sets ([Words](#words)) |
 | `highlight-words` | (none) | words to color, with commas, e.g. `error, status=sent` ([Words](#words)) |
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
+| `transform` | (none) | transformation sets, e.g. `show-tls` ([chapter 10](#transformations)) |
+| `transform-on` | `yes` | `no`: the original lines shown (as after the T key) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown |
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
@@ -653,13 +656,14 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
 | Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `zimbra-mta kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
+| Transform | transformation sets, e.g. `show-tls` ([below](#transformations)); empty: none; ↓ shows the sets and values used before |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
 Spaces at the end of the fields are kept (`dstport=993 ` does not match `dstport=9930`). Errors are shown in the dialog.
 
-**Lists of the fields:** the arrow next to Command, Include, Exclude and Highlight (a click, or **↓** in the field)
+**Lists of the fields:** the arrow next to Command, Include, Exclude, Highlight and Transform (a click, or **↓** in the field)
 opens a list; Enter or a double click takes the value, Esc closes the list. A value used before **replaces** the field
-(a quick way back, e.g. after turning an Exclude off for a while). At Highlight sets the list starts with the sets; a set
+(a quick way back, e.g. after turning an Exclude off for a while). At Highlight sets and at Transform the list starts with the sets; a set
 is **added** to the end of the field (unless it is there already), then the values used before follow, after
 `── used before ──`. The values are saved by OK and Apply (not empty ones, at most 20 per field, the newest first, without
 repeats), are shared by all Log Views and are kept while tvterm runs. In mode Words the list has only the words used
@@ -674,7 +678,8 @@ escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that l
 ### Title
 
 `[!keyword] Log: <title> [I] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude are
-set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off, lines shown / lines in the buffer, `(ended)` when the command has ended,
+set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off,
+`[T-]` when the [transformation](#transformations) is off, lines shown / lines in the buffer, `(ended)` when the command has ended,
 `[PAUSE +N]` while paused, `[+N]` new lines below the view.
 
 ### Keys
@@ -687,7 +692,8 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | `I` / `E` | the dialog, on Include / Exclude |
 | `F` | filters on/off (all the lines shown) |
 | `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#words)) |
-| `D` | duplicate: a new window on the same source, with the same filters, colors and options (not the alerts), title + ` (2)` |
+| `T` | transformation on/off: the text shown or the original lines ([Transformations](#transformations)) |
+| `D` | duplicate: a new window on the same source, with the same filters, colors, transformation and options (not the alerts), title + ` (2)` |
 | `R` | restart the command |
 | Space | pause / continue (new lines are kept, shown on continue) |
 | `W` | long lines: wrapped / scrolled (Left / Right, 8 columns) |
@@ -718,7 +724,7 @@ into a shell runs nothing. Saving uses the same dialog as the history ([chapter 
 
 A Log View can color its lines with **highlight sets**: write their names in the **Highlight sets** field of F4 (one or
 more, with spaces or commas: `zimbra-mta kv`; the first set has priority). The arrow next to the field lists the sets. **H** turns the colors off and
-on (`[H-]` in the title while off). Only the display changes: filters, search, copy and save use the plain text. The cursor line and the
+on (`[H-]` in the title while off). Only the display changes: filters, search, copy and save use the text without colors. The cursor line and the
 selection keep their own colors, and the search match is drawn over the others.
 
 Sets built into tvterm:
@@ -791,6 +797,68 @@ skipped). Without one, the status line says `No highlighted line below.` / `abov
 the colors on (with the sets almost every line has colors); otherwise the status line says why. The cursor line is
 drawn black on cyan, so the colors of that line show again once the cursor moves on.
 
+### Transformations
+
+A transformation changes **the text shown** for each line, without changing the lines kept by the source: for example
+only the IP, the date and the host name of a long mail log line, or a FortiGate line without the fields that are not
+needed. The sets are `[transform <name>]` sections of `tvterm.ini` (there are no built-in sets); write their names in
+the **Transform** field of F4 (one or more, applied in order; the arrow lists them). **T** turns the transformation off
+and on (`[T-]` in the title while off).
+
+| Uses the original line | Uses the text shown |
+|---|---|
+| the filters (Include / Exclude), X, the alerts | the screen, W and Left / Right, the colors (sets and words), Ctrl-Down / Ctrl-Up, the search (`/`, F3, New window), copy, Ctrl-E / Ctrl-A, save, double click |
+
+To copy the original line: **T**, copy, **T**. Search > New window copies the matching **original** lines and keeps the
+transformation, so the new window shows them the same way.
+
+One rule per line, applied in order, each one on the result of the one before:
+
+```ini
+[transform <name>]
+replace = "<regex>" "<template>" [icase]
+```
+
+Every match of the regular expression (like `grep -E`) is replaced by the template, like `sed 's/…/…/g'`; lines without
+a match stay as they are. In the template:
+
+| Template | Meaning |
+|---|---|
+| `\0` … `\9` | the whole match / the text of a group (parentheses) |
+| `${n}` | the same as `\n` |
+| `${n:>W}` / `${n:<W}` | group `n` aligned to the right / left in `W` characters (a longer value stays whole) |
+| `${n:>W!}` / `${n:<W!}` | the same, a longer value is cut to `W` characters |
+| `\t` | a tab (columns of 8) |
+| `\\`, `\$` | a backslash, a dollar |
+| `""` | an empty template removes the match (as `multitail -ke`) |
+
+Inside the quotes, `\"` is a quote. To keep only some parts of a line, the expression covers the whole line (`^` … `.*`)
+and the template keeps the groups; between fields use ` +` (one or more spaces), since logs often have two spaces
+where one is expected. **Order matters:** a rule that looks for `key=` must come before a rule that removes or
+renames that text. A rule that matches nothing changes nothing and gives no error: **T** shows the original line, to
+compare. The sets are read again with `tvterm.ini`; an invalid rule is ignored and reported in
+the Event Viewer with its line, and an unknown set name in a window once per window. Only the lines drawn are
+transformed; a search goes through all the lines (about 0.2 s for 50000 lines in a test).
+
+```ini
+# TLS connections of the mail log: IP (right-aligned), date, service (4 letters), host name
+[transform show-tls]
+replace = "^([^ ]+) +[^ ]+ +[^/]+/([^/[ ]{1,4})[^ ]* .*TLS connection established from ([^[]+)\[([^]]+)\].*" "${4:>15}\t\1\t\2\t\3"
+
+# FortiGate lines without some fields (like multitail -ke), the second field (the host)
+# in 20 characters, srcip in 15, the ports in 5
+[transform fortigate-short]
+# The alignments first: the last three rules remove the keys they look for.
+replace = "^([^ ]+) +([^ ]+) +" "\1 ${2:<20} "
+replace = "srcip=([0-9.]+)" "srcip=${1:>15}"
+replace = "dstport=([0-9]+)" "dstport=${1:>5}"
+replace = "dstintf=\"([^\"]*)\"" "dstintf=\"${1:<6}\""
+replace = "app=\"([a-z]+)/([0-9]+)\"" "app=\"\1/${2:>5}\""
+replace = "devname=.* srcip=" ""
+replace = "srcport=.* dstport=" ""
+replace = "policytype=.* policyname=" ""
+```
+
 ### Search: New window
 
 The search dialog (`/`) has three buttons: **Find**, **New window** (Alt-N; disabled while the text is empty) and
@@ -802,7 +870,7 @@ status line, and no window.
 
 The new window has **fixed lines**: a copy taken when the button is pressed, with no command and no process; new
 lines of the log do not reach it (press New window again in the original for a fresh copy). Its title is
-`Log: Find: <text> — <title of the original>`. It keeps the colors (highlight sets) and the search (F3 / `n` work at
+`Log: Find: <text> — <title of the original>`. It keeps the colors (highlight sets), the transformation and the search (F3 / `n` work at
 once), starts without filters, and works like any Log View for scrolling, search, selection, copy, save, W, X and H.
 Filtering further: **F4** / `I` / `E` set Include / Exclude on its lines (Command, Max lines and Restart are disabled),
 or **New window** again from its own search dialog, as many levels as needed. **D** copies it with the same lines.
@@ -911,8 +979,9 @@ command = tail -n 10000 -F /var/log/maillog | awk -f ~/bin/show-tls.awk
 With mawk (the default `awk` on Debian / Ubuntu), write `mawk -W interactive -f ...`: otherwise mawk waits for
 a full block of input from `tail` and the window stays empty. gawk (CentOS, RHEL) needs nothing.
 
-Without awk, the raw lines: `command = tail -n 10000 -F /var/log/maillog` with
-`include = TLS connection established from`.
+Without awk, with a [transformation](#transformations) (the same output, and **T** shows the original lines):
+`command = tail -n 10000 -F /var/log/maillog`, `include = TLS connection established from` and
+`transform = show-tls` (the `[transform show-tls]` set of [Transformations](#transformations)).
 
 ### Firewall log (FortiGate through rsyslog), instead of multitail
 
@@ -926,7 +995,7 @@ multitail with several views on the same file translates to one `[logview]` per 
 | `-i file` with `-n N -f` | `command = tail -n N -F file` |
 | `-l "command"` | `command = command` |
 | `-s 2` (layout) | `pos` in the profile, or `layout = tile-columns` |
-| `-ke "regex"` (cut text out of the line) | not yet (planned: transformations) |
+| `-ke "regex"` (cut text out of the line) | `replace = "regex" ""` in a `[transform <name>]` set ([Transformations](#transformations)) |
 
 ```ini
 [profile]

@@ -9,6 +9,7 @@
 #include <tvision/tv.h>
 
 #include "highlight.h"
+#include "transform.h"
 #include "globalkeys.h"
 
 #include <string>
@@ -51,6 +52,8 @@ struct Settings
     int logViewMaxLines {50000};
     // [highlight <name>]: highlight sets for Log View (see highlight.h).
     std::vector<HighlightSection> highlight;
+    // [transform <name>]: transformation sets for Log View (see transform.h).
+    std::vector<HighlightSection> transform;
     // [keys]
     TKey keyPageUp {kbPgUp, kbShift | kbAltShift};
     TKey keyPageDown {kbPgDn, kbShift | kbAltShift};

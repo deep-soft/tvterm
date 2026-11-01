@@ -207,7 +207,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Keys, LogView, Highlight, Unknown } section = None;
+    enum { None, General, Scrollback, Keys, LogView, Highlight, Transform, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -222,29 +222,33 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
         if (line[0] == '[')
         {
             std::string name = lower(trim(line.substr(1, line.find(']') - 1)));
-            if (name == "highlight" || name.compare(0, 10, "highlight ") == 0)
+            // [highlight <name>] and [transform <name>]: sets for Log View
+            // (rules checked later, see highlight.h and transform.h).
+            bool isHighlight = name == "highlight" || name.compare(0, 10, "highlight ") == 0;
+            bool isTransform = name == "transform" || name.compare(0, 10, "transform ") == 0;
+            if (isHighlight || isTransform)
             {
-                // [highlight <name>]: a highlight set (rules checked later,
-                // see highlight.h).
+                const char *kind = isHighlight ? "highlight" : "transform";
+                auto &list = isHighlight ? settings.highlight : settings.transform;
                 std::string set = name.size() > 10 ? trim(name.substr(10)) : std::string();
                 bool validName = !set.empty() &&
                     set.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-.") == std::string::npos;
-                section = validName ? Highlight : Unknown;
+                section = !validName ? Unknown : isHighlight ? Highlight : Transform;
                 if (!validName)
-                    warn("invalid section [" + name + "] (use [highlight <name>], the name with "
+                    warn("invalid section [" + name + "] (use [" + kind + " <name>], the name with "
                          "letters, digits, '-', '_' or '.'); section ignored");
                 else
                 {
-                    for (auto it = settings.highlight.begin(); it != settings.highlight.end(); ++it)
+                    for (auto it = list.begin(); it != list.end(); ++it)
                         if (it->name == set)
                         {
-                            warn("[highlight " + set + "] defined again; the last one is used");
-                            settings.highlight.erase(it);
+                            warn("[" + std::string(kind) + " " + set + "] defined again; the last one is used");
+                            list.erase(it);
                             break;
                         }
-                    settings.highlight.emplace_back();
-                    settings.highlight.back().name = set;
-                    settings.highlight.back().lineNo = lineNo;
+                    list.emplace_back();
+                    list.back().name = set;
+                    list.back().lineNo = lineNo;
                 }
                 continue;
             }
@@ -264,9 +268,9 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
         }
         std::string key = lower(trim(line.substr(0, eq)));
         std::string value = trim(line.substr(eq + 1));
-        if (section == Highlight)
+        if (section == Highlight || section == Transform)
         {
-            settings.highlight.back().entries.push_back({lineNo, key, value});
+            (section == Highlight ? settings.highlight : settings.transform).back().entries.push_back({lineNo, key, value});
             continue;
         }
         auto invalid = [&] (const std::string &hint) {
@@ -513,6 +517,30 @@ std::string settingsTemplate()
         "#groups = bright-yellow on blue \"from=<([^>]*)>\"\n"
         "#hash = \"client=[^[]*\\[([0-9.]+)\\]\"\n"
         "#include = zimbra-mta\n"
+        "\n"
+        "# Transformation sets for Log View (F4 > Transform, e.g. 'show-tls'; T turns\n"
+        "# them on/off). They change the text shown (the filters and the alerts\n"
+        "# use the original line). Rules, applied in order, each on the result of\n"
+        "# the one before:\n"
+        "#   replace = \"<regex>\" \"<template>\" [icase]   every match is replaced\n"
+        "# Template: \\0-\\9 the match / a group, ${n:>W} ${n:<W} a group aligned\n"
+        "# right / left in W characters (${n:>W!} cuts a longer value), \\t a tab,\n"
+        "# \\\\ a backslash, \\$ a dollar; \"\" removes the match.\n"
+        "# Example: the TLS connections of zimbra.log as IP, date, service, name.\n"
+        "#[transform show-tls]\n"
+        "#replace = \"^([^ ]+) +[^ ]+ +[^/]+/([^/[ ]{1,4})[^ ]* .*TLS connection established from ([^[]+)\\[([^]]+)\\].*\" \"${4:>15}\\t\\1\\t\\2\\t\\3\"\n"
+        "# Example: FortiGate lines without some fields (like multitail -ke), the\n"
+        "# second field (the host) in 20 characters, srcip in 15, the ports in 5.\n"
+        "#[transform fortigate-short]\n"
+        "# The alignments first: the last three rules remove the keys they look for.\n"
+        "#replace = \"^([^ ]+) +([^ ]+) +\" \"\\1 ${2:<20} \"\n"
+        "#replace = \"srcip=([0-9.]+)\" \"srcip=${1:>15}\"\n"
+        "#replace = \"dstport=([0-9]+)\" \"dstport=${1:>5}\"\n"
+        "#replace = \"dstintf=\\\"([^\\\"]*)\\\"\" \"dstintf=\\\"${1:<6}\\\"\"\n"
+        "#replace = \"app=\\\"([a-z]+)/([0-9]+)\\\"\" \"app=\\\"\\1/${2:>5}\\\"\"\n"
+        "#replace = \"devname=.* srcip=\" \"\"\n"
+        "#replace = \"srcport=.* dstport=\" \"\"\n"
+        "#replace = \"policytype=.* policyname=\" \"\"\n"
         "\n"
         "[keys]\n"
         "# Keys that scroll the history directly (outside of full-screen programs).\n"

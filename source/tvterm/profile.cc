@@ -305,6 +305,13 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 if (!parseBool(value, win.logHighlightOn))
                     warn("invalid highlight-on '" + value + "' (use yes or no)");
             }
+            else if (isLog && key == "transform")
+                win.logTransform = value;
+            else if (isLog && key == "transform-on")
+            {
+                if (!parseBool(value, win.logTransformOn))
+                    warn("invalid transform-on '" + value + "' (use yes or no)");
+            }
             else if (isTerm && key == "dir")
                 win.dir = expandHome(value);
             else if (isTerm && key == "command")
@@ -454,6 +461,11 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 if ( !(win.logHighlightWordsMode ? win.logHighlightWords : win.logHighlight).empty() &&
                      !win.logHighlightOn )
                     file << "highlight-on = no\n";
+                if (!win.logTransform.empty())
+                    file << "transform = " << win.logTransform << "\n";
+                // Off (key T): only with sets.
+                if (!win.logTransform.empty() && !win.logTransformOn)
+                    file << "transform-on = no\n";
                 if (win.alertActivity)
                     file << "alert-activity = yes\n";
                 if (!win.alertKeywords.empty())

@@ -86,6 +86,7 @@ E25. Ctrl-W closes windows, Save > Open after saving, View file, large files and
 E26. File dialogs: `file-filters` patterns in the Name history, initial filter of Open / View file
 E27. Log View: Ctrl-Down / Ctrl-Up go to the next / previous line with a highlighted word (Highlight Words)
 E28. File dialogs: `file-dialog-size`, `file-list-columns`, Ctrl-F5, size kept while tvterm runs
+E29. Log View: transformations (`[transform <name>]`, `replace`), key T, F4 Transform, profile `transform`
 
 ---
 
@@ -415,6 +416,35 @@ Free menu letters: B, C, I, J, X, Y (`M` opens More...).
   line has colors). Not found: `No highlighted line below.` / `above.`. The cursor line keeps its black-on-cyan color
   (no highlight on it, as before); a variant for the word under the cursor: maybe later.
 
+### Log View transformations — `far2l-extended`
+- E29: `[transform <name>]` sections in `tvterm.ini` (same name rules as highlight, parsed by `settings.cc` into
+  `Settings::transform`, compiled by `rebuildTransformSets` in `transform.cc` at every reload; no built-in sets). One
+  rule kind for now: `replace = "<regex>" "<template>" [icase]` (POSIX ERE, every match, like `sed s///g`; an empty match
+  right after a match is skipped, as in sed). Template: `\0`–`\9`, `${n}`, `${n:>W}` / `${n:<W}` (padding in UTF-8
+  characters, a longer value whole), `!` before `}` cuts, `\t`, `\\`, `\$`; any other backslash is kept; `""` removes the
+  match. Several rules (and several sets in the field) apply in order, each on the result of the one before. Errors
+  (regex, a group the expression does not have, invalid `${…}`, quotes, other keys such as `fields`, planned for E30)
+  → Event Viewer, rule ignored.
+- Order: include / exclude, X and the alerts use the original line (`LogLine::text`, unchanged in the source); the text
+  shown (`LogViewWindow::displayText`, transformed when `transformActive()`, markers never) is used by drawing, W
+  (`rowsOf`), the horizontal scroll bar, the highlight (sets and words, `hlCache` on the text shown), Ctrl-Down / Ctrl-Up,
+  search (F3, New window), copy, Ctrl-E / Ctrl-A, save and double click. Cache `tfCache` (by sequence, cleared at 4096
+  entries and when the transformation changes); `transformChanged` also clears `hlCache` and the search match, resets the
+  horizontal position and, when following, goes to the end.
+- Key T (`toggleTransform`; F9 `Transfor~m~ on/off`, `cmLogTransform`), title `[T-]` while off; without sets a status
+  message. F4: field `Transfor~m~` left of Highlight, with ↓ (`FieldHistoryButton` now takes a function for the set
+  names: `highlightSetNames` / `transformSetNames`); an unknown name → message with the known sets; values used before:
+  `transformHistory`. Unknown set from a profile → Event Viewer note once per window and value (`tfReported`).
+- Profile: `transform = …`, `transform-on = no` (written only with sets). D and Search > New window copy the options;
+  New window gets the **original** lines that match in the text shown.
+- `--print-settings`, Edit settings and `examples/tvterm.ini`: the `show-tls` and `fortigate-short` examples (commented);
+  `examples/profiles/example.ini`: the two keys. The show-TLS expression ends with `.*` (without it the rest of the line,
+  `: TLSv1.3 …`, stayed after the fields; the version in the earlier notes lacked it). After the real test (v2 of the
+  patch): ` +` after the date and after the host name (the user's `zimbra.log` has two spaces after the time, so the
+  first version matched no line; awk splits on any spaces), and `fortigate-short` with the alignments tried on the
+  server (host in 20, `srcip` in 15, `dstport` in 5, `dstintf="…"` in 6, `app="tcp/N"` in 5) before the rules that
+  remove the keys.
+
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
 - **OSC 52**: programs inside tvterm (vim, tmux, scripts) can write to the clipboard; reading is refused on purpose (security).
@@ -601,6 +631,8 @@ source/tvterm/             the application
   highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
                            read), the built-in sets, Highlight Words (wordHighlightRules), highlightLine (colors of
                            the bytes of a line)
+  transform.cc/.h          Log View transformation sets (E29): [transform <name>] rules (replace), compiled when
+                           tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
@@ -917,6 +949,22 @@ examples/profiles/example.ini
   Shift+arrows → 115×38, kept at the next Open, in View file, Load Profile and Save file as (which saves); key changed
   to `100x30` (reload) → 100×30, the kept size dropped; 2 columns as before; `30x10` and `3` → Event Viewer notes, old
   values kept; one column with 60 files: Down scrolls one row, PgDn a page, the bottom line follows; `--print-settings`.
+- Transformations (E29): a C++ test linked with `transform.cc` + `highlight.cc` (42 checks: groups, `${n:>W}` / `<W` / `!`,
+  UTF-8 padding and cut, `\t` `\\` `\$` `\"`, sequential rules, `icase`, `^` only once, empty matches like sed `-a-b-c-` /
+  `-a-b-`, `$`, unmatched group, the show-TLS line with `smtpd` / `submission`, 13 error cases); the show-TLS expression
+  gives the same groups with musl (static) and glibc; 50000 lines in ~0.2 s (`-O2`). In tmux (160×45, a generated
+  `mail.log` with 300 lines): profile with `include = TLS connection`, `transform = show-tls`, Words `example` → F2 save
+  identical (`cmp`) to the awk script of the user on the same file (100 lines); the word colored at its place in the text
+  shown (`capture-pane -e`); T → `[T-]` and the original lines, T again; regex search `^ +10\.0\.1\.` (only in the text
+  shown) + New window → 14/14 (= `grep -cE` on the awk output), the new window transformed, T there → originals; Ctrl-E
+  sends the transformed line; F4: field, ↓ lists the sets, `nope` → message with the sets, `short` chosen from the list →
+  applied; Save Profile As → `transform = short`, `transform-on = no`; loaded → `[T-]`; rule changed in `tvterm.ini` →
+  the window changes after the reload; Event Viewer: 3 warnings of the `bad` set with their lines; `nope show-tls` → note
+  once, `show-tls` used; W with a transformation; D keeps it; T without sets → message. Regression: a window with
+  `highlight = kv` without a transformation keeps its colors.
+  Real test (server, CentOS 7.9, musl static build): 10/10 after correcting show-tls (two spaces in the user's log).
+  v2 (examples only): every example rule taken from `--print-settings` (uncommented) parses, and gives the expected
+  text on the user's two real TLS line forms (= awk) and on FortiGate-like lines.
 ---
 
 ## 6. Known limitations
@@ -986,3 +1034,4 @@ examples/profiles/example.ini
 | File filters (`far2l-extended`) | E26 | `file-filters` in the Name history of Open / View file / Save file as; Open and View file start with the first pattern (default `*.txt`); profile dialogs: own lists |
 | Highlighted lines (`far2l-extended`) | E27 | Log View, Highlight Words: Ctrl-Down / Ctrl-Up (and F9) move the cursor to the next / previous line with a highlighted word |
 | File dialog size (`far2l-extended`) | E28 | `file-dialog-size` (e.g. `120x40`) and `file-list-columns` (1 / 2) for Open, View file, Save file as, Load / Save Profile; Ctrl-F5; a resized dialog keeps its size while tvterm runs |
+| Transformations (`far2l-extended`) | E29 | Log View: `[transform <name>]` sets with `replace = "regex" "template"` (groups, alignment, cut); the text shown is transformed (filters and alerts on the original); T, `[T-]`, F4 Transform with ↓, profile `transform`, `transform-on` |
