@@ -8,7 +8,9 @@
 #include <string>
 
 // A status line that can show a short message for a few seconds, in place
-// of its items (e.g. "Saved 120 lines to ...", "No older match").
+// of its items (e.g. "Saved 120 lines to ...", "No older match"), and a
+// hint while the mouse is over an item of the top bar (see topbar.h). The
+// message comes first.
 
 class TVTermStatusLine : public TStatusLine
 {
@@ -24,6 +26,8 @@ public:
     static void checkExpired();
     // True while a message is shown.
     static bool hasMessage();
+    // The hint shown in place of the items (empty: none).
+    static void setHint(const std::string &text);
 
     // A command for a status item that, when clicked, acts like pressing
     // 'keyCode' (with 'mods', and 'ch' for printable keys): the key goes to

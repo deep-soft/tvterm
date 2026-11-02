@@ -106,11 +106,17 @@ together with the settings file, the last profile loaded, the uptime and the num
 
 ## 2. The screen and the Ctrl-B menu
 
-The screen has the desktop (the windows) and, at the bottom, the **status line**. The status line changes with the
-focused window and shows its main keys; a click on an item works like its key. `WinList` opens the Window List.
-Its right end shows the current desktop (` D1 `, [Desktops](#desktops)) and, when windows have alerts,
-`Alerts: N (Ctrl-B G)`. Short messages (e.g. "Settings reloaded.")
-replace the status line for 5 seconds.
+The screen has two bars, with the desktop (the windows) between them:
+
+- The **top bar**: `Ctrl-B Menu` (opens the menu), `WinList` (the Window List), `Alerts: N (Ctrl-B G)` (white on red,
+  only while windows have alerts; a click goes to the oldest one, like Ctrl-B G) and, on the right, the buttons of the
+  desktops ([Desktops](#desktops)). It is not a menu bar: Alt+letters and F10 stay with the programs in the terminals.
+  A click works on the item under the mouse when the button is released.
+- The **status line**, at the bottom: it changes with the focused window and shows its main keys; a click on an item
+  works like its key. Short messages (e.g. "Settings reloaded.") replace it for 5 seconds. While the mouse is over an
+  item of the top bar, the status line says what the item does (for a desktop: its windows, e.g.
+  `D2: 3 windows: mail, logs, bash`); a message comes first. The hints need the mouse moves without a pressed button:
+  they come through far2l's extensions; a plain xterm reports moves only while a button is pressed.
 
 Windows are moved with the mouse by their title, resized by their lower right corner and closed with the `[■]` button,
 as in any Turbo Vision program.
@@ -119,7 +125,7 @@ as in any Turbo Vision program.
 
 **Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click). Ctrl-B is not sent to programs
 (see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
-([Global keys](#global-keys)); the status line then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
+([Global keys](#global-keys)); the top bar then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
 writes Ctrl-B.
 
 | Key | Item | What it does |
@@ -163,14 +169,17 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 
 ### Window List
 
-**Ctrl-B W** or a click on `WinList`. Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
+**Ctrl-B W** or a click on `WinList` (top bar). Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
 with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Cancel. The list has the windows of every
 desktop; Go on a window of another desktop shows that desktop.
 
 ### Desktops
 
 There are 9 desktops. Only the windows of the current one are shown; the others keep running (programs, Log Views,
-alerts). The status line shows the current desktop (` D2 `).
+alerts). The top bar has a button for each desktop with windows and for the current one (the Event Viewer is not
+counted): ` D1   D2   D5 `. The current one is black on green, the others black on cyan, or white on red when one of
+their windows has an alert. A click on a button shows that desktop; with the mouse over a button, the status line
+lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
 - **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops with the
   number of windows on each; a digit or Enter chooses. An empty desktop can be shown.
@@ -640,7 +649,8 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
 - Silence is counted from the start of the window (or from setting the alert), then from the last output and from
   leaving the window. After a silence alert, new output arms it again.
 - Priority: keyword > silence > activity. A keyword found inside a window title or escape sequence does not count.
-- The mark also appears in the Window List and the quit dialog; the status line shows `Alerts: N (Ctrl-B G)`.
+- The mark also appears in the Window List and the quit dialog; the top bar shows `Alerts: N (Ctrl-B G)` (a click
+  goes to the oldest alert, like Ctrl-B G) and its desktop button turns red.
   **Ctrl-B G** goes to the oldest alert. Selecting the window clears its alert.
 - **A** in the Event Viewer lists the active alerts (those counted by `Alerts: N`), oldest first (the order of Ctrl-B G):
   the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword time),
@@ -1105,5 +1115,5 @@ Mind the trailing space: `policyid=37 ` (in quotes) does not match `policyid=370
   details (e.g. `\d` works only in the history).
 - Log View: the scroll bar counts lines, not wrapped rows; a search finds the first match of each line; restarting a
   `tail -n N` source shows those N lines again.
-- `WinList` in the status line does nothing while a dialog is open.
-- On screens narrower than about 156 columns, the `Alerts: N` counter covers `WinList` in the Log View status line.
+- The top bar does nothing while a dialog or a menu is open.
+- On a narrow screen the top bar drops `Alerts: N`, then `WinList`, then `Ctrl-B Menu`, to keep the desktop buttons.

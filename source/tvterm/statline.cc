@@ -15,6 +15,7 @@ namespace statline
 {
 
 static std::string message;
+static std::string hint;
 static std::chrono::steady_clock::time_point until;
 
 // Commands of the status items that stand for a key (see keyCommand).
@@ -31,6 +32,14 @@ static std::vector<StatusKey> &keys()
 {
     static std::vector<StatusKey> v;
     return v;
+}
+
+static std::string oneLine(const std::string &text)
+{
+    std::string out;
+    for (char c : text)
+        out += (c == '\n' || c == '\r' || c == '\t') ? ' ' : c;
+    return out;
 }
 
 } // namespace statline
@@ -57,7 +66,8 @@ void TVTermStatusLine::setCommandText(ushort command, const std::string &text)
 
 void TVTermStatusLine::draw()
 {
-    if (statline::message.empty())
+    const std::string &text = !statline::message.empty() ? statline::message : statline::hint;
+    if (text.empty())
     {
         TStatusLine::draw();
         return;
@@ -65,16 +75,13 @@ void TVTermStatusLine::draw()
     TDrawBuffer b;
     TAttrPair color = getColor(0x0301);
     b.moveChar(0, ' ', color, size.x);
-    b.moveStr(1, statline::message, color, size.x - 1);
+    b.moveStr(1, text, color, size.x - 1);
     writeLine(0, 0, size.x, 1, b);
 }
 
 void TVTermStatusLine::showMessage(const std::string &text, int seconds)
 {
-    statline::message.clear();
-    // One line only.
-    for (char c : text)
-        statline::message += (c == '\n' || c == '\r' || c == '\t') ? ' ' : c;
+    statline::message = statline::oneLine(text);
     statline::until = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
     if (TProgram::statusLine)
         TProgram::statusLine->drawView();
@@ -95,6 +102,16 @@ bool TVTermStatusLine::hasMessage()
     return !statline::message.empty();
 }
 
+void TVTermStatusLine::setHint(const std::string &text)
+{
+    std::string h = statline::oneLine(text);
+    if (h == statline::hint)
+        return;
+    statline::hint = std::move(h);
+    if (TProgram::statusLine)
+        TProgram::statusLine->drawView();
+}
+
 ushort TVTermStatusLine::keyCommand(ushort keyCode, ushort mods, char ch)
 {
     using namespace statline;
@@ -112,9 +129,12 @@ void TVTermStatusLine::handleEvent(TEvent &event)
 {
     // While a message is shown, the items are hidden: a click only removes
     // the message (it must not run the hidden item under it).
-    if (event.what == evMouseDown && !statline::message.empty())
+    // The same for a hint (when the mouse moves are not reported, it stays
+    // after a click on the top bar).
+    if (event.what == evMouseDown && (!statline::message.empty() || !statline::hint.empty()))
     {
         statline::message.clear();
+        statline::hint.clear();
         drawView();
         clearEvent(event);
         return;

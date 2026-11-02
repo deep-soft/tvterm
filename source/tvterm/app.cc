@@ -28,6 +28,7 @@
 #include "quitdlg.h"
 #include "settings.h"
 #include "statline.h"
+#include "topbar.h"
 #include "histdlg.h"
 #include "about.h"
 #include "alerts.h"
@@ -200,6 +201,8 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
                &TVTermApp::initDeskTop
              )
 {
+    // The top bar (see topbar.h), on the first line.
+    insert(new TopBar(TRect(0, 0, size.x, 1)));
     // First lines in the Event Viewer: which build is running.
     note(versionLine());
     note(buildLine());
@@ -243,8 +246,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     fileopen::addFileFilters(currentSettings.fileFilters);
     // The first menu key, in the status line and in messages.
     globalkeys::setMenuKeyName(currentSettings.globalKeys[gaMenu].front().name());
-    if (auto *sl = dynamic_cast<TVTermStatusLine *>(TProgram::statusLine))
-        sl->setCommandText(cmMenu, "~" + globalkeys::menuKeyName() + "~ Menu");
+    if (TopBar::instance)
+        TopBar::instance->menuKeyChanged();
     // Log View highlight sets: the built-in ones and those in the file. The
     // windows take them at their next update.
     rebuildHighlightSets(currentSettings.highlight, path, warnings);
@@ -318,17 +321,16 @@ void TVTermApp::editSettings()
 
 TStatusLine *TVTermApp::initStatusLine(TRect r)
 {
-    // Items of windows that handle their own keys: a click sends the key
-    // (see TVTermStatusLine::keyCommand). "WinList" (Window List, no
-    // key, like Ctrl-B W) follows "Ctrl-B Menu" in every bar except those of
-    // moving/resizing a window and of the open menu. The menu key itself is
-    // handled in getEvent (menu-key in tvterm.ini); the "Ctrl-B Menu" items
-    // get its name when the settings are read.
+    // The status line, on the last line of the screen: the keys of the
+    // focused window, the temporary messages and the hints of the top bar
+    // (see topbar.h, which has "Ctrl-B Menu", "WinList", the alerts and the
+    // desktops). Items of windows that handle their own keys: a click sends
+    // the key (see TVTermStatusLine::keyCommand).
     auto keyCmd = [] (ushort keyCode, ushort mods = 0, char ch = 0) {
         return TVTermStatusLine::keyCommand(keyCode, mods, ch);
     };
-    r.b.y = r.a.y + 1;
-    TStatusLine *statusLine = new AlertStatusLine(r,
+    r.a.y = r.b.y - 1;
+    TStatusLine *statusLine = new TVTermStatusLine(r,
         *new TStatusDef(hcDragging, hcDragging) +
             *new TStatusItem("~↑↓→←~ Move", kbNoKey, 0) +
             *new TStatusItem("~Shift-↑↓→←~ Resize", kbNoKey, 0) +
@@ -337,12 +339,10 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Esc~ Cancel", kbNoKey, 0) +
         *new TStatusDef(hcInputGrabbed, hcInputGrabbed) +
             *new TStatusItem("~Alt-End~ Release Input", kbAltEnd, cmReleaseInput) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcSelecting, hcSelecting) +
             *new TStatusItem("~Click & Drag~ Select Text", kbNoKey, 0) +
             *new TStatusItem("~Ctrl-C~ Copy Selection", kbCtrlC, cmCopySelection) +
             *new TStatusItem("~Esc~ Cancel", kbEsc, cmCancelSelection) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // History mode: the keys are handled by the terminal view.
         *new TStatusDef(hcHistory, hcHistory) +
             *new TStatusItem("~↑↓ PgUp PgDn Home End~ Scroll", kbNoKey, 0) +
@@ -352,7 +352,6 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~Esc~ Exit", kbNoKey, keyCmd(kbEsc)) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Log View: its keys are handled by the window.
         *new TStatusDef(hcLogView, hcLogView) +
             *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
@@ -364,8 +363,6 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~/~ Search", kbNoKey, keyCmd('/', 0, '/')) +
             *new TStatusItem("~Ctrl-C~ Copy", kbNoKey, keyCmd(kbCtrlC, kbCtrlShift)) +
             *new TStatusItem("~F2~ Save", kbNoKey, keyCmd(kbF2)) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         // Event Viewer: its keys are handled by the window.
         *new TStatusDef(hcEventViewer, hcEventViewer) +
             *new TStatusItem("~M~ Moves", kbNoKey, keyCmd('m', 0, 'm')) +
@@ -376,32 +373,27 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
             *new TStatusItem("~A~ Alerts", kbNoKey, keyCmd('a', 0, 'a')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
             *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
         *new TStatusDef(hcMenu, hcMenu) +
             *new TStatusItem("~Esc~ Close Menu", kbNoKey, 0) +
         *new TStatusDef(0, 0xFFFF) +
-            *new TStatusItem("~Ctrl-B~ Menu", kbNoKey, cmMenu) +
-            *new TStatusItem("WinList", kbNoKey, cmWindowList) +
             // Shift-Ins itself is handled by the terminal view (see
             // TerminalView::pasteOnShiftIns); this item is a hint and can be
             // clicked.
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, cmPaste)
             );
-    statusLine->growMode = gfGrowHiX;
     return statusLine;
 }
 
 TDeskTop *TVTermApp::initDeskTop(TRect r)
 {
+    // Between the top bar and the status line.
     r.a.y += 1;
+    r.b.y -= 1;
     return new TVTermDesk(r);
 }
 
@@ -526,16 +518,9 @@ void TVTermApp::idle()
     checkSettingsFile();
     // Closed windows of the other desktops.
     desktops::prune(*deskTop);
-    if (auto *sl = dynamic_cast<AlertStatusLine *>(statusLine))
-    {
-        size_t count = countAlerts(*deskTop);
-        if (count != sl->alertCount || sl->desktop != desktops::current())
-        {
-            sl->alertCount = count;
-            sl->desktop = desktops::current();
-            sl->drawView();
-        }
-    }
+    // The alerts and the desktops, in the top bar.
+    if (TopBar::instance)
+        TopBar::instance->update(*deskTop);
 }
 
 namespace appmenu
@@ -740,6 +725,9 @@ void TVTermApp::newLogView()
 void TVTermApp::getEvent(TEvent &event)
 {
     TApplication::getEvent(event);
+    // The hints of the top bar follow the mouse.
+    if ((event.what & evMouse) && TopBar::instance)
+        TopBar::instance->hover(event.mouse.where);
     // Show every event in the Event Viewer, if one is open.
     if (event.what != evNothing)
         if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))

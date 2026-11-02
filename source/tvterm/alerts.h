@@ -118,20 +118,4 @@ size_t countAlerts(TDeskTop &deskTop);
 // the Event Viewer (key A).
 std::string listAlerts(TDeskTop &deskTop);
 
-// Status line which also shows the number of alerts on its right side
-// (not while a temporary message is shown).
-class AlertStatusLine : public TVTermStatusLine
-{
-public:
-
-    using TVTermStatusLine::TVTermStatusLine;
-
-    // Number of windows with an alert.
-    size_t alertCount {0};
-    // The current desktop (see desktops.h), shown before the alerts.
-    int desktop {1};
-
-    void draw() override;
-};
-
 #endif // TVTERM_ALERTS_H

@@ -90,6 +90,7 @@ E29. Log View: transformations (`[transform <name>]`, `replace`), key T, F4 Tran
 E30. Log View transformations: `fields`, `fields-format`, widths (`key:>W` / `key:<W` / `!`)
 E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015`
 E32. Desktops 1-9 (core): Ctrl-B 1-9, Ctrl-B Y, `D2` in the status line, `desktop` in profiles
+E33. Two bars: a top bar (Ctrl-B Menu, WinList, Alerts, desktop buttons) and the status line at the bottom, with hints
 
 ---
 
@@ -242,7 +243,8 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   **silence** (N seconds without output, counted from the start of the terminal or from setting the alert, then from
   the last output and from leaving the terminal; after a silence alert, armed again by new output).
 - Shown as: a mark in the window title (`[!]`, `[!error]`, `[!silent]`, so also in the Window List and in the quit dialog),
-  `Alerts: N (Ctrl-B G)` on the right of the status line. **Ctrl-B G** goes to the oldest alert. Selecting a terminal clears its alert.
+  `Alerts: N (Ctrl-B G)` (on the right of the status line until E32, in the top bar from E33, where a click works like
+  Ctrl-B G). **Ctrl-B G** goes to the oldest alert. Selecting a terminal clears its alert.
   Priority when several happen: keyword > silence > activity.
 - Profile keys: `alert-activity = yes`, `alert-keywords = error, reject`, `alert-silence = 60`; saved by Save Profile As.
 - False alarms avoided: output is ignored for 3 s after the terminal starts and for 1.5 s after a resize (tile, maximize)
@@ -481,7 +483,8 @@ are shown, the others are hidden (`TView::hide`) but keep running (processes, Lo
 - Going to a window on another desktop shows that desktop first: Ctrl-B G (alerts), Window List Go, Go to in the Quit /
   Close windows lists (`desktops::selectWindow`). The Window List, the Quit / Close lists, alerts, About and Save Profile
   count the windows of every desktop (`getDeskTopWindows` includes the hidden ones).
-- Status line: ` D2 ` at the right end, before `Alerts: N (Ctrl-B G)` (`AlertStatusLine::desktop`).
+- Status line: ` D2 ` at the right end, before `Alerts: N (Ctrl-B G)` (`AlertStatusLine::desktop`); replaced in E33 by
+  the desktop buttons of the top bar (see Top bar).
 - Profiles: `desktop = N` in a window section (1-9, default 1; refused with a warning in `[eventviewer]`) and in
   `[profile]` (the desktop shown after loading, default 1); saved only when not 1, so old profiles load unchanged (all on
   desktop 1, and desktop 1 is shown). `layout` is applied to each desktop that gets windows (`auto`: by the number of
@@ -497,9 +500,37 @@ are shown, the others are hidden (`TView::hide`) but keep running (processes, Lo
   `desktops::focusWindow` also calls `setCurrent`.
 - `apputil.h` defines `Uses_TDialog` (it uses `TDialog`): with the new file, the Unity build grouped the sources so that
   `evntview.cc` saw `execDialog` without `TDialog`.
-- Planned next (E33): `D2:1·2·4` with a click, column `D` in the Window List and the Quit list, `Alerts: 3 (D2 D4)`,
+- Planned at the time: `D2:1·2·4` with a click, column `D` in the Window List and the Quit list, `Alerts: 3 (D2 D4)`,
   Ctrl-B 0 = previous desktop, desktop names in profiles; proposed at the real test: a resizable Window List with
-  desktop, title and command, reachable from the status line like `WinList`.
+  desktop, title and command. Agreed in chat 38: the buttons in a top bar (E33); the lists, Ctrl-B 0 and the names in E34.
+
+### Top bar — `far2l-extended`
+E33 (agreed in chat 38; always two bars, no option). The screen has a **top bar** on its first line and the **status
+line** on its last one (before E33 the status line was on the first line and the desktop below it); the desktop is between
+them, one row shorter (profiles keep their positions in percent of the desktop).
+- Top bar (`TopBar`, `topbar.cc`, a `TView` inserted by the application, not a `TMenuBar`: Alt+letters and F10 stay with the
+  programs in the terminals; the menu stays the Ctrl-B popup in the middle): `Ctrl-B Menu` (the first `menu-key`, the key
+  highlighted), `WinList`, `Alerts: N (Ctrl-B G)` (white on red, only while N > 0) and, on the right, the desktop buttons
+  ` D1   D2   D5 `: the desktops with windows plus the current one (the Event Viewer is not counted). Colors: the
+  current one black on green, the others black on cyan, white on red when one of their windows has an alert (the current
+  one stays green). The bar uses the status line palette.
+- A click runs the item when the button is released over it (like the status line): `cmMenu`, `cmWindowList`,
+  `cmNextAlert` (new: the counter was not clickable before), `cmSwitchDesktop` (nothing for the current desktop). The
+  commands are put in the event queue. While a dialog or a menu is open the bar does not get the click (it is not modal);
+  in Grab Input a click on `WinList` opens the Window List.
+- Hints: `TVTermApp::getEvent` passes the position of every mouse event to `TopBar::hover`; over an item the status
+  line shows a hint in place of its items (`TVTermStatusLine::setHint`; a temporary message comes first): `The menu
+  (Ctrl-B).`, `Window List: the windows of every desktop (Ctrl-B W).`, `Go to the oldest alert (Ctrl-B G). Alerts:
+  [!] mail (D2)`, `D2: 2 windows, 1 with an alert: logs, [!] mail` (titles from front to back, `(current)` after the
+  current desktop, `(no title)` like the Window List). The hint is refreshed in `idle` (titles, alerts) and removed when the
+  mouse leaves the items. tvision asks the terminal only for clicks and drags (`?1000h`, `?1002h`), so a plain xterm does
+  not report moves without a pressed button; the moves come through far2l's extensions (the Event Viewer's M). Without
+  moves the hint of a clicked item stays until the next mouse event elsewhere; a click on the status line while a hint is
+  shown only removes it (like a message), so it never runs the item hidden under the hint.
+- The status line lost `Ctrl-B Menu` and `WinList` in every context (terminal: only `Shift-Ins Paste`); `AlertStatusLine`
+  was removed (the counter and ` D2 ` are in the top bar); a new `menu-key` updates the top bar (`menuKeyChanged`).
+- Narrow screens: the desktop buttons are kept (the first ones dropped only when they do not fit alone); the left items
+  are dropped from the end (`Alerts`, `WinList`, `Ctrl-B Menu`) when they would reach the buttons.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -604,7 +635,7 @@ are shown, the others are hidden (`TView::hide`) but keep running (processes, Lo
 - **Tile / Cascade without room** (E10): when the fixed windows leave no rectangle of at least 20 × 6 and the whole desktop is
   used (commit 26), the Event Viewer gets the note "no free area beside the fixed windows, using the whole desktop"
   (`TVTermApp::noteNoFreeArea`, also for the `layout` of profiles).
-- **Window List** (Ctrl-B W (J before E17), or a click on `WinList` in the status line, E8: right after `Ctrl-B Menu` in the
+- **Window List** (Ctrl-B W (J before E17), or a click on `WinList` in the top bar from E33; until E32 in the status line, E8: right after `Ctrl-B Menu` in the
   terminal, Log View, Event Viewer and editor lines, at the end of the History, selection and Grab Input lines; not while
   moving/resizing or in the menu; no key; in Grab Input the click first releases the input): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
@@ -678,7 +709,7 @@ source/tvterm/             the application
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows (with the windows of other desktops)
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
-  alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, AlertStatusLine (a TVTermStatusLine with the alert counter),
+  alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
                            and logview.cc (LogViewWindow::checkAlerts)
   logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
@@ -702,8 +733,10 @@ source/tvterm/             the application
   fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs;
                            history ids of the file dialogs and `file-filters` (E26); newFileDialog: size and
                            columns of the file dialogs (E28)
-  statline.cc/.h           status line that can show a message for a few seconds; items that send a key when clicked
-                           (keyCommand: a command per key, turned into the key event in putEvent)
+  statline.cc/.h           status line (last line) that can show a message for a few seconds or a hint of the top bar;
+                           items that send a key when clicked (keyCommand: a command per key, turned into the key event
+                           in putEvent)
+  topbar.cc/.h             top bar (E33): Ctrl-B Menu, WinList, Alerts, desktop buttons; clicks and hints
 include/tvterm/termopts.h  TerminalOptions (global): scrollback size, wheel, word chars, keys, callbacks to the application
 deps/vterm/patches/0001-win32-input-mode.patch   applied by CMake to a copy (the submodule stays clean)
 deps/tvision-fixes.cmake   tvision fixes: histlist.cpp copied to the build directory, memcpy → memmove (submodule clean)
@@ -1033,6 +1066,17 @@ examples/profiles/example.ini
   bad / lonely `fields-format`, 9 invalid field specs, unknown key, `replace` unchanged); 50000 FortiGate-like lines of
   443 bytes in ~0.17 s (`-O2`). In tmux: a Log View on a generated FortiGate log with the `fortigate-fields` example
   (from `--print-settings`, uncommented) → aligned columns, T → original lines, search in the text shown, F2 save.
+- Two bars (E33), in tmux (120×30; profiles with windows on desktops 1, 2 and 5, an activity alert on desktop 2; mouse
+  through `TIOCSTI`, moves without a button as SGR `ESC[<35;x;yM`; colors with `capture-pane -e`): the bar text and the
+  button colors (42 / 46 / 41 + 97), hints over each item, in the gap and below the bar (none), clicks on D2 / D5 / D1
+  (desktop switched, hint with `(current)`), Menu (menu opens), WinList (Window List), Alerts (goes to the window, the
+  counter disappears); the Event Viewer, editor, Log View and Grab Input status lines without Menu / WinList; a temporary
+  message over a hint, then the hint again after 5 s; resized to 90 / 40 / 25 / 12 columns (items dropped from the end,
+  buttons kept); `menu-key = Ctrl-A, Ctrl-B` written to `tvterm.ini` while running (the bar shows `Ctrl-A Menu`, Ctrl-A
+  opens the menu; removed again: `Ctrl-B Menu`); a manual profile saved (`pos` unchanged, desktop rows 1–28); a window
+  dragged by its title on the first row of the desktop; the top bar does not open the menu over the Window List.
+  Harness: after `tmux kill-server` wait ~1 s before `new-session`, otherwise the new server can be killed too (empty
+  capture).
 ---
 
 ## 6. Known limitations
@@ -1106,3 +1150,4 @@ examples/profiles/example.ini
 | Fields (`far2l-extended`) | E30 | `[transform <name>]`: `fields = k1 k2:>W k3:<W!` (the values of `key=value` words, quoted values whole), `fields-format = pairs / values`; missing fields left out (blanks with a width); before the `replace` rules |
 | `syslog` time forms (`far2l-extended`) | E31 | also `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015` |
 | Desktops (`far2l-extended`) | E32 | desktops 1-9: Ctrl-B 1-9 / Desktop..., Ctrl-B Y, Event Viewer on all, focus per desktop, G / Window List / Go to switch, ` D2 ` in the status line, profile `desktop` |
+| Two bars (`far2l-extended`) | E33 | top bar: Ctrl-B Menu, WinList, Alerts (clickable), desktop buttons (green / cyan / red, click = switch); status line at the bottom with the hints of the top bar |

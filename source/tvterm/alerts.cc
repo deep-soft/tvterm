@@ -450,23 +450,3 @@ std::string listAlerts(TDeskTop &deskTop)
     }
     return out;
 }
-
-void AlertStatusLine::draw()
-{
-    TVTermStatusLine::draw();
-    if (TVTermStatusLine::hasMessage())
-        return;
-    // The current desktop, then the alerts, if any.
-    char text[112];
-    if (alertCount == 0)
-        snprintf(text, sizeof(text), " D%d ", desktop);
-    else
-        snprintf( text, sizeof(text), " D%d  Alerts: %zu (%s G) ", desktop, alertCount,
-                  globalkeys::menuKeyName().c_str() );
-    int width = (int) strwidth(text);
-    if (width >= size.x)
-        return;
-    TDrawBuffer b;
-    b.moveStr(0, text, mapColor(4));
-    writeLine(size.x - width, 0, width, 1, b);
-}
