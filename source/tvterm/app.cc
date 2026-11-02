@@ -21,6 +21,7 @@
 #include "wnd.h"
 #include "apputil.h"
 #include "editwnd.h"
+#include "setedit.h"
 #include "evntview.h"
 #include "profile.h"
 #include "winlist.h"
@@ -273,9 +274,10 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
         showStatus("No settings file " + path + " (More... > Edit settings creates it).");
     else if (existed && !startup)
     {
-        // Not at startup, where there is nothing to report.
-        note("settings reloaded from " + path);
-        showStatus("Settings reloaded.");
+        // Not at startup, where there is nothing to report. Only in the
+        // status line ('reload-message'), not in the Event Viewer.
+        if (manual || currentSettings.reloadMessage)
+            showStatus("Settings reloaded.");
     }
     else if (!existed && !startup)
         note("settings file " + path + " removed: using the default settings");
@@ -288,6 +290,10 @@ void TVTermApp::checkSettingsFile()
     if (now < nextCheck)
         return;
     nextCheck = now + std::chrono::milliseconds(checkIntervalMs);
+    // The Settings editor: changes on disk and the editing marker (also
+    // without 'auto-reload').
+    if (SettingsEditWindow::instance)
+        SettingsEditWindow::instance->tick();
     if (!currentSettings.autoReload)
         return;
     if (FileStamp::of(settingsPath()) != stamp)
@@ -316,7 +322,39 @@ void TVTermApp::editSettings()
             return;
         }
     }
-    insertWindow(new TVTermEditWindow(editorBounds(deskTop->getExtent()), path.c_str()));
+    if (auto *w = SettingsEditWindow::instance)
+    {
+        // Already open: brought to the front; from another desktop, moved to
+        // this one, in the place of a new Settings editor.
+        if (desktops::isHidden(w))
+        {
+            desktops::moveTo(*deskTop, w, desktops::current());
+            TRect r = settingsEditorBounds();
+            w->locate(r);
+        }
+        desktops::selectWindow(*deskTop, w);
+        return;
+    }
+    if (auto *w = (SettingsEditWindow *) insertWindow(new SettingsEditWindow(settingsEditorBounds(), path)))
+        // At once: another tvterm may be editing the file.
+        w->tick();
+}
+
+TRect TVTermApp::settingsEditorBounds()
+{
+    // Below the Event Viewer, as wide as it, down to the bottom; without an
+    // Event Viewer (or without room below it), where other editors open.
+    TRect extent = deskTop->getExtent();
+    if (auto *viewer = (TView *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
+    {
+        TRect ev = viewer->getBounds();
+        TRect r(ev.a.x, ev.b.y, ev.b.x, extent.b.y);
+        r.intersect(extent);
+        if ( (viewer->state & sfVisible) && !(viewer->state & sfDragging) &&
+             r.b.y - r.a.y >= minSettingsEditorHeight && r.b.x - r.a.x >= minSettingsEditorWidth )
+            return r;
+    }
+    return editorBounds(extent);
 }
 
 TStatusLine *TVTermApp::initStatusLine(TRect r)

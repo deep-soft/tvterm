@@ -57,6 +57,9 @@ struct TVTermApp : public TApplication
     void windowList();
     void renameTerm();
     void editSettings();
+    // Where Edit settings puts the Settings editor (see setedit.h).
+    TRect settingsEditorBounds();
+    enum { minSettingsEditorWidth = 24, minSettingsEditorHeight = 6 };
     // 'manual': requested by the user (always reports the result).
     // 'startup': first reading, only problems are reported.
     void reloadSettings(bool manual, bool startup = false);

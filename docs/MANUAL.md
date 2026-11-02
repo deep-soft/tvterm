@@ -441,12 +441,15 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 - `#` or `;` at the start of a line: comment. Section and key names ignore case.
 - Changes apply when the file is saved (checked every 2 seconds), or with **More... > Reload settings**.
 - An invalid value keeps the previous one; a removed key (or file) goes back to the default.
-  Problems are reported in the Event Viewer, with a summary in the status line.
+  Problems are reported in the Event Viewer, with a summary in the status line. After a reload without problems only
+  the status line says "Settings reloaded." for 5 seconds (`reload-message = none`: nothing; Reload settings always
+  says it).
 
 | Section | Key | Default | Values / meaning |
 |---|---|---|---|
 | `[general]` | `profile` | (none) | profile opened at startup without `-p` (name or path); only read at startup |
 | | `auto-reload` | `yes` | reload the file when it changes |
+| | `reload-message` | `status` | after an automatic reload: `status` ("Settings reloaded." in the status line) or `none`; problems always go to the Event Viewer |
 | | `large-file` | `5M` | files larger than this ask before they open in tvterm; `K`, `M`, `G` (×1024) or bytes; `0`: never ask ([chapter 5](#opening-and-viewing-files)) |
 | | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
 | | `external-editor` | (none) | program offered for large files, e.g. `far2l --mortal -e %f` |
@@ -475,6 +478,28 @@ Yes/no values also accept `true`/`false`, `on`/`off`, `1`/`0`. Key names: modifi
 (or with `+`) and a key: `PgUp`, `PgDn`, `Home`, `End`, `Up`, `Down`, `Left`, `Right`, `Ins`, `Del`, `Tab`, `Enter`,
 `Esc`, `Backspace`, `Space`, `F1`…`F12` or one character; `none` disables the key. The global keys accept a list and
 fewer keys ([Global keys](#global-keys)).
+
+### The Settings editor
+
+**More... > Edit settings** opens `tvterm.ini` in the Settings editor (there is only one):
+
+- **Place:** below the Event Viewer, as wide as it, down to the bottom of the screen. Without an Event Viewer, or without
+  room below it (at least 6 lines and 24 columns), on the right like the other editors. If the Settings editor is already
+  open, Edit settings brings it to the front (where it is); from another desktop it is moved to the current one, in the
+  place above.
+- **Changed outside** (another tvterm, another program; checked every 2 seconds, also with `auto-reload = no`): without
+  changes in the editor, the file is reloaded into it ("Settings editor: tvterm.ini changed on disk, reloaded.", replaced
+  at once by the result of the settings reload: "Settings reloaded." or the problems); with
+  unsaved changes it asks **Reload** (take the file from disk, the changes are lost) or **Keep** (Esc). Saving (F2, or
+  Yes when it is closed) over a file that changed on disk asks **Overwrite** or **Cancel**. There is no diff or merge.
+- **Being edited elsewhere:** while the Settings editor has unsaved changes, tvterm writes
+  `~/.config/tvterm/tvterm.ini.editing` (process number, host, time), refreshed every 2 seconds. It is removed when the
+  changes are saved, undone back to the text of the file, or dropped, and when the editor closes. In the other tvterm
+  instances the Settings editor then has a **cyan background** and the title
+  `Settings — being edited in another tvterm (pid N)`. A marker older than 10 seconds (e.g. after a crash), or of a
+  process that is gone, is ignored and overwritten.
+- When the text is again the text of the file (Ctrl-U, or the changes deleted by hand), the editor has no changes: no
+  marker, no question when it is closed.
 
 ```ini
 [general]

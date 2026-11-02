@@ -286,6 +286,14 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseBool(value, settings.autoReload))
                     invalid("use yes or no"), settings.autoReload = previous.autoReload;
             }
+            else if (key == "reload-message")
+            {
+                std::string v = lower(value);
+                if (v == "status" || v == "none")
+                    settings.reloadMessage = v == "status";
+                else
+                    invalid("use status or none"), settings.reloadMessage = previous.reloadMessage;
+            }
             else if (key == "large-file")
             {
                 if (!parseSize(value, settings.largeFile))
@@ -453,6 +461,9 @@ std::string settingsTemplate()
         "#profile = server-mail\n"
         "# Reload this file automatically when it changes (checked every 2 seconds).\n"
         "#auto-reload = yes\n"
+        "# After an automatic reload: status (\"Settings reloaded.\" in the status line\n"
+        "# for 5 seconds) or none. Problems in this file always go to the Event Viewer.\n"
+        "#reload-message = status\n"
         "# Files larger than this ask before they open in tvterm (Save with 'Open\n"
         "# after saving', Ctrl-B O, More... View file): K, M or G; 0: never ask.\n"
         "#large-file = " + sizeName(d.largeFile) + "\n"

@@ -91,6 +91,7 @@ E30. Log View transformations: `fields`, `fields-format`, widths (`key:>W` / `ke
 E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015`
 E32. Desktops 1-9 (core): Ctrl-B 1-9, Ctrl-B Y, `D2` in the status line, `desktop` in profiles
 E33. Two bars: a top bar (Ctrl-B Menu, WinList, Alerts, desktop buttons) and the status line at the bottom, with hints
+E34. Edit settings: the Settings editor below the Event Viewer, changes on disk, the editing marker, `reload-message`
 
 ---
 
@@ -233,6 +234,22 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   More... > Edit settings creates the file (every key commented out) and opens it in the editor. Everything except
   `profile` applies at once (a smaller `lines` drops the oldest lines). Invalid values keep their previous value;
   removed keys (or a removed file) go back to the defaults.
+- **Settings editor** (E34, `setedit.cc`): More... > Edit settings opens one `SettingsEditWindow` (`instance`); again:
+  brought to the front, or from another desktop moved to the current one (`desktops::moveTo` + `locate`). Place
+  (`TVTermApp::settingsEditorBounds`): below the Event Viewer (its left, its width, down to the bottom; at least 6 × 24),
+  otherwise `editorBounds`. `tick()` from `checkSettingsFile` every 2 s (also with `auto-reload = no`): a `FileStamp` of
+  the file at load / save; a change on disk reloads an editor without changes (`loadFile`, cursor kept), or asks Reload /
+  Keep (once per change, only when `TopView()` is the application: no dialog or menu open). Save (cmSave, and Yes at close
+  through its own `valid`) over a newer file asks Overwrite / Cancel. "Changes" = `modified` and a text different from
+  the one loaded / saved (gap buffer copied); equal text clears `modified`. Marker `tvterm.ini.editing` (`pid`, `host`,
+  `time`; written through a temporary file + `rename`) while there are changes, refreshed every 2 s, removed at save /
+  reload / no changes / close (`shutDown`); stale after 10 s or with a dead pid on the same host; a fresh marker of
+  another instance is not overwritten and gives `wpCyanWindow` (then `redraw()`: `drawView()` of a window shows its
+  buffer, where only the frame had the new colors; seen in the real test) + the title `Settings — being edited in another tvterm
+  (pid N)`. If the file name changes (Save As, not reachable today for a named file): an ordinary editor (`detach`).
+  `[general] reload-message = status | none` (E34): "settings reloaded from …" is no longer a note in the Event Viewer;
+  `status` shows "Settings reloaded." for 5 s, `none` nothing (manual Reload settings always). Problems and "settings
+  file … removed" stay notes.
 - **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: hh:mm:ss ...`
   (`YYYY-MM-DD hh:mm:ss` for a message of another day, E13: the notes keep their `time_t` and are formatted when shown),
   even when it is paused; the last 200 are kept and shown when it is opened. Short messages appear in the status line for 5 s.
@@ -502,7 +519,7 @@ are shown, the others are hidden (`TView::hide`) but keep running (processes, Lo
   `evntview.cc` saw `execDialog` without `TDialog`.
 - Planned at the time: `D2:1·2·4` with a click, column `D` in the Window List and the Quit list, `Alerts: 3 (D2 D4)`,
   Ctrl-B 0 = previous desktop, desktop names in profiles; proposed at the real test: a resizable Window List with
-  desktop, title and command. Agreed in chat 38: the buttons in a top bar (E33); the lists, Ctrl-B 0 and the names in E34.
+  desktop, title and command. Agreed in chat 38: the buttons in a top bar (E33); the lists, Ctrl-B 0 and the names in E35 (E34 became Edit settings).
 
 ### Top bar — `far2l-extended`
 E33 (agreed in chat 38; always two bars, no option). The screen has a **top bar** on its first line and the **status
@@ -723,6 +740,7 @@ source/tvterm/             the application
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As dialogs etc.)
+  setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
   dircompl.cc/.h           directory completion in the Name field of file dialogs (TVTermFileDialog, dircompl::Completion)
@@ -1079,6 +1097,14 @@ examples/profiles/example.ini
   capture).
 ---
 
+- Edit settings (E34), in tmux with two or three tvterm instances on the same `XDG_CONFIG_HOME`: the place (Event Viewer
+  made shorter with Ctrl-B R + Shift-Up; full height or none → the right side), one window (Window List), moved from D1 to
+  D2; changes on disk written from Python (reload; Reload / Keep; F2 → Overwrite / Cancel; Ctrl-W → Yes → Overwrite); the
+  marker after typing, after Ctrl-U / Backspace, after Save; markers written by hand (dead pid, pid 1 fresh / 20 s old
+  with `os.utime`, another host). The colors are read with `capture-pane -e` by following the SGR codes up to one text
+  cell of the editor (`46` cyan / `44` blue): counting `46m` in the line is wrong (the frame and the scroll bar of a blue
+  editor also have it), which hid the redraw problem until the real test. Ctrl-B More... letters: `e` Edit, `t` Reload settings.
+
 ## 6. Known limitations
 
 - The vertical block marker does not survive a trip through Windows (only between far2l instances in the same tvterm).
@@ -1151,3 +1177,4 @@ examples/profiles/example.ini
 | `syslog` time forms (`far2l-extended`) | E31 | also `2026/10/29 14:28:36` and `2026-10-29 14:32:35,015` |
 | Desktops (`far2l-extended`) | E32 | desktops 1-9: Ctrl-B 1-9 / Desktop..., Ctrl-B Y, Event Viewer on all, focus per desktop, G / Window List / Go to switch, ` D2 ` in the status line, profile `desktop` |
 | Two bars (`far2l-extended`) | E33 | top bar: Ctrl-B Menu, WinList, Alerts (clickable), desktop buttons (green / cyan / red, click = switch); status line at the bottom with the hints of the top bar |
+| Edit settings (`far2l-extended`) | E34 | Settings editor below the Event Viewer (one; moved from another desktop), file changed outside: reload / Reload-Keep / Overwrite-Cancel, marker `tvterm.ini.editing` (cyan + title in the other instances), `reload-message = status \| none` (no more "settings reloaded" notes) |

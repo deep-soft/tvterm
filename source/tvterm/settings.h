@@ -25,6 +25,9 @@ struct Settings
     // [general]
     std::string profile;    // Profile opened when tvterm starts without -p.
     bool autoReload {true}; // Reload the file when it changes.
+    // reload-message: "Settings reloaded." in the status line (status) or
+    // nothing (none) after an automatic reload.
+    bool reloadMessage {true};
     // Files larger than this (bytes) ask before they open in tvterm (Save >
     // Open after saving, Ctrl-B O, More... > View file); 0: never ask.
     long long largeFile {5LL * 1024 * 1024};
