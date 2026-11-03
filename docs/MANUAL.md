@@ -55,6 +55,9 @@ Usage: tvterm [-p PROFILE]
   -V, --version           show the version and build information
       --print-settings    print a settings file with every key commented
                           out (default values) and exit; writes no file
+      --print-highlight [NAME...]
+                          print the built-in highlight sets (all, or the
+                          named ones) in tvterm.ini format and exit
   -h, --help              show this help
 ```
 
@@ -67,6 +70,10 @@ tvterm --print-settings > ~/.config/tvterm/tvterm.ini              # first time 
 tvterm --print-settings > ~/.config/tvterm/tvterm.ini.new          # beside it, to compare or copy from
 diff <(tvterm --print-settings) ~/.config/tvterm/tvterm.ini        # the keys added by a newer version
 ```
+
+`--print-highlight` prints the built-in highlight sets ([Colors](#colors-highlight)) as `[highlight <name>]`
+sections, all of them or only the named ones (`tvterm --print-highlight fortigate kv`), after a few comment lines with
+the names of every set. An unknown name prints nothing and ends with an error (exit code 1) that lists the names.
 
 `PROFILE` is a path (if it contains `/`) or a name, looked up as `~/.config/tvterm/profiles/NAME.ini`
 (`.ini` is added when the name has no dot). `--profile=NAME` also works.
@@ -822,8 +829,14 @@ Sets built into tvterm:
 | `timestamps` | the usual date and time forms at the start of the line, and nginx's |
 
 Your own sets, or changed copies of these, go in `tvterm.ini` as `[highlight <name>]` sections; a section with the name
-of a built-in set replaces it (their text is in `source/tvterm/highlight.cc`, `builtinHighlightText`, in the same
-format). One rule per line, in this order of use:
+of a built-in set replaces it. `tvterm --print-highlight NAME` prints a built-in set in this format, ready to copy:
+
+```sh
+tvterm --print-highlight fortigate >> ~/.config/tvterm/tvterm.ini   # then change the copy in the Settings editor
+```
+
+The copy is active as soon as it is in the file; unchanged, it colors exactly like the built-in set. To keep a built-in
+set and add rules to it, make a new set with another name that ends with `include = <set>`. One rule per line, in this order of use:
 
 | Rule | Colors |
 |---|---|

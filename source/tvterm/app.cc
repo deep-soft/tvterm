@@ -42,6 +42,7 @@
 #include "globalkeys.h"
 #include "fileopen.h"
 #include "desktops.h"
+#include "highlight.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -134,6 +135,9 @@ static void printUsage(FILE *f, const char *argv0)
         "  -V, --version           show the version and build information\n"
         "      --print-settings    print a settings file with every key commented\n"
         "                          out (default values) and exit; writes no file\n"
+        "      --print-highlight [NAME...]\n"
+        "                          print the built-in highlight sets (all, or the\n"
+        "                          named ones) in tvterm.ini format and exit\n"
         "  -h, --help              show this help\n"
         "\n"
         "PROFILE is a file path (if it contains '/') or a name, looked up as\n"
@@ -172,6 +176,19 @@ int main(int argc, char **argv)
             // Like the file made by More... > Edit settings; nothing is
             // written (tvterm.ini is only created by Edit settings).
             fputs(settingsTemplate().c_str(), stdout);
+            return 0;
+        }
+        else if (!strcmp(arg, "--print-highlight"))
+        {
+            // The following arguments are the names of the sets.
+            std::vector<std::string> names(argv + i + 1, argv + argc);
+            std::string out, error;
+            if (!printBuiltinHighlight(names, out, error))
+            {
+                fprintf(stderr, "%s: %s\n", argv[0], error.c_str());
+                return 1;
+            }
+            fputs(out.c_str(), stdout);
             return 0;
         }
         else if ((!strcmp(arg, "-p") || !strcmp(arg, "--profile")) && i + 1 < argc)

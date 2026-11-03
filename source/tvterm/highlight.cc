@@ -609,3 +609,69 @@ include = timestamps
 include = kv
 )HL";
 }
+
+namespace highlightprint
+{
+
+// The built-in text cut into its sections: name -> text from '[highlight'
+// to the line before the next section (blank lines at the end removed).
+static std::vector<std::pair<std::string, std::string>> builtinSections()
+{
+    std::vector<std::pair<std::string, std::string>> out;
+    std::string text = builtinHighlightText();
+    size_t pos = 0;
+    while ((pos = text.find("[highlight ", pos)) != std::string::npos)
+    {
+        if (pos > 0 && text[pos - 1] != '\n')
+        {
+            ++pos;
+            continue;
+        }
+        size_t close = text.find(']', pos);
+        size_t next = text.find("\n[highlight ", pos);
+        size_t end = next == std::string::npos ? text.size() : next + 1;
+        std::string name = text.substr(pos + 11, close - pos - 11);
+        std::string body = text.substr(pos, end - pos);
+        while (body.size() > 1 && body[body.size() - 1] == '\n' && body[body.size() - 2] == '\n')
+            body.pop_back();
+        if (body.empty() || body.back() != '\n')
+            body += '\n';
+        out.emplace_back(name, body);
+        pos = end;
+    }
+    return out;
+}
+
+} // namespace highlightprint
+
+bool printBuiltinHighlight(const std::vector<std::string> &names, std::string &out, std::string &error)
+{
+    auto sections = highlightprint::builtinSections();
+    std::string list;
+    for (const auto &sec : sections)
+        list += (list.empty() ? "" : " ") + sec.first;
+    std::vector<const std::string *> chosen;
+    for (const std::string &name : names)
+    {
+        const std::string *found = nullptr;
+        for (const auto &sec : sections)
+            if (sec.first == name)
+                found = &sec.second;
+        if (!found)
+        {
+            error = "unknown highlight set '" + name + "' (built-in sets: " + list + ")";
+            return false;
+        }
+        chosen.push_back(found);
+    }
+    if (names.empty())
+        for (const auto &sec : sections)
+            chosen.push_back(&sec.second);
+    out = "# tvterm built-in highlight sets (--print-highlight), in tvterm.ini format.\n"
+          "# Built-in sets: " + list + "\n"
+          "# A section with the same name in tvterm.ini replaces the built-in set:\n"
+          "# copy it there and change it. A new set can extend one: include = kv\n";
+    for (const std::string *body : chosen)
+        out += "\n" + *body;
+    return true;
+}

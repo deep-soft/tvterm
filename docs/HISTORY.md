@@ -93,6 +93,7 @@ E32. Desktops 1-9 (core): Ctrl-B 1-9, Ctrl-B Y, `D2` in the status line, `deskto
 E33. Two bars: a top bar (Ctrl-B Menu, WinList, Alerts, desktop buttons) and the status line at the bottom, with hints
 E34. Edit settings: the Settings editor below the Event Viewer, changes on disk, the editing marker, `reload-message`
 E35. Desktops, the lists: Window List with desktop / title / command (resizable), desktop column in the Quit list, Ctrl-B 0, desktop names
+E36. `--print-highlight [NAME...]`: the built-in highlight sets in `tvterm.ini` format
 
 ---
 
@@ -226,6 +227,11 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
   is kept).
+- **`--print-highlight [NAME...]`** (E36): prints the built-in highlight sets (`printBuiltinHighlight`, `highlight.cc`,
+  cut from `builtinHighlightText()` at each `[highlight ` line) after 4 comment lines (the names of all sets, how to replace
+  or extend one); all of them, or the named ones in the given order (every argument after the option is a name). An
+  unknown name: nothing on stdout, `unknown highlight set 'x' (built-in sets: …)` on stderr, exit code 1. The sections are
+  printed active (not commented, decided in chat 41): an unchanged copy in `tvterm.ini` colors exactly like the built-in set.
 - **`--print-settings`** (E25): prints `settingsTemplate()` (the text Edit settings writes into a new file) and exits;
   writes no file (the E11 rule: only Edit settings creates `tvterm.ini`). `--help` shows the examples with the real path
   (first time `> tvterm.ini`, beside it `> tvterm.ini.new`, `diff <(tvterm --print-settings) tvterm.ini` for new keys).
@@ -1143,6 +1149,11 @@ examples/profiles/example.ini
   desktop order; Close from the Window List → the list again, without the window; Load Profile (No: add) of a profile
   with `desktop = 3`, `desktop-name-3 = abc` and `window-list-size = 30x5` → warning, the size kept, `3:abc` added to
   the bar, Ctrl-B 0 → the desktop shown before loading. Not tested in the container: the hints (mouse moves).
+- `--print-highlight` (E36): 4 comment lines and 10 sections; the rules (without comments and blank lines) identical to
+  `builtinHighlightText()` (95 lines, compared in Python); `fortigate kv` → the two sections in that order; `nope` → exit 1,
+  stdout empty, the message with the names; `--help`. The whole output used as `tvterm.ini`: a Log View with
+  `highlight = syslog kv fortigate levels` on sample lines has the same colors (`capture-pane -e`) as without the file, and
+  no warnings.
 
 ## 6. Known limitations
 
@@ -1218,3 +1229,4 @@ examples/profiles/example.ini
 | Two bars (`far2l-extended`) | E33 | top bar: Ctrl-B Menu, WinList, Alerts (clickable), desktop buttons (green / cyan / red, click = switch); status line at the bottom with the hints of the top bar |
 | Edit settings (`far2l-extended`) | E34 | Settings editor below the Event Viewer (one; moved from another desktop), file changed outside: reload / Reload-Keep / Overwrite-Cancel, marker `tvterm.ini.editing` (cyan + title in the other instances), `reload-message = status \| none` (no more "settings reloaded" notes) |
 | Desktop lists (`far2l-extended`) | E35 | Window List: Desktop / Title / Command, by desktop, resizable, `window-list-size` in profiles; Quit list: desktop column, same order; Ctrl-B 0 = previous desktop; `desktop-name-N` (8 columns) in the top bar, lists and menus |
+| `--print-highlight` (`far2l-extended`) | E36 | prints the built-in highlight sets (all or named) in `tvterm.ini` format, active; unknown name → error with the list, exit 1 |

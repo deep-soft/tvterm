@@ -77,4 +77,9 @@ HighlightRules wordHighlightRules(const std::string &text);
 // The built-in sets, in the format of tvterm.ini.
 const char *builtinHighlightText();
 
+// --print-highlight [NAME...]: the built-in sets (all, or those named, in
+// the given order) in tvterm.ini format, after a header of comments. Returns
+// false, with 'error' set, if a name is not a built-in set.
+bool printBuiltinHighlight(const std::vector<std::string> &names, std::string &out, std::string &error);
+
 #endif // TVTERM_HIGHLIGHT_H
