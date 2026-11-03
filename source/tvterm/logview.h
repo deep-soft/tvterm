@@ -94,6 +94,9 @@ public:
                    std::shared_ptr<LogSource> fixedSource ) noexcept;
     ~LogViewWindow();
 
+    // A frame with the alert color in the title (see alerts.h).
+    static TFrame *initFrame(TRect bounds);
+
     void shutDown() override;
     void handleEvent(TEvent &ev) override;
     void setState(ushort aState, Boolean enable) override;

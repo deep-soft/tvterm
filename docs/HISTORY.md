@@ -94,6 +94,7 @@ E33. Two bars: a top bar (Ctrl-B Menu, WinList, Alerts, desktop buttons) and the
 E34. Edit settings: the Settings editor below the Event Viewer, changes on disk, the editing marker, `reload-message`
 E35. Desktops, the lists: Window List with desktop / title / command (resizable), desktop column in the Quit list, Ctrl-B 0, desktop names
 E36. `--print-highlight [NAME...]`: the built-in highlight sets in `tvterm.ini` format
+E37. Alert title color: the title text of a window with an alert is white on red, `[alerts] title-color`
 
 ---
 
@@ -223,6 +224,7 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
   `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `save-name` (E11), `search-case-sensitive`, `shift-click-select`),
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
+  E37: `[alerts]` `title-color` (`red` / `none`, see Alerts).
   E25: `[general]` `large-file` (default `5M`, `K`/`M`/`G` ×1024, `0` = never ask; `parseSize` / `sizeName`),
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
@@ -296,6 +298,16 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   (`] Ban` gave `[!] Ban]`, now `[!"] Ban"]`). Keywords field: 1023 characters (was 255).
 - Alert time (E13): each window keeps the wall-clock time at which its alert got its current kind (activity → keyword
   updates it), shown by A in the Event Viewer.
+- **Title color (E37**, agreed in chat 41): while a window has an alert, only the title text in its frame (mark included)
+  is white on red (`0x4F`); the frame keeps its colors, so the focused window keeps its double frame. The color goes with
+  the alert (when the window gets the focus). Terminals and Log Views, the same color for every kind; windows on other
+  desktops: nothing more (their top bar button is already red). `[alerts] title-color = red | none` in `tvterm.ini`
+  (default `red`; invalid → warning, previous value kept). How: `AlertTitleFrame<Frame>` (alerts.h) calls `Frame::draw`,
+  then `drawAlertTitle`, which finds the window and its `AlertTarget` through `owner` (`dynamic_cast`), computes the title
+  place and width exactly like `TFrame::draw` (width - 10, - 6 with Close/Zoom, - 4 with a number, centered) and writes the
+  title again with the new color. `TerminalWindow::initFrame` (around `BasicTerminalFrame`, which keeps the size while
+  dragging) and `LogViewWindow::initFrame` (around `TFrame`). A change of the setting draws every window's frame again
+  (`frame->drawView()`: redrawing the desktop alone shows the windows' buffers, the old colors).
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
@@ -762,7 +774,8 @@ source/tvterm/             the application
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
-                           and logview.cc (LogViewWindow::checkAlerts)
+                           and logview.cc (LogViewWindow::checkAlerts); AlertTitleFrame / drawAlertTitle: the title
+                           white on red (E37)
   logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
                            read in idle (LogSource::pollAll), stopped without blocking
   logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
@@ -1154,6 +1167,15 @@ examples/profiles/example.ini
   stdout empty, the message with the names; `--help`. The whole output used as `tvterm.ini`: a Log View with
   `highlight = syslog kv fortigate levels` on sample lines has the same colors (`capture-pane -e`) as without the file, and
   no warnings.
+- Alert title color (E37), in tmux (120×40, `capture-pane -e`, the colors of each run of characters of the top frame row):
+  a profile with a terminal writing `tick` every second (`alert-activity`), a Log View on `tail -F` (`alert-keywords =
+  ERROR`) and a focused terminal below: exactly `[!] Busy` and `[!ERROR] Log: Logs 1/1` are white on red (97/41), the
+  spaces and lines around them stay 37/44; Ctrl-B G → the focused window has its normal double frame, the other stays red;
+  leaving it → red again after the alert. `tvterm.ini` changed while running: `none` → no red at once (the mark stays),
+  `blue` → 1 problem, still none, `Title-Color = RED` → red, file removed → red (default); `none` at startup → no red. A
+  window of 21 columns with a long title (`[!] Busy win`, cut) and a UTF-8 title (`ăîșț ✓`, `LANG=C.UTF-8`): the red covers
+  exactly the text shown. A window with an alert on desktop 2: shown red after Ctrl-B 2. Not tested in the container: the
+  static build (a dragged window is selected, so it has no alert).
 
 ## 6. Known limitations
 
@@ -1230,3 +1252,4 @@ examples/profiles/example.ini
 | Edit settings (`far2l-extended`) | E34 | Settings editor below the Event Viewer (one; moved from another desktop), file changed outside: reload / Reload-Keep / Overwrite-Cancel, marker `tvterm.ini.editing` (cyan + title in the other instances), `reload-message = status \| none` (no more "settings reloaded" notes) |
 | Desktop lists (`far2l-extended`) | E35 | Window List: Desktop / Title / Command, by desktop, resizable, `window-list-size` in profiles; Quit list: desktop column, same order; Ctrl-B 0 = previous desktop; `desktop-name-N` (8 columns) in the top bar, lists and menus |
 | `--print-highlight` (`far2l-extended`) | E36 | prints the built-in highlight sets (all or named) in `tvterm.ini` format, active; unknown name → error with the list, exit 1 |
+| Alert title color (`far2l-extended`) | E37 | the title text (with the mark) of a window with an alert is white on red until it gets the focus; frame unchanged; terminals and Log Views; `[alerts] title-color = red \| none` |

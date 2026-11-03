@@ -6,6 +6,7 @@
 // (silence).
 
 #define Uses_TStatusLine
+#define Uses_TFrame
 #include <tvision/tv.h>
 
 #include "statline.h"
@@ -101,6 +102,30 @@ protected:
 
 // Order number for a new alert (shared by all windows).
 uint64_t newAlertOrder() noexcept;
+
+// [alerts] title-color: the title text of a window with an alert is drawn
+// white on red (true, the default) or in the normal colors (false).
+extern bool alertTitleColor;
+
+// Draws the title of 'frame' again, white on red, if its window has an
+// alert (and 'alertTitleColor'). Called after TFrame::draw, at the same
+// place and with the same width; the frame itself keeps its colors.
+void drawAlertTitle(TFrame &frame) noexcept;
+
+// A frame (TFrame or a class derived from it) whose title shows the alert.
+template <class Frame>
+class AlertTitleFrame : public Frame
+{
+public:
+
+    using Frame::Frame;
+
+    void draw() override
+    {
+        Frame::draw();
+        drawAlertTitle(*this);
+    }
+};
 
 class TWindow;
 class TDeskTop;

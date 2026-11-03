@@ -207,7 +207,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Keys, LogView, Highlight, Transform, Unknown } section = None;
+    enum { None, General, Scrollback, Alerts, Keys, LogView, Highlight, Transform, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -254,6 +254,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             }
             section = name == "general" ? General :
                       name == "scrollback" ? Scrollback :
+                      name == "alerts" ? Alerts :
                       name == "keys" ? Keys :
                       name == "logview" ? LogView : Unknown;
             if (section == Unknown)
@@ -381,6 +382,19 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             else
                 warn("unknown key '" + key + "' in [scrollback]");
         }
+        else if (section == Alerts)
+        {
+            if (key == "title-color")
+            {
+                std::string v = lower(value);
+                if (v == "red" || v == "none")
+                    settings.alertTitleRed = v == "red";
+                else
+                    invalid("use red or none"), settings.alertTitleRed = previous.alertTitleRed;
+            }
+            else
+                warn("unknown key '" + key + "' in [alerts]");
+        }
         else if (section == LogView)
         {
             if (key == "max-lines")
@@ -505,6 +519,12 @@ std::string settingsTemplate()
         "#search-case-sensitive = no\n"
         "# Shift+click selects text even in programs that use the mouse (e.g. far2l).\n"
         "#shift-click-select = yes\n"
+        "\n"
+        "[alerts]\n"
+        "# Title of a window with an alert (terminal or Log View, Ctrl-B K): red\n"
+        "# (the title text white on red until the window gets the focus) or none\n"
+        "# (only the mark, e.g. [!], in the title).\n"
+        "#title-color = red\n"
         "\n"
         "[logview]\n"
         "# Lines kept by each Log View source (Ctrl-B D), 100 to 1000000; a window\n"

@@ -51,6 +51,10 @@ struct Settings
     bool saveDateFirst {false}; // save-name: date-first (true) or name-first.
     bool searchCaseSensitive {false};
     bool shiftClickSelect {true};
+    // [alerts]
+    // title-color: the title text of a window with an alert, white on red
+    // (red) or in the normal colors (none).
+    bool alertTitleRed {true};
     // [logview]
     int logViewMaxLines {50000};
     // [highlight <name>]: highlight sets for Log View (see highlight.h).

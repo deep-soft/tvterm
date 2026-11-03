@@ -6,6 +6,7 @@
 #include <tvision/tv.h>
 
 #include <tvterm/termview.h>
+#include <tvterm/termframe.h>
 
 #include <ctype.h>
 
@@ -23,6 +24,11 @@ const tvterm::TVTermConstants TerminalWindow::appConsts =
     hcSelecting,
     hcHistory,
 };
+
+TFrame *TerminalWindow::initFrame(TRect bounds)
+{
+    return new AlertTitleFrame<tvterm::BasicTerminalFrame>(bounds);
+}
 
 void TerminalWindow::handleEvent(TEvent &ev)
 {

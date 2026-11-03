@@ -9,6 +9,8 @@
 #define Uses_TProgram
 #define Uses_TDrawBuffer
 #define Uses_TText
+#define Uses_TFrame
+#define Uses_TWindow
 #define Uses_MsgBox
 #include <tvision/tv.h>
 
@@ -308,6 +310,37 @@ uint64_t newAlertOrder() noexcept
 {
     static uint64_t lastAlertOrder = 0;
     return ++lastAlertOrder;
+}
+
+bool alertTitleColor = true;
+
+void drawAlertTitle(TFrame &frame) noexcept
+{
+    if (!alertTitleColor)
+        return;
+    auto *window = dynamic_cast<TWindow *>(frame.owner);
+    auto *target = dynamic_cast<AlertTarget *>(frame.owner);
+    if (!window || !target || !target->hasAlert())
+        return;
+    // The same position and width as in TFrame::draw.
+    short width = frame.size.x;
+    short l = width - 10;
+    if (window->flags & (wfClose | wfZoom))
+        l -= 6;
+    if (window->number != wnNoNumber && window->number < 10)
+        l -= 4;
+    const char *title = window->getTitle(l);
+    if (!title)
+        return;
+    l = min<short>(strwidth(title), width - 10);
+    if (l <= 0)
+        return;
+    short i = (width - l) >> 1;
+    TDrawBuffer b;
+    // White on red; only the text, the spaces around it and the frame keep
+    // their colors.
+    b.moveStr(0, title, TColorAttr(0x4F), l);
+    frame.writeLine(i, 0, l, 1, b);
 }
 
 void execAlertSettings(TWindow &window, AlertTarget &target)

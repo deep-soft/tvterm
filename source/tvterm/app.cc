@@ -260,6 +260,18 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
     applySettings(currentSettings);
+    // [alerts] title-color: the frames are drawn again (the windows keep
+    // their drawing in a buffer, so redrawing the desktop is not enough).
+    if (alertTitleColor != currentSettings.alertTitleRed)
+    {
+        alertTitleColor = currentSettings.alertTitleRed;
+        if (TProgram::deskTop)
+            TProgram::deskTop->forEach([] (TView *v, void *) {
+                auto *w = dynamic_cast<TWindow *>(v);
+                if (w && w->frame)
+                    w->frame->drawView();
+            }, nullptr);
+    }
     // The 'file-filters' patterns, in the lists of the file dialogs.
     fileopen::addFileFilters(currentSettings.fileFilters);
     // The first menu key, in the status line and in messages.

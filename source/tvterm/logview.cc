@@ -1107,6 +1107,11 @@ bool execLogViewDialog(LogViewOptions &o, bool isNew, int focusField, LogViewApp
 
 // The window.
 
+TFrame *LogViewWindow::initFrame(TRect bounds)
+{
+    return new AlertTitleFrame<TFrame>(bounds);
+}
+
 LogViewWindow::LogViewWindow(const TRect &bounds, const LogViewOptions &aOptions) noexcept :
     LogViewWindow(bounds, aOptions, nullptr)
 {

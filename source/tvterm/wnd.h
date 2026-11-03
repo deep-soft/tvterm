@@ -20,6 +20,9 @@ public:
 
     TerminalWindow(const TRect &bounds, tvterm::TerminalController &aTerm) noexcept;
 
+    // The terminal frame, with the alert color in the title (see alerts.h).
+    static TFrame *initFrame(TRect bounds);
+
     // How the terminal was started, if from a profile (used when saving
     // the current windows as a profile).
     std::string launchCommand;
