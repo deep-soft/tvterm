@@ -133,13 +133,14 @@ writes Ctrl-B.
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
 | (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
 | `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
-| `W` | Window List... | list of all windows: Go, Rename, Close |
+| `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
 | `T` | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one) |
 | `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the oldest alert |
 | `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
 | `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
 | `1`–`9` | Desktop... | shows that desktop; the item itself (arrows + Enter) lists the desktops ([Desktops](#desktops)) |
+| `0` | Desktop... | shows the previous desktop (again: back) |
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
 | `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
@@ -169,20 +170,32 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 
 ### Window List
 
-**Ctrl-B W** or a click on `WinList` (top bar). Each line shows the kind (`Term`, `Log`, `Editor`, `Events`) and the title,
-with the alert mark if any. Buttons: **Go** (Enter), **Rename**, **Close**, Cancel. The list has the windows of every
-desktop; Go on a window of another desktop shows that desktop.
+**Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in three columns:
+
+- **Desktop**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
+- **Title**, with the alert mark if any.
+- **Command**: for a terminal, its command from the profile, otherwise the program started in it (your shell); for a
+  Log View `log: ` and its command; `editor`, `event viewer`.
+
+The windows are listed by desktop and, on each desktop, in the order they were opened; the list opens on the focused
+window. Buttons: **Go** (Enter; a window of another desktop shows that desktop), **Rename**, **Close**, Cancel.
+
+The dialog can be resized with the mouse (bottom right corner) or **Ctrl-F5** (arrows move it, Shift+arrows change its
+size, Enter or Esc end); **F5** or the zoom button: whole screen, again: back. The columns follow its width; a cut text
+ends with `…`. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,
+[Profiles](#format)); without it the list opens at 90×20 (smaller on a small screen).
 
 ### Desktops
 
 There are 9 desktops. Only the windows of the current one are shown; the others keep running (programs, Log Views,
 alerts). The top bar has a button for each desktop with windows and for the current one (the Event Viewer is not
-counted): ` D1   D2   D5 `. The current one is black on green, the others black on cyan, or white on red when one of
+counted): ` D1   D2   D5 `, or ` D1   2:mail   D5 ` when desktop 2 has a name. The current one is black on green, the others black on cyan, or white on red when one of
 their windows has an alert. A click on a button shows that desktop; with the mouse over a button, the status line
 lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
-- **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops with the
-  number of windows on each; a digit or Enter chooses. An empty desktop can be shown.
+- **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B 0** shows the previous one (the one shown before; again: back).
+  **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops with their names and the number of windows on each; a
+  digit or Enter chooses. An empty desktop can be shown.
 - New windows open on the current desktop.
 - **Ctrl-B Y** moves the focused window to another desktop (same list); you stay on the current one.
 - The **Event Viewer is on every desktop** and cannot be moved.
@@ -190,7 +203,11 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
   current desktop only.
 - **Ctrl-B G** goes to the window with the oldest alert, showing its desktop. The Window List and the Go to button of
   the Quit list do the same; the alert counter counts every desktop.
-- Profiles keep the desktop of each window ([Profiles](#format)).
+- **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 8 columns (a longer name is cut, with a
+  note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
+  `Desktop 2: mail` in Desktop... and Ctrl-B Y. When the buttons with the names do not leave room for `Ctrl-B Menu` and
+  `WinList`, all the buttons are shown short (` D2 `). Names cannot be changed from inside tvterm yet.
+- Profiles keep the desktop of each window and the names ([Profiles](#format)).
 
 ### Grab Input
 
@@ -242,8 +259,8 @@ key-window-down = Alt-Down:not-far2l, Shift-Alt-Down
 
 ### Quitting
 
-**Ctrl-B Q** lists the open terminals and Log Views with what runs in each (e.g. `tail -F /var/log/maillog`,
-`bash, idle`), the busy ones first. Buttons: **Quit**, **Go to** (goes to the chosen window and shows its desktop, does not quit), Cancel.
+**Ctrl-B Q** lists the open terminals and Log Views with their desktop and what runs in each (e.g.
+`tail -F /var/log/maillog`, `bash, idle`), in the order of the Window List (by desktop). Buttons: **Quit**, **Go to** (goes to the chosen window and shows its desktop, does not quit), Cancel.
 Editors with unsaved changes ask afterwards. Programs receive SIGHUP; far2l stays in the background and can be reattached.
 
 The dialog opens large enough to show every line whole (when the screen allows) and can be changed while it is open:
@@ -538,6 +555,8 @@ with **Ctrl-B L**, or as the default profile. **Ctrl-B A** saves the open window
 | `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade` |
 | `focus` | last window | window focused at start, 1 = the first window section |
 | `desktop` | `1` | desktop shown after loading (1–9) |
+| `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
+| `window-list-size` | `90x20` | size of the Window List, columns x rows (at least `50x10`) |
 
 All the window sections accept `pos = x y width height`, in **percent** of the desktop (decimals allowed). A position
 partly outside the desktop is moved inside (and shrunk if larger), with a note in the Event Viewer.
@@ -604,7 +623,8 @@ pos = 50 60 50 40
 ### Saving (Ctrl-B A)
 
 Saves every window of every desktop with its position (inside the desktop, one decimal), its desktop (when not 1),
-the stacking order, the focused window and the current desktop.
+the stacking order, the focused window and the current desktop; the desktop names and the size of the Window List
+(when you changed it, or a profile set it).
 For a terminal: the fixed title, the current directory of the program running in it, the command from the profile or
 else the command running in the foreground (e.g. `tail -f ...`, saved with `keep-open = yes`), the alerts.
 For a Log View: all its settings. The text of untitled editors is not saved, and editors with unsaved changes keep only

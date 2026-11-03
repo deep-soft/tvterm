@@ -1,5 +1,6 @@
 #define Uses_TWindow
 #define Uses_TDeskTop
+#define Uses_TText
 #include <tvision/tv.h>
 
 #include "desktops.h"
@@ -12,6 +13,12 @@ namespace desktops
 {
 
 static int currentDesktop = 1;
+static int previousDesktop = 0;
+// Order in which the windows were opened (see openedOrder).
+static std::map<TView *, unsigned long> opened;
+static unsigned long nextOrder = 1;
+static std::string names[count + 1];
+static unsigned namesChanged = 0;
 // Hidden windows and their desktop.
 static std::map<TView *, int> hidden;
 // The window focused last on each desktop.
@@ -138,6 +145,7 @@ void switchTo(TDeskTop &desk, int n)
         }
     if (focused)
         focused->hide(); // The focus goes to the Event Viewer, if any.
+    previousDesktop = currentDesktop;
     currentDesktop = n;
     for (TWindow *w : windows(desk))
     {
@@ -217,6 +225,85 @@ void prune(TDeskTop &desk)
     for (TView *&f : lastFocus)
         if (f && !present(f))
             f = nullptr;
+    for (auto it = opened.begin(); it != opened.end();)
+        if (present(it->first))
+            ++it;
+        else
+            it = opened.erase(it);
+    // New windows, from back to front: those inserted together (a profile)
+    // keep their order.
+    for (auto it = ws.rbegin(); it != ws.rend(); ++it)
+        if (!opened.count(*it))
+            opened[*it] = nextOrder++;
+}
+
+unsigned long openedOrder(TWindow *w)
+{
+    auto it = opened.find(w);
+    return it != opened.end() ? it->second : (unsigned long) -1;
+}
+
+int previous()
+{
+    return previousDesktop;
+}
+
+void setPrevious(int n)
+{
+    previousDesktop = n >= 1 && n <= count && n != currentDesktop ? n : 0;
+}
+
+bool switchToPrevious(TDeskTop &desk)
+{
+    int n = previousDesktop;
+    if (n < 1 || n > count || n == currentDesktop)
+        return false;
+    switchTo(desk, n);
+    return true;
+}
+
+const std::string &name(int n)
+{
+    static const std::string empty;
+    return n >= 1 && n <= count ? names[n] : empty;
+}
+
+bool setName(int n, const std::string &aName)
+{
+    if (n < 1 || n > count)
+        return true;
+    std::string s = aName;
+    for (char &c : s)
+        if ((unsigned char) c < ' ' || c == 0x7F)
+            c = ' ';
+    size_t a = s.find_first_not_of(' ');
+    size_t b = s.find_last_not_of(' ');
+    s = a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
+    bool whole = true;
+    if ((int) TText::width(s) > nameMax)
+    {
+        s = s.substr(0, TText::scroll(s, nameMax, False));
+        size_t e = s.find_last_not_of(' ');
+        s.resize(e == std::string::npos ? 0 : e + 1);
+        whole = false;
+    }
+    if (s != names[n])
+    {
+        names[n] = s;
+        ++namesChanged;
+    }
+    return whole;
+}
+
+std::string label(int n)
+{
+    const std::string &s = name(n);
+    return s.empty() ? "D" + std::to_string(n) : std::to_string(n) + ":" + s;
+}
+
+unsigned namesVersion()
+{
+    return namesChanged;
 }
 
 } // namespace desktops

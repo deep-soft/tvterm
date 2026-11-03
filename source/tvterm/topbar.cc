@@ -34,9 +34,15 @@ static std::string alertsText(size_t count)
     return "Alerts: " + std::to_string(count) + " (" + globalkeys::menuKeyName() + " G)";
 }
 
-static std::string desktopText(int n)
+// " D2 ", or " 2:mail " with the names of the desktops.
+static std::string desktopText(int n, bool withNames)
 {
-    return " D" + std::to_string(n) + " ";
+    return " " + (withNames ? desktops::label(n) : "D" + std::to_string(n)) + " ";
+}
+
+static int textWidth(const std::string &text)
+{
+    return (int) strwidth(text);
 }
 
 // The global position of the mouse, last seen.
@@ -77,13 +83,24 @@ std::vector<TopBar::Item> TopBar::layout() const
     for (int n = 1; n <= desktops::count; ++n)
         if (state_.counts[n] > 0 || n == state_.current)
             shown.push_back(n);
-    int buttonsWidth = 0;
+    // With the names, if they leave room for the menu and WinList items;
+    // otherwise every button is short (" D2 ").
+    auto widthOf = [&] (bool withNames) {
+        int width = 0;
+        for (int n : shown)
+            width += (width ? 1 : 0) + textWidth(desktopText(n, withNames));
+        return width;
+    };
+    bool withNames = false;
     for (int n : shown)
-        buttonsWidth += (buttonsWidth ? 1 : 0) + (int) desktopText(n).size();
+        withNames |= !desktops::name(n).empty();
+    if (withNames && size.x - 1 - widthOf(true) < textWidth(menuText()) + 11)
+        withNames = false;
+    int buttonsWidth = widthOf(withNames);
     // Not enough room: the first buttons are dropped.
     while (!shown.empty() && buttonsWidth > size.x - 1)
     {
-        buttonsWidth -= (int) desktopText(shown.front()).size() + (shown.size() > 1 ? 1 : 0);
+        buttonsWidth -= textWidth(desktopText(shown.front(), withNames)) + (shown.size() > 1 ? 1 : 0);
         shown.erase(shown.begin());
     }
     int right = size.x - 1 - buttonsWidth; // Where the buttons begin.
@@ -93,7 +110,7 @@ std::vector<TopBar::Item> TopBar::layout() const
         int width = (int) strwidth(text);
         if (x + width + 1 > right)
             return false;
-        items.push_back({kind, 0, x, width});
+        items.push_back({kind, 0, x, width, false});
         x += width + 2;
         return true;
     };
@@ -102,8 +119,8 @@ std::vector<TopBar::Item> TopBar::layout() const
     x = right;
     for (int n : shown)
     {
-        int width = (int) desktopText(n).size();
-        items.push_back({itDesktop, n, x, width});
+        int width = textWidth(desktopText(n, withNames));
+        items.push_back({itDesktop, n, x, width, withNames});
         x += width + 1;
     }
     return items;
@@ -134,7 +151,7 @@ void TopBar::draw()
             {
                 uchar color = item.desktop == state_.current ? currentColor :
                               state_.alerted[item.desktop] ? alertColor : otherColor;
-                b.moveStr(item.x, desktopText(item.desktop), TColorAttr(color));
+                b.moveStr(item.x, desktopText(item.desktop, item.named), TColorAttr(color));
                 break;
             }
         }
@@ -218,7 +235,7 @@ std::string TopBar::hintFor(const Item &item) const
             const char *t = w->getTitle(255);
             std::string title = t && *t ? t : "(no title)";
             if (item.kind == itAlerts)
-                title += " (D" + std::to_string(n) + ")";
+                title += " (" + desktops::label(n) + ")";
             else if (alert)
                 ++withAlert; // The title has the mark of the alert ([!]).
             titles.push_back(title);
@@ -228,7 +245,7 @@ std::string TopBar::hintFor(const Item &item) const
         text = "Go to the oldest alert (" + key + " G). Alerts: ";
     else
     {
-        text = "D" + std::to_string(item.desktop);
+        text = desktops::label(item.desktop);
         if (item.desktop == state_.current)
             text += " (current)";
         if (titles.empty())
@@ -268,6 +285,7 @@ void TopBar::update(TDeskTop &deskTop)
     desk = &deskTop;
     State s;
     s.current = desktops::current();
+    s.names = desktops::namesVersion();
     s.alerts = countAlerts(deskTop);
     auto counts = desktops::windowCounts(deskTop);
     for (int n = 1; n <= desktops::count; ++n)

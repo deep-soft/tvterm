@@ -92,6 +92,7 @@ E31. Log View: the syslog highlight set also dims `2026/10/29 14:28:36` and `202
 E32. Desktops 1-9 (core): Ctrl-B 1-9, Ctrl-B Y, `D2` in the status line, `desktop` in profiles
 E33. Two bars: a top bar (Ctrl-B Menu, WinList, Alerts, desktop buttons) and the status line at the bottom, with hints
 E34. Edit settings: the Settings editor below the Event Viewer, changes on disk, the editing marker, `reload-message`
+E35. Desktops, the lists: Window List with desktop / title / command (resizable), desktop column in the Quit list, Ctrl-B 0, desktop names
 
 ---
 
@@ -102,7 +103,7 @@ E34. Edit settings: the Settings editor below the Event Viewer, changes on disk,
 `R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
 `D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
 Reload settings, About) · `U` Suspend · `Q` Exit.
-Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` Move Window to Desktop (E32).
+Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` Move Window to Desktop (E32); 0: the previous desktop (E35).
 - E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
   key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
   the close box of the frame still close windows). MANUAL chapter 2 and `examples/profiles/example.ini` updated.
@@ -521,6 +522,32 @@ are shown, the others are hidden (`TView::hide`) but keep running (processes, Lo
   Ctrl-B 0 = previous desktop, desktop names in profiles; proposed at the real test: a resizable Window List with
   desktop, title and command. Agreed in chat 38: the buttons in a top bar (E33); the lists, Ctrl-B 0 and the names in E35 (E34 became Edit settings).
 
+E35 (the lists; agreed in chat 41):
+- **Window List** (`winlist.cc`): three columns, Desktop / Title / Command. Desktop = `*D1` for the current desktop, ` D2`,
+  ` 2:mail` for a named one, ` all` for the Event Viewer (`desktopColumn`), as wide as the longest label; Title about half of
+  the rest, Command the remainder; cut columns end with `…`. Command: a terminal's profile command, else the command line of
+  the program started in it (`/proc/<pid>/cmdline` of the shell); `log: <command>` for a Log View; `editor`,
+  `event viewer`. The kind column (`Term`, `Log`, …) is gone (the Command column says it). Order (`getSortedWindows`): by
+  desktop (1-9, then the Event Viewer), on each desktop in the order the windows were opened (`desktops::openedOrder`: a
+  number given in `prune`, in every idle cycle, from back to front, so the windows of a profile keep their order; tvterm's
+  windows have no `number`). The list opens on the focused window; after Close, on the next one.
+- The dialog can be resized like the Quit dialog (mouse, Ctrl-F5, F5 / zoom button; minimum 50×10; kept inside the
+  screen); the buttons follow the right edge. Default 90×20 (shrunk to the screen). A size chosen by the user is kept while
+  tvterm runs and in profiles: `[profile] window-list-size = 90x20` (50x10 to 1000x1000; invalid → warning, size not
+  changed), written by Save Profile only when a size was chosen or loaded.
+- **Quit / Close windows list**: the same desktop column first, then Title and what runs; the same order as the Window
+  List (the busy terminals are no longer first).
+- **Ctrl-B 0** = the previous desktop (`desktops::previous`, set by `switchTo`; again: back). Nothing when there is none. The
+  menu shows `Desktop...  0-9`. After a profile is loaded, the previous desktop is the one shown before loading (the switches
+  made while loading do not count).
+- **Desktop names**: `[profile] desktop-name-N = name` (N 1-9; spaces at the ends removed, control characters replaced, at
+  most 8 columns: a longer name is cut, with a note in the Event Viewer). A profile sets only the names it has (the others
+  stay); an empty value removes the name. Save Profile writes the names. Shown as `2:mail` (`desktops::label`) in the top
+  bar buttons, their hints (`2:mail (current): …`, `Alerts: … (2:mail)`), the Window List, the Quit list; as
+  `Desktop 2: mail` in Desktop... and Ctrl-B Y; "Window moved to desktop 2 (mail)." Top bar: when the buttons with the
+  names would leave less room than `Ctrl-B Menu` + `WinList` need, every button is short (` D2 `); the bar redraws when a
+  name changes (`namesVersion` in its state). Renaming from inside tvterm: later.
+
 ### Top bar — `far2l-extended`
 E33 (agreed in chat 38; always two bars, no option). The screen has a **top bar** on its first line and the **status
 line** on its last one (before E33 the status line was on the first line and the desktop below it); the desktop is between
@@ -724,7 +751,8 @@ source/tvterm/             the application
   about.cc/.h              version text and About dialog; declarations of the generated build information
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
   winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows (with the windows of other desktops)
-  desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow
+  desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
+                           previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
@@ -1104,6 +1132,17 @@ examples/profiles/example.ini
   with `os.utime`, another host). The colors are read with `capture-pane -e` by following the SGR codes up to one text
   cell of the editor (`46` cyan / `44` blue): counting `46m` in the line is wrong (the frame and the scroll bar of a blue
   editor also have it), which hid the redraw problem until the real test. Ctrl-B More... letters: `e` Edit, `t` Reload settings.
+- Desktop lists (E35), in tmux (120×30, also 60, 40 and 160×40 columns) with a profile: windows on desktops 1, 2 and 5,
+  the Event Viewer, `desktop-name-2 = mail`, `desktop-name-5 = verylongname`, `window-list-size = 100x22`: top bar
+  `D1   2:mail   5:verylong` (cut, note in the Event Viewer read with N), on 40 columns `D1   D2   D5`; Window List
+  100 columns wide, the rows in desktop order (`*D1`, ` 2:mail`, ` 5:verylong`, ` all`), commands `/bin/sh`,
+  `sleep 1000`, `log: tail -F …`, `event viewer`; Go on desktop 2 shows it, Ctrl-B 0 back and again forth; Ctrl-B 0 with no
+  previous desktop does nothing; Desktop... (`0-9` in the menu) and Ctrl-B Y show `Desktop 2: mail`; Ctrl-F5 +
+  Shift-Left ×4, Shift-Up ×2 → 96×20, kept after Esc and reopening, F5 → whole width and back; Save Profile As →
+  `desktop-name-2`, `desktop-name-5 = verylong`, `window-list-size = 96x20`; Quit list with the desktop column, in
+  desktop order; Close from the Window List → the list again, without the window; Load Profile (No: add) of a profile
+  with `desktop = 3`, `desktop-name-3 = abc` and `window-list-size = 30x5` → warning, the size kept, `3:abc` added to
+  the bar, Ctrl-B 0 → the desktop shown before loading. Not tested in the container: the hints (mouse moves).
 
 ## 6. Known limitations
 
@@ -1178,3 +1217,4 @@ examples/profiles/example.ini
 | Desktops (`far2l-extended`) | E32 | desktops 1-9: Ctrl-B 1-9 / Desktop..., Ctrl-B Y, Event Viewer on all, focus per desktop, G / Window List / Go to switch, ` D2 ` in the status line, profile `desktop` |
 | Two bars (`far2l-extended`) | E33 | top bar: Ctrl-B Menu, WinList, Alerts (clickable), desktop buttons (green / cyan / red, click = switch); status line at the bottom with the hints of the top bar |
 | Edit settings (`far2l-extended`) | E34 | Settings editor below the Event Viewer (one; moved from another desktop), file changed outside: reload / Reload-Keep / Overwrite-Cancel, marker `tvterm.ini.editing` (cyan + title in the other instances), `reload-message = status \| none` (no more "settings reloaded" notes) |
+| Desktop lists (`far2l-extended`) | E35 | Window List: Desktop / Title / Command, by desktop, resizable, `window-list-size` in profiles; Quit list: desktop column, same order; Ctrl-B 0 = previous desktop; `desktop-name-N` (8 columns) in the top bar, lists and menus |

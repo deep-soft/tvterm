@@ -242,6 +242,23 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (key == "desktop")
                 parseCount(1, 9, profile.desktop, "1-9");
+            else if ( key.size() == 14 && key.compare(0, 13, "desktop-name-") == 0 &&
+                      key[13] >= '1' && key[13] <= '9' )
+                profile.desktopNames[key[13] - '0'] = unquote(value);
+            else if (key == "window-list-size")
+            {
+                int w = 0, h = 0;
+                char x = 0, extra = 0;
+                if ( sscanf(value.c_str(), "%d%c%d%c", &w, &x, &h, &extra) == 3 &&
+                     (x == 'x' || x == 'X') && w >= 50 && w <= 1000 && h >= 10 && h <= 1000 )
+                {
+                    profile.hasWindowListSize = true;
+                    profile.windowListWidth = w;
+                    profile.windowListHeight = h;
+                }
+                else
+                    warn("invalid window-list-size '" + value + "' (columns x rows, e.g. 90x20; at least 50x10)");
+            }
             else
                 warn("unknown key '" + key + "' in [profile]");
         }
@@ -419,6 +436,11 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
         file << "focus = " << profile.focus << "\n";
     if (profile.desktop != 1)
         file << "desktop = " << profile.desktop << "\n";
+    for (const auto &dn : profile.desktopNames)
+        if (!dn.second.empty())
+            file << "desktop-name-" << dn.first << " = " << dn.second << "\n";
+    if (profile.hasWindowListSize)
+        file << "window-list-size = " << profile.windowListWidth << "x" << profile.windowListHeight << "\n";
     for (const auto &win : profile.windows)
     {
         switch (win.kind)

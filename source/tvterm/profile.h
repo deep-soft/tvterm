@@ -6,6 +6,7 @@
 // their positions, described in an INI file.
 // See 'examples/profiles/example.ini' for the format.
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -67,6 +68,11 @@ struct Profile
     Layout layout {Auto};
     int focus {0}; // 1-based index of the window to focus; 0: the last one.
     int desktop {1}; // The desktop shown after loading (1-9).
+    // desktop-name-N: names of desktops (1-9); only those in the file.
+    std::map<int, std::string> desktopNames;
+    // window-list-size = WxH (the Window List, see winlist.h).
+    bool hasWindowListSize {false};
+    int windowListWidth {0}, windowListHeight {0};
     std::vector<WindowProfile> windows;
     // Things changed while loading that are not errors (e.g. a position
     // moved inside the desktop), one per line.

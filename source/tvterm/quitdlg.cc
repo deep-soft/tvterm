@@ -245,6 +245,7 @@ public:
 struct TermItem
 {
     TWindow *window;
+    std::string desktop;
     std::string title;
     std::string what;
     bool busy;
@@ -259,7 +260,7 @@ static bool isConnected(TWindow *w)
 
 static TermItem describe(TerminalWindow &w)
 {
-    TermItem item {&w, {}, {}, true};
+    TermItem item {&w, desktopColumn(&w), {}, {}, true};
     const char *title = w.getTitle(100);
     item.title = title && *title ? title : "(no title)";
 
@@ -299,7 +300,8 @@ bool confirmQuit(TDeskTop &deskTop, bool closing)
     using namespace quitdlg;
     std::vector<TermItem> terms;
     size_t logs = 0;
-    for (TWindow *w : getDeskTopWindows(deskTop))
+    // In the order of the Window List (by desktop).
+    for (TWindow *w : getSortedWindows(deskTop))
         if (auto *term = dynamic_cast<TerminalWindow *>(w))
         {
             if (isConnected(term))
@@ -309,26 +311,26 @@ bool confirmQuit(TDeskTop &deskTop, bool closing)
             if (log->isSourceRunning())
             {
                 const char *title = log->getTitle(100);
-                terms.push_back({w, title && *title ? title : "Log", "log: " + log->getOptions().command, true});
+                terms.push_back({w, desktopColumn(w), title && *title ? title : "Log",
+                                 "log: " + log->getOptions().command, true});
                 ++logs;
             }
     if (terms.empty())
         return true;
-    // Terminals running a program first; otherwise, desktop order.
-    std::stable_sort(terms.begin(), terms.end(),
-        [] (const TermItem &a, const TermItem &b) { return a.busy && !b.busy; });
 
     size_t busy = 0;
-    int titleWidth = 0;
+    int titleWidth = 0, desktopWidth = 0;
     for (auto &t : terms)
     {
         busy += t.busy;
         t.title = fitWidth(t.title, 24);
         titleWidth = std::max(titleWidth, (int) TText::width(t.title));
+        desktopWidth = std::max(desktopWidth, (int) TText::width(t.desktop));
     }
     std::vector<std::string> items;
     for (const auto &t : terms)
-        items.push_back(" " + padRight(t.title, titleWidth) + "  " + t.what);
+        items.push_back(padRight(t.desktop, desktopWidth) + "  " +
+                        padRight(t.title, titleWidth) + "  " + t.what);
 
     char summary[256];
     size_t termCount = terms.size() - logs;

@@ -565,8 +565,9 @@ namespace appmenu
 {
 
 // The Ctrl-B menu. F, the former letter of Zoom (Maximize/Restore), still
-// works. The digits 1-9 show that desktop: the command is sent once the
-// menu is closed (TMenuView::execute puts back the evCommand that ends it).
+// works. The digits 1-9 show that desktop, 0 the previous one: the command
+// is sent once the menu is closed (TMenuView::execute puts back the
+// evCommand that ends it).
 class MainMenuPopup : public CenteredMenuPopup
 {
 public:
@@ -577,7 +578,7 @@ public:
     {
         CenteredMenuPopup::getEvent(event);
         if ( event.what == evKeyDown && event.keyDown.textLength == 1 &&
-             event.keyDown.text[0] >= '1' && event.keyDown.text[0] <= '9' &&
+             event.keyDown.text[0] >= '0' && event.keyDown.text[0] <= '9' &&
              !(event.keyDown.controlKeyState & (kbCtrlShift | kbAltShift)) )
         {
             int n = event.keyDown.text[0] - '0';
@@ -615,7 +616,7 @@ void TVTermApp::openMenu()
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
         newLine() +
-        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~1~-~9~") +
+        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~0~-~9~") +
         *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
         newLine() +
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
@@ -944,6 +945,17 @@ void TVTermApp::openProfile(const Profile &profile)
     VTermEmulatorFactory factory;
     // Windows closed just before (Load Profile): forgotten first.
     desktops::prune(*deskTop);
+    // Ctrl-B 0 after loading: the desktop shown before (the switches done
+    // while loading do not count).
+    int shownBefore = desktops::current(), previousBefore = desktops::previous();
+    // Desktop names: those in the profile replace the current ones.
+    for (const auto &dn : profile.desktopNames)
+        if (!desktops::setName(dn.first, dn.second))
+            note("profile " + profile.path + ": desktop-name-" + std::to_string(dn.first) +
+                 " cut to " + std::to_string((int) desktops::nameMax) + " columns: '" +
+                 desktops::name(dn.first) + "'");
+    if (profile.hasWindowListSize)
+        setWindowListSize(TPoint {profile.windowListWidth, profile.windowListHeight});
 
     for (const auto &win : profile.windows)
     {
@@ -1079,6 +1091,7 @@ void TVTermApp::openProfile(const Profile &profile)
 
     if (profile.focus > 0 && (size_t) profile.focus <= windows.size())
         desktops::selectWindow(*deskTop, windows[profile.focus - 1]);
+    desktops::setPrevious(desktops::current() != shownBefore ? shownBefore : previousBefore);
 }
 
 namespace profiledlg
@@ -1272,6 +1285,18 @@ void TVTermApp::saveProfile()
     std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
     Profile profile;
     profile.desktop = desktops::current();
+    for (int n = 1; n <= desktops::count; ++n)
+        if (!desktops::name(n).empty())
+            profile.desktopNames[n] = desktops::name(n);
+    {
+        TPoint size;
+        if (getWindowListSize(size))
+        {
+            profile.hasWindowListSize = true;
+            profile.windowListWidth = size.x;
+            profile.windowListHeight = size.y;
+        }
+    }
     TRect ext = deskTop->getExtent();
     int untitledWithText = 0, modifiedFiles = 0;
     for (auto it = windows.rbegin(); it != windows.rend(); ++it)
@@ -1404,10 +1429,12 @@ void TVTermApp::about()
 // Desktops (see desktops.h).
 
 void TVTermApp::switchDesktop(int n)
+// 0: the previous desktop (nothing if there is none).
 {
-    if (n < 1 || n > desktops::count)
-        return;
-    desktops::switchTo(*deskTop, n);
+    if (n == 0)
+        desktops::switchToPrevious(*deskTop);
+    else if (n >= 1 && n <= desktops::count)
+        desktops::switchTo(*deskTop, n);
 }
 
 int TVTermApp::chooseDesktop(bool moving)
@@ -1418,6 +1445,8 @@ int TVTermApp::chooseDesktop(bool moving)
     for (int n = 1; n <= desktops::count; ++n)
     {
         std::string text = (moving ? "Move to Desktop " : "Desktop ") + std::to_string(n);
+        if (!desktops::name(n).empty())
+            text += ": " + desktops::name(n);
         std::string info;
         if (n == desktops::current())
             info = "current";
@@ -1472,5 +1501,8 @@ void TVTermApp::moveWindowMenu()
     if (n == 0 || n == desktops::current())
         return;
     desktops::moveTo(*deskTop, w, n);
-    appsettings::showStatus("Window moved to desktop " + std::to_string(n) + ".");
+    std::string where = std::to_string(n);
+    if (!desktops::name(n).empty())
+        where += " (" + desktops::name(n) + ")";
+    appsettings::showStatus("Window moved to desktop " + where + ".");
 }

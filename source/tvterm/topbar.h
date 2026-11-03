@@ -15,12 +15,14 @@
 // one). It is not a menu bar: Alt+letters and F10 stay with the programs in
 // the terminals.
 //
-//   Ctrl-B Menu  WinList  Alerts: 2 (Ctrl-B G)              D1  D2  D5
+//   Ctrl-B Menu  WinList  Alerts: 2 (Ctrl-B G)          D1  2:mail  D5
 //
 // A click on an item runs it (the menu, the Window List, the oldest alert,
 // that desktop). The desktop buttons are those with windows, plus the
 // current one (the Event Viewer is on every desktop and is not counted):
-// the current one is black on green, the others black on cyan, or white on
+// a named desktop shows its name (" 2:mail "), unless the buttons with the
+// names would leave no room for the menu and WinList items (then all are
+// short); the current one is black on green, the others black on cyan, or white on
 // red when one of their windows has an alert. While the mouse is over an
 // item, the status line shows what it does (for a desktop: its windows).
 class TopBar : public TView
@@ -54,6 +56,7 @@ public:
         ItemKind kind;
         int desktop; // itDesktop: 1-9.
         int x, width;
+        bool named; // itDesktop: shown with its name (" 2:mail ").
     };
 
 private:
@@ -66,10 +69,11 @@ private:
         // an alert.
         std::array<int, 10> counts {};
         std::array<bool, 10> alerted {};
+        unsigned names {0}; // desktops::namesVersion.
         bool operator==(const State &o) const
         {
             return current == o.current && alerts == o.alerts &&
-                   counts == o.counts && alerted == o.alerted;
+                   counts == o.counts && alerted == o.alerted && names == o.names;
         }
     };
 
