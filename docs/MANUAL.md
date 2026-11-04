@@ -497,6 +497,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `search-case-sensitive` | `no` | starting value of "Case sensitive" in the search dialog |
 | | `shift-click-select` | `yes` | Shift+click selects in programs that use the mouse |
 | `[alerts]` | `title-color` | `red` | title text of a window with an alert: `red` (white on red) or `none` (normal colors, only the mark) ([chapter 9](#9-alerts)) |
+| | `seen-color` | `yellow` | title text of a window reached from an alert, until it loses the focus: `yellow` (black on yellow), `cyan` or `none` |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
 | `[transform <name>]` | rules | (none) | Log View transformations: the text shown ([chapter 10](#transformations)) |
@@ -715,6 +716,9 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
   normal look (a focused window keeps its double frame). The color goes away with the alert, when the window gets the
   focus. Every kind of alert uses the same color. `[alerts] title-color = none` in `tvterm.ini` turns it off (only the
   mark is left). Windows on other desktops show nothing more: their desktop button in the top bar is already red.
+- When a window gets the focus while it has an alert (Ctrl-B G, a click, the Window List), its **title text turns black
+  on yellow** until the window loses the focus, so that you see at once where you are. Windows without an alert are not
+  colored. `[alerts] seen-color = cyan` uses black on cyan, `none` turns it off.
 - The mark also appears in the Window List and the quit dialog; the top bar shows `Alerts: N (Ctrl-B G)` (a click
   goes to the oldest alert, like Ctrl-B G) and its desktop button turns red.
   **Ctrl-B G** goes to the oldest alert. Selecting the window clears its alert.

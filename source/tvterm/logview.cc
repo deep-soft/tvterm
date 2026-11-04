@@ -1559,9 +1559,22 @@ void LogViewWindow::setState(ushort aState, Boolean enable)
     if (aState & sfSelected)
     {
         if (enable)
+        {
+            // [alerts] seen-color: set before clearAlert, which redraws
+            // the frame.
+            alertSeen = hasAlert();
             clearAlert();
+        }
         else if (wasSelected)
+        {
+            if (alertSeen)
+            {
+                alertSeen = false;
+                if (frame)
+                    frame->drawView();
+            }
             silenceSince = Clock::now();
+        }
     }
     // The cursor line is shown only in the focused window.
     if ((aState & (sfFocused | sfSelected | sfActive)) && interior)

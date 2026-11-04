@@ -313,14 +313,20 @@ uint64_t newAlertOrder() noexcept
 }
 
 bool alertTitleColor = true;
+uint8_t alertSeenColor = alertSeenYellow;
 
 void drawAlertTitle(TFrame &frame) noexcept
 {
-    if (!alertTitleColor)
-        return;
     auto *window = dynamic_cast<TWindow *>(frame.owner);
     auto *target = dynamic_cast<AlertTarget *>(frame.owner);
-    if (!window || !target || !target->hasAlert())
+    if (!window || !target)
+        return;
+    uint8_t color = 0;
+    if (target->hasAlert())
+        color = alertTitleColor ? 0x4F : 0; // White on red.
+    else if (target->isAlertSeen())
+        color = alertSeenColor;
+    if (!color)
         return;
     // The same position and width as in TFrame::draw.
     short width = frame.size.x;
@@ -337,9 +343,8 @@ void drawAlertTitle(TFrame &frame) noexcept
         return;
     short i = (width - l) >> 1;
     TDrawBuffer b;
-    // White on red; only the text, the spaces around it and the frame keep
-    // their colors.
-    b.moveStr(0, title, TColorAttr(0x4F), l);
+    // Only the text; the spaces around it and the frame keep their colors.
+    b.moveStr(0, title, TColorAttr(color), l);
     frame.writeLine(i, 0, l, 1, b);
 }
 

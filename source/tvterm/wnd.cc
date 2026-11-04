@@ -65,9 +65,20 @@ void TerminalWindow::setState(ushort aState, Boolean enable)
     if (aState & sfSelected)
     {
         if (enable)
+        {
+            // [alerts] seen-color: set before clearAlert, which redraws
+            // the frame.
+            alertSeen = hasAlert();
             clearAlert();
+        }
         else if (wasSelected)
         {
+            if (alertSeen)
+            {
+                alertSeen = false;
+                if (frame)
+                    frame->drawView();
+            }
             // Applications may redraw when they lose the focus.
             ignoreOutputFor(1500);
             silenceSince = Clock::now();

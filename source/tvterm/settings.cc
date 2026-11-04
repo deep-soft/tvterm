@@ -392,6 +392,14 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 else
                     invalid("use red or none"), settings.alertTitleRed = previous.alertTitleRed;
             }
+            else if (key == "seen-color")
+            {
+                std::string v = lower(value);
+                if (v == "yellow" || v == "cyan" || v == "none")
+                    settings.alertSeenColor = v == "yellow" ? 0xE0 : v == "cyan" ? 0xB0 : 0;
+                else
+                    invalid("use yellow, cyan or none"), settings.alertSeenColor = previous.alertSeenColor;
+            }
             else
                 warn("unknown key '" + key + "' in [alerts]");
         }
@@ -525,6 +533,10 @@ std::string settingsTemplate()
         "# (the title text white on red until the window gets the focus) or none\n"
         "# (only the mark, e.g. [!], in the title).\n"
         "#title-color = red\n"
+        "# Title of a window that got the focus while it had an alert (Ctrl-B G,\n"
+        "# a click), until it loses the focus: yellow (black on yellow), cyan\n"
+        "# or none.\n"
+        "#seen-color = yellow\n"
         "\n"
         "[logview]\n"
         "# Lines kept by each Log View source (Ctrl-B D), 100 to 1000000; a window\n"

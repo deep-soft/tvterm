@@ -260,11 +260,13 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
     applySettings(currentSettings);
-    // [alerts] title-color: the frames are drawn again (the windows keep
+    // [alerts] title-color, seen-color: the frames are drawn again (the windows keep
     // their drawing in a buffer, so redrawing the desktop is not enough).
-    if (alertTitleColor != currentSettings.alertTitleRed)
+    if ( alertTitleColor != currentSettings.alertTitleRed ||
+         alertSeenColor != currentSettings.alertSeenColor )
     {
         alertTitleColor = currentSettings.alertTitleRed;
+        alertSeenColor = currentSettings.alertSeenColor;
         if (TProgram::deskTop)
             TProgram::deskTop->forEach([] (TView *v, void *) {
                 auto *w = dynamic_cast<TWindow *>(v);

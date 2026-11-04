@@ -97,6 +97,8 @@ E36. `--print-highlight [NAME...]`: the built-in highlight sets in `tvterm.ini` 
 E37. Alert title color: the title text of a window with an alert is white on red, `[alerts] title-color`
 E38. Event Viewer: the alerts list (A) shows the desktop of each window
 E39. Ctrl-B menu in a new order; Desktop... / Ctrl-B Y list with columns S, C, Win, Title
+E40. Seen alert color: the title of a window reached from an alert is black on yellow until it loses the focus,
+     `[alerts] seen-color`
 
 ---
 
@@ -231,7 +233,7 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
 - `~/.config/tvterm/tvterm.ini` (or `$XDG_CONFIG_HOME/tvterm/`), sections `[general]` (`profile`, `auto-reload`),
   `[scrollback]` (`lines`, `wheel-lines`, `word-chars`, `save-dir`, `save-name` (E11), `search-case-sensitive`, `shift-click-select`),
   `[keys]` (`history-page-up/-page-down/-top/-bottom`, e.g. `Ctrl-F5`, `none`). Documented in `examples/tvterm.ini`.
-  E37: `[alerts]` `title-color` (`red` / `none`, see Alerts).
+  E37: `[alerts]` `title-color` (`red` / `none`, see Alerts). E40: `seen-color` (`yellow` / `cyan` / `none`).
   E25: `[general]` `large-file` (default `5M`, `K`/`M`/`G` ×1024, `0` = never ask; `parseSize` / `sizeName`),
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
@@ -315,6 +317,15 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   title again with the new color. `TerminalWindow::initFrame` (around `BasicTerminalFrame`, which keeps the size while
   dragging) and `LogViewWindow::initFrame` (around `TFrame`). A change of the setting draws every window's frame again
   (`frame->drawView()`: redrawing the desktop alone shows the windows' buffers, the old colors).
+- **Seen color (E40**, agreed in chat 43, so that the window reached with Ctrl-B G or a click is easy to find): when a
+  window gets the focus (`sfSelected` on) while it has an alert, the alert goes as before and its title text becomes black
+  on bright yellow (`0xE0`) until the window loses the focus (`sfSelected` off; a menu or dialog over it does not count),
+  then the normal colors. Only windows that had an alert; the frame keeps its colors. `[alerts] seen-color = yellow |
+  cyan | none` (cyan = black on bright cyan `0xB0`; default yellow; invalid → warning, previous value kept). How:
+  `AlertTarget::alertSeen` (with `isAlertSeen()`), set in `setState` of `TerminalWindow` / `LogViewWindow` before
+  `clearAlert` (which draws the frame) and cleared with a frame redraw when the window is deselected; `drawAlertTitle`
+  uses red while there is an alert (if `title-color`), else `alertSeenColor` if the alert was seen. A change of the
+  setting draws the frames again, like `title-color`.
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
@@ -789,7 +800,7 @@ source/tvterm/             the application
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
                            and logview.cc (LogViewWindow::checkAlerts); AlertTitleFrame / drawAlertTitle: the title
-                           white on red (E37)
+                           white on red (E37), black on yellow after the alert was seen (E40)
   logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
                            read in idle (LogSource::pollAll), stopped without blocking
   logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
@@ -1190,6 +1201,12 @@ examples/profiles/example.ini
   window of 21 columns with a long title (`[!] Busy win`, cut) and a UTF-8 title (`ăîșț ✓`, `LANG=C.UTF-8`): the red covers
   exactly the text shown. A window with an alert on desktop 2: shown red after Ctrl-B 2. Not tested in the container: the
   static build (a dragged window is selected, so it has no alert).
+- Seen alert color (E40), in tmux (120×40, `capture-pane -e`): a terminal with an activity alert, a Log View with a
+  keyword alert (`ERROR` every second) and a focused terminal: both titles red (97/41); Ctrl-B G → the terminal title
+  `Busy1` black on bright yellow (30/103), the Log View still red; Ctrl-B G → the Log View yellow, the terminal normal;
+  Ctrl-B Tab → the Log View normal (then red again: new `ERROR` lines). A terminal that writes once: `seen-color = cyan`
+  → 30/106, `none` → normal colors, `yellow` → 30/103; after Ctrl-B G again (another window) its title is normal. The
+  focused terminal without an alert stays normal.
 - Desktop in the alerts list (E38), in tmux (120×40, `LANG=C.UTF-8`): a profile with activity alerts on desktops 1 and 2
   (`desktop-name-2 = mâine`), a keyword alert on desktop 3 and a quiet focused terminal; Ctrl-B V, A →
   `*D1      [!] Busy1`, ` 2:mâine [!] Busy2`, ` D3      [!ERROR] Kw3` (+ group and line), the marks in one column (UTF-8
@@ -1277,5 +1294,6 @@ examples/profiles/example.ini
 | Desktop lists (`far2l-extended`) | E35 | Window List: Desktop / Title / Command, by desktop, resizable, `window-list-size` in profiles; Quit list: desktop column, same order; Ctrl-B 0 = previous desktop; `desktop-name-N` (8 columns) in the top bar, lists and menus |
 | `--print-highlight` (`far2l-extended`) | E36 | prints the built-in highlight sets (all or named) in `tvterm.ini` format, active; unknown name → error with the list, exit 1 |
 | Alert title color (`far2l-extended`) | E37 | the title text (with the mark) of a window with an alert is white on red until it gets the focus; frame unchanged; terminals and Log Views; `[alerts] title-color = red \| none` |
+| Seen alert color (`far2l-extended`) | E40 | the title text of a window that got the focus while it had an alert is black on yellow until it loses the focus; `[alerts] seen-color = yellow \| cyan \| none` |
 | Desktop in the alerts list (`far2l-extended`) | E38 | Event Viewer A: the desktop of each window after the time (`*D1`, ` 2:mail`, as in the Window List), aligned |
 | Menu order, desktop list (`far2l-extended`) | E39 | Ctrl-B menu grouped: desktops/windows, alerts, terminals, size, text/editors, profiles, rest; Desktop... / Ctrl-B Y: header `S C Win Title`, rows `2 +   2 :mail` |

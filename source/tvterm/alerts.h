@@ -94,10 +94,15 @@ public:
     // Increases with each new alert, so that the oldest one can be found.
     virtual uint64_t getAlertOrder() const noexcept = 0;
     virtual AlertInfo getAlertInfo() noexcept = 0;
+    // The window got the focus while it had an alert (the alert is gone);
+    // true until it loses the focus ([alerts] seen-color).
+    bool isAlertSeen() const noexcept { return alertSeen; }
 
 protected:
 
     ~AlertTarget() = default;
+
+    bool alertSeen {false};
 };
 
 // Order number for a new alert (shared by all windows).
@@ -107,9 +112,16 @@ uint64_t newAlertOrder() noexcept;
 // white on red (true, the default) or in the normal colors (false).
 extern bool alertTitleColor;
 
+// [alerts] seen-color: the title text of a window that got the focus while
+// it had an alert, until it loses the focus: 0 (none) or the color
+// attribute (black on yellow, the default, or black on cyan).
+extern uint8_t alertSeenColor;
+enum : uint8_t { alertSeenYellow = 0xE0, alertSeenCyan = 0xB0 };
+
 // Draws the title of 'frame' again, white on red, if its window has an
-// alert (and 'alertTitleColor'). Called after TFrame::draw, at the same
-// place and with the same width; the frame itself keeps its colors.
+// alert (and 'alertTitleColor'), or in 'alertSeenColor' if the alert was
+// just seen. Called after TFrame::draw, at the same place and with the same
+// width; the frame itself keeps its colors.
 void drawAlertTitle(TFrame &frame) noexcept;
 
 // A frame (TFrame or a class derived from it) whose title shows the alert.

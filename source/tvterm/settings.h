@@ -55,6 +55,9 @@ struct Settings
     // title-color: the title text of a window with an alert, white on red
     // (red) or in the normal colors (none).
     bool alertTitleRed {true};
+    // seen-color: the title text of a window that got the focus while it
+    // had an alert, until it loses the focus: yellow, cyan or none (0).
+    uint8_t alertSeenColor {0xE0};
     // [logview]
     int logViewMaxLines {50000};
     // [highlight <name>]: highlight sets for Log View (see highlight.h).
