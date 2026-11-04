@@ -711,12 +711,13 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
   **Ctrl-B G** goes to the oldest alert. Selecting the window clears its alert.
 - **A** in the Event Viewer lists the active alerts (those counted by `Alerts: N`), oldest first (the order of Ctrl-B G):
   the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword time),
-  the mark and the window title; for keywords also the group and the line (around the first term, about 150 bytes):
+  the desktop of the window (as in the Window List: `*D1` = the current desktop, `2:mail` for a named one), the mark and
+  the window title; for keywords also the group and the line (around the first term, about 150 bytes):
 
   ```
   --- Active alerts (2) ---
-  14:02:11 [!] Shell
-  14:05:40 [!192.168.88.4+:993] Log: FortiGate
+  14:02:11 *D1     [!] Shell
+  14:05:40  2:mail [!192.168.88.4+:993] Log: FortiGate
       group: 192.168.88.4 + :993
       line:  date=2026-10-29 time=14:05:40 ... srcip=192.168.88.4 ... dstport=993 ...
   ```

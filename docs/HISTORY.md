@@ -95,6 +95,7 @@ E34. Edit settings: the Settings editor below the Event Viewer, changes on disk,
 E35. Desktops, the lists: Window List with desktop / title / command (resizable), desktop column in the Quit list, Ctrl-B 0, desktop names
 E36. `--print-highlight [NAME...]`: the built-in highlight sets in `tvterm.ini` format
 E37. Alert title color: the title text of a window with an alert is white on red, `[alerts] title-color`
+E38. Event Viewer: the alerts list (A) shows the desktop of each window
 
 ---
 
@@ -214,6 +215,8 @@ Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` 
   Header `--- Active alerts (N) ---`, or `--- No active alerts ---`; shown even when paused or with T-. Status line item
   `A Alerts`; title `Event Viewer [M- C+ K+ O+ T+] A: alerts`. The application builds the list (`listAlerts`, message
   `cmShowAlerts` from the viewer); each `AlertTarget` gives an `AlertInfo` (time of the current kind, mark, title, group, line).
+  E38: after the time, the desktop of the window, the same text as the Window List column (`desktopColumn`: `*D1` current,
+  ` 2:mail` named), padded to the widest one in the list (`strwidth`), so the marks start in one column.
 - Buffer: 64000 bytes (about 220 events with all their lines), instead of 3840; Turbo Vision's `TTerminal` limits it to
   32000, so tvterm's `EventTerminal` replaces the buffer after construction (positions are 16-bit, up to 65535).
 - Profiles: `[eventviewer]` accepts `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
@@ -1176,6 +1179,11 @@ examples/profiles/example.ini
   window of 21 columns with a long title (`[!] Busy win`, cut) and a UTF-8 title (`ăîșț ✓`, `LANG=C.UTF-8`): the red covers
   exactly the text shown. A window with an alert on desktop 2: shown red after Ctrl-B 2. Not tested in the container: the
   static build (a dragged window is selected, so it has no alert).
+- Desktop in the alerts list (E38), in tmux (120×40, `LANG=C.UTF-8`): a profile with activity alerts on desktops 1 and 2
+  (`desktop-name-2 = mâine`), a keyword alert on desktop 3 and a quiet focused terminal; Ctrl-B V, A →
+  `*D1      [!] Busy1`, ` 2:mâine [!] Busy2`, ` D3      [!ERROR] Kw3` (+ group and line), the marks in one column (UTF-8
+  name); on desktop 2 → ` D1 [!] …`, ` D3 [!ERROR] …` (the alert of desktop 2 cleared by the focus); no alerts →
+  `--- No active alerts ---`.
 
 ## 6. Known limitations
 
@@ -1253,3 +1261,4 @@ examples/profiles/example.ini
 | Desktop lists (`far2l-extended`) | E35 | Window List: Desktop / Title / Command, by desktop, resizable, `window-list-size` in profiles; Quit list: desktop column, same order; Ctrl-B 0 = previous desktop; `desktop-name-N` (8 columns) in the top bar, lists and menus |
 | `--print-highlight` (`far2l-extended`) | E36 | prints the built-in highlight sets (all or named) in `tvterm.ini` format, active; unknown name → error with the list, exit 1 |
 | Alert title color (`far2l-extended`) | E37 | the title text (with the mark) of a window with an alert is white on red until it gets the focus; frame unchanged; terminals and Log Views; `[alerts] title-color = red \| none` |
+| Desktop in the alerts list (`far2l-extended`) | E38 | Event Viewer A: the desktop of each window after the time (`*D1`, ` 2:mail`, as in the Window List), aligned |

@@ -461,20 +461,33 @@ size_t countAlerts(TDeskTop &deskTop)
 
 std::string listAlerts(TDeskTop &deskTop)
 {
-    std::vector<std::pair<uint64_t, AlertTarget *>> active;
+    struct Active
+    {
+        uint64_t order;
+        AlertTarget *target;
+        std::string desktop; // As in the Window List: "*D1", " 2:mail".
+    };
+    std::vector<Active> active;
+    size_t deskWidth = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
         if (auto *target = dynamic_cast<AlertTarget *>(w))
             if (target->hasAlert())
-                active.emplace_back(target->getAlertOrder(), target);
+            {
+                active.push_back({target->getAlertOrder(), target, desktopColumn(w)});
+                deskWidth = max<size_t>(deskWidth, strwidth(active.back().desktop));
+            }
     if (active.empty())
         return "--- No active alerts ---\n";
     std::sort(active.begin(), active.end(),
-              [] (const auto &a, const auto &b) { return a.first < b.first; });
+              [] (const auto &a, const auto &b) { return a.order < b.order; });
     std::string out = "--- Active alerts (" + std::to_string(active.size()) + ") ---\n";
     for (auto &a : active)
     {
-        AlertInfo info = a.second->getAlertInfo();
-        out += formatEventTime(info.time) + " " + info.mark + " " + info.title + "\n";
+        AlertInfo info = a.target->getAlertInfo();
+        // The desktop column padded, so that the marks start in one column.
+        std::string desk = a.desktop;
+        desk.append(deskWidth - min<size_t>(deskWidth, strwidth(desk)), ' ');
+        out += formatEventTime(info.time) + " " + desk + " " + info.mark + " " + info.title + "\n";
         if (!info.group.empty())
         {
             out += "    group: " + info.group + "\n";

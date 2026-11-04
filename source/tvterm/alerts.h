@@ -140,7 +140,7 @@ bool goToNextAlert(TDeskTop &deskTop);
 size_t countAlerts(TDeskTop &deskTop);
 
 // The active alerts, from the oldest (the order of Ctrl-B G), as text for
-// the Event Viewer (key A).
+// the Event Viewer (key A): time, desktop (as in the Window List), mark, title.
 std::string listAlerts(TDeskTop &deskTop);
 
 #endif // TVTERM_ALERTS_H
