@@ -48,6 +48,8 @@ struct TVTermApp : public TApplication
     void toggleEventViewer();
     void newLogView();
     void loadProfile();
+    void loadProfileInEditor();
+    void editorSaveAs();
     // Asks whether to close the open windows before loading a profile.
     // Returns false if the profile should not be loaded.
     bool closeWindowsBeforeLoad();

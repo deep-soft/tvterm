@@ -1,7 +1,7 @@
 #ifndef TVTERM_LOGVIEW_H
 #define TVTERM_LOGVIEW_H
 
-// Log View (Ctrl-B D): a window showing the lines written by a command
+// Log View (Ctrl-B L): a window showing the lines written by a command
 // (e.g. 'tail -F /var/log/maillog'), filtered by two regular expressions
 // (include / exclude), with its own history, search, selection and save.
 // Windows with the same command share one source (see logsrc.h).

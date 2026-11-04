@@ -503,6 +503,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
+                case cmLoadProfileInEditor: loadProfileInEditor(); break;
+                case cmEditorSaveAs: editorSaveAs(); break;
                 case cmSaveProfile: saveProfile(); break;
                 case cmWindowList: windowList(); break;
                 case cmRenameTerm: renameTerm(); break;
@@ -635,19 +637,20 @@ void TVTermApp::openMenu()
 {
     TMenuItem &menuItems =
         // Order agreed in chat 43: desktops and windows, alerts, terminals,
-        // window size, text and editors, profiles, the rest.
-        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~0~-~9~") +
+        // window size, text and editors, profiles, the rest. Letters of
+        // item 30 (chat 43); free: J K X (F is the former Zoom letter).
+        *new TMenuItem("Desktop...", cmDesktopMenu, 'D', hcNoContext, "~D~,~0~-~9~") +
         *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
         *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
         newLine() +
-        *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'D', hcNoContext, "~D~") +
-        *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
+        *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'L', hcNoContext, "~L~") +
+        *new TMenuItem("Alerts...", cmAlertSettings, 'A', hcNoContext, "~A~") +
         *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
         newLine() +
         *new TMenuItem("New Term", cmNewTerm, 'N', hcNoContext, "~N~") +
         // No key: closed only on purpose (arrows + Enter, or the mouse).
         *new TMenuItem("Close Term", cmClose, kbNoKey) +
-        *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
+        *new TMenuItem("Rename Term...", cmRenameTerm, kbNoKey) +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
         *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
@@ -655,13 +658,15 @@ void TVTermApp::openMenu()
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
         newLine() +
-        *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
+        *new TMenuItem("Select Text", cmStartSelection, 'T', hcNoContext, "~T~") +
         *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
         *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
+        *new TMenuItem("Editor Save As...", cmEditorSaveAs, 'S', hcNoContext, "~S~") +
         newLine() +
-        *new TMenuItem("Load Profile...", cmLoadProfile, 'L', hcNoContext, "~L~") +
-        *new TMenuItem("Save Profile As...", cmSaveProfile, 'A', hcNoContext, "~A~") +
+        *new TMenuItem("Load Profile...", cmLoadProfile, 'B', hcNoContext, "~B~") +
+        *new TMenuItem("Load Profile in Editor...", cmLoadProfileInEditor, 'I', hcNoContext, "~I~") +
+        *new TMenuItem("Save Profile As...", cmSaveProfile, 'C', hcNoContext, "~C~") +
         newLine() +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
@@ -1171,6 +1176,37 @@ void TVTermApp::loadProfile()
         return;
     if (!openProfile(std::string(fileName)) && pendingMessage.empty())
         pendingMessage = "No terminal was opened.";
+}
+
+void TVTermApp::loadProfileInEditor()
+// A profile from the profiles directory, opened in a tvterm editor (to read
+// or change it; nothing is loaded).
+{
+    char fileName[MAXPATH];
+    TFileDialog *d = profiledlg::newDialog(profileDir(), "Load profile in editor", fdOpenButton,
+                                              fileopen::hiLoadProfile);
+    TView *p = validView(d);
+    if (!p)
+        return;
+    ushort result = deskTop->execView(p);
+    if (result != cmCancel)
+        p->getData(fileName);
+    TObject::destroy(p);
+    if (result != cmCancel)
+        fileopen::open(fileName, fileopen::Target::Editor);
+}
+
+void TVTermApp::editorSaveAs()
+// Save As of the focused editor (the Settings editor too: after saving to
+// another file it is a normal editor).
+{
+    auto *w = dynamic_cast<TEditWindow *>(deskTop->current);
+    if (!w)
+    {
+        messageBox("The focused window is not an editor.", mfInformation | mfOKButton);
+        return;
+    }
+    message(w, evCommand, cmSaveAs, nullptr);
 }
 
 bool TVTermApp::closeWindowsBeforeLoad()

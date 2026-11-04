@@ -2019,7 +2019,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-A") +
         *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
         newLine() +
-        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, globalkeys::menuKeyName() + " K");
+        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, globalkeys::menuKeyName() + " A");
     ushort cmd = popupMenu(where, items, nullptr);
     if (cmd)
         runCommand(cmd);

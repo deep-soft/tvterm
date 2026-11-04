@@ -99,20 +99,34 @@ E38. Event Viewer: the alerts list (A) shows the desktop of each window
 E39. Ctrl-B menu in a new order; Desktop... / Ctrl-B Y list with columns S, C, Win, Title
 E40. Seen alert color: the title of a window reached from an alert is black on yellow until it loses the focus,
      `[alerts] seen-color`
+E41. Ctrl-B menu letters (D Desktop..., L Log View, A Alerts, T Select Text, B / C profiles), Editor Save As (S),
+     Load Profile in Editor (I)
 
 ---
 
 ## 2. Features (all tested by the user in the real setup, unless marked otherwise)
 
 ### Menu (Ctrl-B)
-Order since E39 (agreed in chat 43; groups between separators): `0-9` Desktop... · `W` Window List · `Y` Move Window to
-Desktop | `D` Log View · `K` Alerts · `G` Go to Next Alert | `N` New Term · Close Term (no key) · `T` Rename Term ·
-`Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) |
-`S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor | `L` Load Profile · `A` Save Profile As |
-`V` Event Viewer · `More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, About) ·
-`U` Suspend · `Q` Exit. Only the order changed (same items and keys); the menu opens with no item selected (the first
-Down selects Desktop...).
-Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` Move Window to Desktop (E32); 0: the previous desktop (E35).
+Order since E39, letters since E41 (both agreed in chat 43; groups between separators): `D` (and `0-9`) Desktop... ·
+`W` Window List · `Y` Move Window to Desktop | `L` Log View · `A` Alerts · `G` Go to Next Alert | `N` New Term · Close
+Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom
+(Maximize/Restore; `F` before E20, still works) | `T` Select Text · `P` Paste · `E` New Editor · `O` Open File in
+Editor · `S` Editor Save As | `B` Load Profile · `I` Load Profile in Editor · `C` Save Profile As | `V` Event Viewer ·
+`More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, About) · `U` Suspend ·
+`Q` Exit. The menu opens with no item selected (the first Down selects Desktop...).
+Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
+- **E41** (item 30, agreed in chat 43): before it, D = Log View, K = Alerts, T = Rename Term, S = Select Text, L = Load
+  Profile, A = Save Profile As, Desktop... had only `0-9`. Desktop... shows `D,0-9` on the right. Rename Term has no letter
+  (rarely used; arrows + Enter or the mouse). Two new items:
+  - **Editor Save As...** (`cmEditorSaveAs`): the focused window must be a `TEditWindow` (a tvterm editor or the Settings
+    editor), otherwise "The focused window is not an editor."; it sends tvision's `cmSaveAs` to the window, so the editor's
+    own Save As dialog ("Save file as", `editorDialog`) is used. The Settings editor becomes a normal editor after Save As
+    to another file (as before, E34).
+  - **Load Profile in Editor...** (`cmLoadProfileInEditor`): the Load Profile file dialog (`profiledlg::newDialog`, the
+    profiles directory, `*.ini`, the same history), then `fileopen::open(path, Editor)` (a large file asks first, as for
+    Open File). Nothing is loaded. It covers the deferred "Edit profile...".
+  The texts that named the old letters were changed: the Log View popup menu (Alerts... `Ctrl-B A`), the `tvterm.ini`
+  template, `examples/tvterm.ini` and `examples/profiles/example.ini` (Ctrl-B A, L, B, C), MANUAL.
 - E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
   key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
   the close box of the frame still close windows). MANUAL chapter 2 and `examples/profiles/example.ini` updated.
@@ -1217,6 +1231,15 @@ examples/profiles/example.ini
   Enter → header gray (90), rows `1 +   1 :D1`, `2     2 :mâine`, `3     0 :D3` … `9     0 :D9`; Up (from no selection) →
   row 9; Down → over the header to row 1; Down → 2; Home → row 1; End, Down → row 1; `2` → desktop 2 shown. Ctrl-B Y →
   header `(move window to)`, `+` on desktop 2, `3` → the window moved (button D3 in the top bar).
+- Menu letters (E41), in tmux (120×40, `LANG=C.UTF-8`): the menu rows compared with the agreed list (`D,0-9`, L, A,
+  Rename Term and Close Term without a letter, T, S, B, I, C); `d` and `D` open Desktop...; `2`, `0` and `F` (Zoom) still
+  work; L → the Log View dialog, A → Alerts, T → selection mode (status line), B / C → the profile dialogs; K, J, X do
+  nothing (the menu stays open). S in a terminal → "The focused window is not an editor."; S in a new editor → Save file
+  as, the file written, the title changed; S in the Settings editor → saved as another file. I → "Load profile in
+  editor" (the profiles listed), the profile opens in an editor and nothing is loaded (Window List: the terminal and the
+  editors only); B still loads it (No: add). Log View F9 menu: `Alerts... Ctrl-B A`; `--print-settings`: Ctrl-B A / L.
+  The profile text shown in the editor contains `title = T1`, so "not loaded" is checked in the Window List rows, not on
+  the whole screen.
 
 ## 6. Known limitations
 
@@ -1297,3 +1320,4 @@ examples/profiles/example.ini
 | Seen alert color (`far2l-extended`) | E40 | the title text of a window that got the focus while it had an alert is black on yellow until it loses the focus; `[alerts] seen-color = yellow \| cyan \| none` |
 | Desktop in the alerts list (`far2l-extended`) | E38 | Event Viewer A: the desktop of each window after the time (`*D1`, ` 2:mail`, as in the Window List), aligned |
 | Menu order, desktop list (`far2l-extended`) | E39 | Ctrl-B menu grouped: desktops/windows, alerts, terminals, size, text/editors, profiles, rest; Desktop... / Ctrl-B Y: header `S C Win Title`, rows `2 +   2 :mail` |
+| Menu letters, two items (`far2l-extended`) | E41 | D Desktop..., L Log View, A Alerts, T Select Text, B Load Profile, C Save Profile As, Rename Term without a letter; new S Editor Save As, I Load Profile in Editor |

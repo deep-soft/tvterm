@@ -38,6 +38,8 @@ enum : ushort
     cmSwitchDesktop,  // infoInt: the desktop (1-9).
     cmDesktopMenu,    // Choose the desktop to show.
     cmMoveWindowMenu, // Choose the desktop to move the current window to.
+    cmEditorSaveAs,   // Save As of the focused editor.
+    cmLoadProfileInEditor, // A profile opened in a tvterm editor.
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };

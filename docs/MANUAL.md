@@ -130,33 +130,36 @@ as in any Turbo Vision program.
 
 ### The Ctrl-B menu
 
-**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click). Ctrl-B is not sent to programs
-(see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
+**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click); free letters: J, K, X.
+Ctrl-B is not sent to programs (see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
 ([Global keys](#global-keys)); the top bar then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
 writes Ctrl-B.
 
 | Key | Item | What it does |
 |---|---|---|
-| `1`–`9` | Desktop... | shows that desktop; the item itself (arrows + Enter) lists the desktops ([Desktops](#desktops)) |
+| `D` | Desktop... | lists the desktops ([Desktops](#desktops)); shown in the menu as `D,0-9` |
+| `1`–`9` | Desktop... | shows that desktop directly |
 | `0` | Desktop... | shows the previous desktop (again: back) |
 | `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
-| `D` | Log View... | new Log View ([chapter 10](#10-log-view)) |
-| `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
+| `L` | Log View... | new Log View ([chapter 10](#10-log-view)) |
+| `A` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the oldest alert |
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
 | (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
-| `T` | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one) |
+| (none) | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one); arrows + Enter, or click it |
 | `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
 | `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
 | `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
-| `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
+| `T` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
 | `P` | Paste | pastes the clipboard into the terminal |
 | `E` | New Editor | empty editor |
 | `O` | Open File in Editor... | a file larger than `large-file` asks first ([Opening files](#opening-and-viewing-files)) |
-| `L` | Load Profile... | |
-| `A` | Save Profile As... | saves the open windows as a profile |
+| `S` | Editor Save As... | saves the focused editor under another name ([chapter 5](#5-editor)) |
+| `B` | Load Profile... | opens a profile ([chapter 7](#7-profiles)) |
+| `I` | Load Profile in Editor... | opens a profile file in a tvterm editor, to read or change it (nothing is loaded) |
+| `C` | Save Profile As... | saves the open windows as a profile |
 | `V` | Event Viewer | opens it; if already open, pauses / resumes it |
 | `M` | More... | submenu, see below |
 | `U` | Suspend | stops tvterm and returns to the outer shell; `fg` brings it back |
@@ -201,7 +204,7 @@ their windows has an alert. A click on a button shows that desktop; with the mou
 lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
 - **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B 0** shows the previous one (the one shown before; again: back).
-  **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops; a digit or Enter chooses. An empty desktop can be shown.
+  **Ctrl-B D** (Desktop...) lists the 9 desktops; a digit or Enter chooses. An empty desktop can be shown.
   The list has a header and four columns: **S** the digit, **C** `+` for the current desktop, **Win** the number of
   windows (the Event Viewer not counted), **Title** `:name`, or `:D2` for a desktop without a name:
 
@@ -328,7 +331,7 @@ and date of the chosen file); the default is `2`. The Save dialog of the history
 ## 3. Terminals and the clipboard
 
 A new terminal runs `$SHELL`. Its title is set by the program running in it, unless a fixed title was given
-(Ctrl-B T, or `title` in a profile). Keys go to the program, except Ctrl-B and the [global keys](#global-keys). far2l running inside tvterm uses its
+(Ctrl-B, Rename Term..., or `title` in a profile). Keys go to the program, except Ctrl-B and the [global keys](#global-keys). far2l running inside tvterm uses its
 extended keyboard mode (win32-input-mode) and its terminal extensions: its title shows `TTY|F`.
 
 When the program of a terminal ends, the title shows `(Disconnected)` and the output stays visible; any key closes it.
@@ -340,7 +343,7 @@ When the program of a terminal ends, the title shows `(Disconnected)` and the ou
   dragging afterwards extends by words or lines.
 - **Shift+click** selects even in programs that use the mouse (far2l, mc), if `shift-click-select = yes` (default).
   Note: putty4far2l uses Shift+mouse for its own selection; tvterm receives it only if that is turned off there.
-- **Ctrl-B S** starts the selection mode, for programs that use the mouse.
+- **Ctrl-B T** starts the selection mode, for programs that use the mouse.
 - With a selection: **Ctrl-C** copies it, **Esc** cancels it.
 
 ### Copy and paste
@@ -420,8 +423,9 @@ in the terminal; a relative name is relative to that directory. Directory names 
 ## 5. Editor
 
 **Ctrl-B E** opens an empty editor, **Ctrl-B O** a file. Editors open on the right side (80 columns) when the screen
-is wider than 100 columns. **F2** saves (an untitled editor asks for a name). Clipboard: Ctrl-Ins copy, Shift-Del cut,
-Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
+is wider than 100 columns. **F2** saves (an untitled editor asks for a name);
+**Ctrl-B S** (Editor Save As...) saves the focused editor under another name (another window: "The focused window is
+not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
 
 **More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
 
@@ -555,9 +559,10 @@ history-page-down = Ctrl-F6
 ## 7. Profiles
 
 A profile opens a set of windows with their commands, titles, alerts and positions. Open it with `tvterm -p NAME`,
-with **Ctrl-B L**, or as the default profile. **Ctrl-B A** saves the open windows as a profile.
+with **Ctrl-B B**, or as the default profile. **Ctrl-B C** saves the open windows as a profile. **Ctrl-B I** (Load Profile
+in Editor...) opens a profile file of the same directory in a tvterm editor, to read or change it; nothing is loaded.
 
-**Ctrl-B L** with windows open asks "Close the current windows first?": **Yes** lists the running terminals and Log Views
+**Ctrl-B B** with windows open asks "Close the current windows first?": **Yes** lists the running terminals and Log Views
 (Close / Go to / Cancel), editors with unsaved changes ask to save, then everything closes and the profile opens;
 **No** adds the profile's windows to the open ones; **Cancel** loads nothing.
 
@@ -638,7 +643,7 @@ pos = 50 0 50 60
 pos = 50 60 50 40
 ```
 
-### Saving (Ctrl-B A)
+### Saving (Ctrl-B C)
 
 Saves every window of every desktop with its position (inside the desktop, one decimal), its desktop (when not 1),
 the stacking order, the focused window and the current desktop; the desktop names and the size of the Window List
@@ -683,7 +688,7 @@ counted (`Received event #N` skips numbers). Profiles keep the filters (`[eventv
 ## 9. Alerts
 
 Alerts tell you that something happened in a terminal or Log View you are **not** looking at. Set them with
-**Ctrl-B K** in the window, or in a profile.
+**Ctrl-B A** in the window, or in a profile.
 
 | Kind | Dialog | Profile key | Mark in the title |
 |---|---|---|---|
@@ -749,7 +754,7 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 
 ### Opening
 
-**Ctrl-B D** opens the dialog:
+**Ctrl-B L** opens the dialog:
 
 | Field | Meaning |
 |---|---|
@@ -814,7 +819,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | F2 or `s` | save the lines shown, or the selection |
 | Esc | clears the selection, then the search match |
 | double click | copies a word |
-| Ctrl-B K | alerts |
+| Ctrl-B A | alerts |
 | Ctrl-W | closes the window |
 
 **Cursor line** (black on cyan): with the cursor on the last line, new lines are followed; anywhere higher, the view
@@ -1016,7 +1021,7 @@ lines of the log do not reach it (press New window again in the original for a f
 once), starts without filters, and works like any Log View for scrolling, search, selection, copy, save, W, X and H.
 Filtering further: **F4** / `I` / `E` set Include / Exclude on its lines (Command, Max lines and Restart are disabled),
 or **New window** again from its own search dialog, as many levels as needed. **D** copies it with the same lines.
-Space (pause), `R` (restart) and alerts (Ctrl-B K) do nothing there and say why. It does not depend on the original
+Space (pause), `R` (restart) and alerts (Ctrl-B A) do nothing there and say why. It does not depend on the original
 (closing the original keeps it), it is not listed at Quit (nothing runs) and **profiles do not save it**. The Event
 Viewer notes how many lines it received.
 
