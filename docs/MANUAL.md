@@ -137,27 +137,27 @@ writes Ctrl-B.
 
 | Key | Item | What it does |
 |---|---|---|
-| `N` | New Term | new terminal with your shell (`$SHELL`) |
-| (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
-| `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
-| `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
-| `T` | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one) |
-| `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
-| `G` | Go to Next Alert | goes to the window with the oldest alert |
-| `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
-| `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
 | `1`–`9` | Desktop... | shows that desktop; the item itself (arrows + Enter) lists the desktops ([Desktops](#desktops)) |
 | `0` | Desktop... | shows the previous desktop (again: back) |
+| `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
-| `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
+| `D` | Log View... | new Log View ([chapter 10](#10-log-view)) |
+| `K` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
+| `G` | Go to Next Alert | goes to the window with the oldest alert |
+| `N` | New Term | new terminal with your shell (`$SHELL`) |
+| (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
+| `T` | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one) |
+| `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
+| `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
+| `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
+| `S` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
 | `P` | Paste | pastes the clipboard into the terminal |
 | `E` | New Editor | empty editor |
 | `O` | Open File in Editor... | a file larger than `large-file` asks first ([Opening files](#opening-and-viewing-files)) |
-| `V` | Event Viewer | opens it; if already open, pauses / resumes it |
-| `D` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `L` | Load Profile... | |
 | `A` | Save Profile As... | saves the open windows as a profile |
+| `V` | Event Viewer | opens it; if already open, pauses / resumes it |
 | `M` | More... | submenu, see below |
 | `U` | Suspend | stops tvterm and returns to the outer shell; `fg` brings it back |
 | `Q` | Exit | asks first if terminals or Log Views are running |
@@ -201,10 +201,19 @@ their windows has an alert. A click on a button shows that desktop; with the mou
 lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
 - **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B 0** shows the previous one (the one shown before; again: back).
-  **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops with their names and the number of windows on each; a
-  digit or Enter chooses. An empty desktop can be shown.
+  **Ctrl-B, Desktop...** (arrows + Enter) lists the 9 desktops; a digit or Enter chooses. An empty desktop can be shown.
+  The list has a header and four columns: **S** the digit, **C** `+` for the current desktop, **Win** the number of
+  windows (the Event Viewer not counted), **Title** `:name`, or `:D2` for a desktop without a name:
+
+  ```
+  S C Win Title
+  1     1 :D1
+  2 +   2 :mail
+  3     0 :D3
+  ```
 - New windows open on the current desktop.
-- **Ctrl-B Y** moves the focused window to another desktop (same list); you stay on the current one.
+- **Ctrl-B Y** moves the focused window to another desktop (same list, header `S C Win Title (move window to)`); you stay
+  on the current one.
 - The **Event Viewer is on every desktop** and cannot be moved.
 - Each desktop remembers its focused window. Tab / Shift-Tab, the `key-window-*` keys, Tile and Cascade work on the
   current desktop only.
@@ -212,7 +221,7 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
   the Quit list do the same; the alert counter counts every desktop.
 - **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 8 columns (a longer name is cut, with a
   note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
-  `Desktop 2: mail` in Desktop... and Ctrl-B Y. When the buttons with the names do not leave room for `Ctrl-B Menu` and
+  `:mail` in Desktop... and Ctrl-B Y. When the buttons with the names do not leave room for `Ctrl-B Menu` and
   `WinList`, all the buttons are shown short (` D2 `). Names cannot be changed from inside tvterm yet.
 - Profiles keep the desktop of each window and the names ([Profiles](#format)).
 

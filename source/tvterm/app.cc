@@ -632,33 +632,36 @@ using appmenu::MainMenuPopup;
 void TVTermApp::openMenu()
 {
     TMenuItem &menuItems =
+        // Order agreed in chat 43: desktops and windows, alerts, terminals,
+        // window size, text and editors, profiles, the rest.
+        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~0~-~9~") +
+        *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
+        *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
+        newLine() +
+        *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'D', hcNoContext, "~D~") +
+        *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
+        *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
+        newLine() +
         *new TMenuItem("New Term", cmNewTerm, 'N', hcNoContext, "~N~") +
         // No key: closed only on purpose (arrows + Enter, or the mouse).
         *new TMenuItem("Close Term", cmClose, kbNoKey) +
-        newLine() +
+        *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
         *new TMenuItem("Next Term", cmNext, kbTab, hcNoContext, "~Tab~") +
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
-        *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
-        *new TMenuItem("Rename Term...", cmRenameTerm, 'T', hcNoContext, "~T~") +
-        *new TMenuItem("Alerts...", cmAlertSettings, 'K', hcNoContext, "~K~") +
-        *new TMenuItem("Go to Next Alert", cmNextAlert, 'G', hcNoContext, "~G~") +
+        *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
+        newLine() +
         *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
         *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
         newLine() +
-        *new TMenuItem("Desktop...", cmDesktopMenu, kbNoKey, hcNoContext, "~0~-~9~") +
-        *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
-        newLine() +
         *new TMenuItem("Select Text", cmStartSelection, 'S', hcNoContext, "~S~") +
-        *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
         *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
-        newLine() +
         *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
-        *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
-        *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'D', hcNoContext, "~D~") +
+        newLine() +
         *new TMenuItem("Load Profile...", cmLoadProfile, 'L', hcNoContext, "~L~") +
         *new TMenuItem("Save Profile As...", cmSaveProfile, 'A', hcNoContext, "~A~") +
         newLine() +
+        *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
             *new TMenuItem("Change working ~d~ir...", cmChangeDir, kbNoKey) +
             newLine() +
@@ -1466,39 +1469,84 @@ void TVTermApp::switchDesktop(int n)
         desktops::switchTo(*deskTop, n);
 }
 
+namespace desktopmenu
+{
+
+// The popup of Desktop... and Ctrl-B Y. Its first item is the header of the
+// columns (disabled); the arrow keys skip it.
+class DesktopMenuPopup : public CenteredMenuPopup
+{
+public:
+
+    DesktopMenuPopup(TMenu *aMenu) noexcept :
+        CenteredMenuPopup(aMenu)
+    {
+    }
+
+    void getEvent(TEvent &event) override
+    {
+        // The previous key moved onto the header: go on to the next item
+        // in the same direction (Up from the first row: the last one).
+        if (current && current == menu->items && lastWasKey)
+        {
+            if (lastUp)
+            {
+                TMenuItem *p = menu->items;
+                while (p->next)
+                    p = p->next;
+                current = p;
+            }
+            else if (current->next)
+                current = current->next;
+            drawView();
+        }
+        CenteredMenuPopup::getEvent(event);
+        if (event.what == evKeyDown)
+        {
+            ushort key = ctrlToArrow(event.keyDown.keyCode);
+            lastWasKey = true;
+            lastUp = key == kbUp || key == kbEnd;
+        }
+        else if (event.what & evMouse)
+            lastWasKey = false;
+    }
+
+private:
+
+    bool lastWasKey {false};
+    bool lastUp {false};
+};
+
+} // namespace desktopmenu
+
 int TVTermApp::chooseDesktop(bool moving)
-// A menu with the desktops 1-9 (and the windows on each); the digits choose.
+// A menu with the desktops 1-9; the digits choose. Columns: S (the digit),
+// C (+ the current desktop), Win (its windows), Title (:name or :D2).
 {
     auto counts = desktops::windowCounts(*deskTop);
-    TMenuItem *first = nullptr, *last = nullptr;
+    TMenuItem *first = new TMenuItem(moving ? "S C Win Title (move window to)" : "S C Win Title",
+                                     cmDesktopPick, kbNoKey);
+    first->disabled = True;
+    TMenuItem *last = first;
     for (int n = 1; n <= desktops::count; ++n)
     {
-        std::string text = (moving ? "Move to Desktop " : "Desktop ") + std::to_string(n);
-        if (!desktops::name(n).empty())
-            text += ": " + desktops::name(n);
-        std::string info;
-        if (n == desktops::current())
-            info = "current";
-        if (counts[n])
-            info += (info.empty() ? "" : ", ") + std::to_string(counts[n]) +
-                    (counts[n] == 1 ? " window" : " windows");
-        if (!info.empty())
-            text += "  (" + info + ")";
-        std::string key = "~" + std::to_string(n) + "~";
-        auto *item = new TMenuItem(text.c_str(), cmDesktopPick + n, '0' + n, hcNoContext, key.c_str());
-        if (last)
-            last->next = item;
-        else
-            first = item;
+        char win[8];
+        snprintf(win, sizeof(win), "%3d", counts[n]);
+        const std::string &name = desktops::name(n);
+        std::string text = "~" + std::to_string(n) + "~ " +
+                           (n == desktops::current() ? "+" : " ") + " " + win + " :" +
+                           (name.empty() ? "D" + std::to_string(n) : name);
+        auto *item = new TMenuItem(text.c_str(), cmDesktopPick + n, '0' + n, hcNoContext);
+        last->next = item;
         last = item;
     }
     TMenu *menu = new TMenu(*first);
     // The current desktop is the default item.
-    TMenuItem *item = first;
+    TMenuItem *item = first->next;
     for (int n = 1; n < desktops::current() && item->next; ++n)
         item = item->next;
     menu->deflt = item;
-    TMenuPopup *popup = new CenteredMenuPopup(menu);
+    TMenuPopup *popup = new desktopmenu::DesktopMenuPopup(menu);
     popup->helpCtx = hcMenu;
     ushort cmd = execView(popup);
     TObject::destroy(popup);

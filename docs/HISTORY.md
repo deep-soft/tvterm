@@ -96,16 +96,20 @@ E35. Desktops, the lists: Window List with desktop / title / command (resizable)
 E36. `--print-highlight [NAME...]`: the built-in highlight sets in `tvterm.ini` format
 E37. Alert title color: the title text of a window with an alert is white on red, `[alerts] title-color`
 E38. Event Viewer: the alerts list (A) shows the desktop of each window
+E39. Ctrl-B menu in a new order; Desktop... / Ctrl-B Y list with columns S, C, Win, Title
 
 ---
 
 ## 2. Features (all tested by the user in the real setup, unless marked otherwise)
 
 ### Menu (Ctrl-B)
-`N` New Term · Close Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `W` Window List · `T` Rename Term · `K` Alerts · `G` Go to Next Alert ·
-`R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) · `S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor · `V` Event Viewer ·
-`D` Log View · `L` Load Profile · `A` Save Profile As · `H` History · `More...` (change dir, tile, cascade, Grab Input, Edit settings,
-Reload settings, About) · `U` Suspend · `Q` Exit.
+Order since E39 (agreed in chat 43; groups between separators): `0-9` Desktop... · `W` Window List · `Y` Move Window to
+Desktop | `D` Log View · `K` Alerts · `G` Go to Next Alert | `N` New Term · Close Term (no key) · `T` Rename Term ·
+`Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom (Maximize/Restore; `F` before E20, still works) |
+`S` Select Text · `P` Paste · `E` New Editor · `O` Open File in Editor | `L` Load Profile · `A` Save Profile As |
+`V` Event Viewer · `More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, About) ·
+`U` Suspend · `Q` Exit. Only the order changed (same items and keys); the menu opens with no item selected (the first
+Down selects Desktop...).
 Free menu letters: B, C, I, J, X (`M` opens More...). Digits 1-9: desktops; `Y` Move Window to Desktop (E32); 0: the previous desktop (E35).
 - E17 (`far2l-extended` only; in magiblot W = Close): `W` opens the Window List (was `J`, now free); Close Term has no
   key, it is chosen with the arrows + Enter or the mouse, so that a window is not closed by mistake (the Window List and
@@ -568,6 +572,13 @@ E35 (the lists; agreed in chat 41):
   `Desktop 2: mail` in Desktop... and Ctrl-B Y; "Window moved to desktop 2 (mail)." Top bar: when the buttons with the
   names would leave less room than `Ctrl-B Menu` + `WinList` need, every button is short (` D2 `); the bar redraws when a
   name changes (`namesVersion` in its state). Renaming from inside tvterm: later.
+- **Desktop list with columns** (E39, agreed in chat 43): Desktop... and Ctrl-B Y show a header `S C Win Title` (Ctrl-B Y:
+  `S C Win Title (move window to)`) and one row per desktop, e.g. `2 +   2 :mail`: S the digit (highlighted like a
+  hot key; still the key that chooses), C `+` for the current desktop, Win the windows in 3 columns (right-aligned, the
+  Event Viewer not counted), Title `:name` or `:D2`. The digit on the right and `(current, N windows)` are gone. The
+  header is a disabled item (gray); `DesktopMenuPopup` (app.cc) skips it with the keys: when the previous key (Up / End:
+  backwards, others forwards) left the selection on it, the next `getEvent` moves it to the last or the first desktop.
+  The mouse can point at it but not choose it.
 
 ### Top bar — `far2l-extended`
 E33 (agreed in chat 38; always two bars, no option). The screen has a **top bar** on its first line and the **status
@@ -1184,6 +1195,11 @@ examples/profiles/example.ini
   `*D1      [!] Busy1`, ` 2:mâine [!] Busy2`, ` D3      [!ERROR] Kw3` (+ group and line), the marks in one column (UTF-8
   name); on desktop 2 → ` D1 [!] …`, ` D3 [!ERROR] …` (the alert of desktop 2 cleared by the focus); no alerts →
   `--- No active alerts ---`.
+- Menu order and desktop list (E39), in tmux (120×40, `LANG=C.UTF-8`, `capture-pane -e`): Ctrl-B shows the new order (30
+  rows compared with the agreed list); a profile with 1 window on desktop 1 and 2 on desktop 2 (`mâine`): Ctrl-B, Down,
+  Enter → header gray (90), rows `1 +   1 :D1`, `2     2 :mâine`, `3     0 :D3` … `9     0 :D9`; Up (from no selection) →
+  row 9; Down → over the header to row 1; Down → 2; Home → row 1; End, Down → row 1; `2` → desktop 2 shown. Ctrl-B Y →
+  header `(move window to)`, `+` on desktop 2, `3` → the window moved (button D3 in the top bar).
 
 ## 6. Known limitations
 
@@ -1262,3 +1278,4 @@ examples/profiles/example.ini
 | `--print-highlight` (`far2l-extended`) | E36 | prints the built-in highlight sets (all or named) in `tvterm.ini` format, active; unknown name → error with the list, exit 1 |
 | Alert title color (`far2l-extended`) | E37 | the title text (with the mark) of a window with an alert is white on red until it gets the focus; frame unchanged; terminals and Log Views; `[alerts] title-color = red \| none` |
 | Desktop in the alerts list (`far2l-extended`) | E38 | Event Viewer A: the desktop of each window after the time (`*D1`, ` 2:mail`, as in the Window List), aligned |
+| Menu order, desktop list (`far2l-extended`) | E39 | Ctrl-B menu grouped: desktops/windows, alerts, terminals, size, text/editors, profiles, rest; Desktop... / Ctrl-B Y: header `S C Win Title`, rows `2 +   2 :mail` |
