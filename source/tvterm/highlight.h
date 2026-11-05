@@ -3,8 +3,8 @@
 
 // Highlighting in Log View: sets of rules that color parts of the lines.
 // A set is a [highlight <name>] section of tvterm.ini; the sets built into
-// tvterm (see builtinHighlightText) are replaced by a section with the same
-// name. Rules (one per line, applied in the order of the file):
+// tvterm (see builtinHighlightText; '[logview] builtin-highlight = no' turns
+// them off) are replaced by a section with the same name. Rules (one per line, applied in the order of the file):
 //   line   = <color> "<regex>" [icase]   the whole line (the first that matches)
 //   match  = <color> "<regex>" [icase]   every match
 //   groups = <color> "<regex>" [icase]   the text in parentheses, every match
@@ -38,11 +38,11 @@ struct HighlightSection
 struct HighlightRule;
 using HighlightRules = std::vector<std::shared_ptr<const HighlightRule>>;
 
-// Rebuilds the sets: the built-in ones, then 'sections' (from 'path').
-// Problems (invalid rules, which are ignored) are added to 'warnings', one
-// per line.
+// Rebuilds the sets: the built-in ones (unless 'builtin' is false), then
+// 'sections' (from 'path'). Problems (invalid rules, which are ignored) are
+// added to 'warnings', one per line.
 void rebuildHighlightSets( const std::vector<HighlightSection> &sections, const std::string &path,
-                           std::string &warnings );
+                           bool builtin, std::string &warnings );
 
 // Changes at every rebuild (0: never built).
 unsigned highlightGeneration();
@@ -54,7 +54,7 @@ bool findHighlightSet(const std::string &name, HighlightRules &rules);
 // Names of the sets, sorted.
 std::vector<std::string> highlightSetNames();
 
-// "zimbra-mta kv" -> {"zimbra-mta", "kv"} (spaces or commas).
+// "syslog kv" -> {"syslog", "kv"} (spaces or commas).
 std::vector<std::string> splitHighlightNames(const std::string &text);
 
 // Colors of the bytes of 'text': -1 (none) or a color attribute (BIOS

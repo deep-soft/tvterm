@@ -72,7 +72,7 @@ diff <(tvterm --print-settings) ~/.config/tvterm/tvterm.ini        # the keys ad
 ```
 
 `--print-highlight` prints the built-in highlight sets ([Colors](#colors-highlight)) as `[highlight <name>]`
-sections, all of them or only the named ones (`tvterm --print-highlight fortigate kv`), after a few comment lines with
+sections, all of them or only the named ones (`tvterm --print-highlight syslog kv`), after a few comment lines with
 the names of every set. An unknown name prints nothing and ends with an error (exit code 1) that lists the names.
 
 `PROFILE` is a path (if it contains `/`) or a name, looked up as `~/.config/tvterm/profiles/NAME.ini`
@@ -530,6 +530,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | `[alerts]` | `title-color` | `red` | title text of a window with an alert: `red` (white on red) or `none` (normal colors, only the mark) ([chapter 9](#9-alerts)) |
 | | `seen-color` | `yellow` | title text of a window reached from an alert, until it loses the focus: `yellow` (black on yellow), `cyan` or `none` |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
+| | `builtin-highlight` | `yes` | `no`: the highlight sets built into tvterm are not used, only the `[highlight]` sections of `tvterm.ini` ([chapter 10](#colors-highlight)) |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
 | `[transform <name>]` | rules | (none) | Log View transformations: the text shown ([chapter 10](#transformations)) |
 | `[keys]` | `history-page-up` | `Alt-Shift-PgUp` | direct history keys |
@@ -636,7 +637,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `filters` | `yes` | `no`: include / exclude not used (as after the F key) |
 | `max-lines` | `0` | lines kept; 0: `[logview] max-lines` of `tvterm.ini` |
 | `auto-restart` | `0` | restart the command N seconds after it ends (0: never; up to 86400) |
-| `highlight` | (none) | highlight sets, e.g. `zimbra-mta kv` ([chapter 10](#colors-highlight)) |
+| `highlight` | (none) | highlight sets, e.g. `syslog kv` ([chapter 10](#colors-highlight)) |
 | `highlight-mode` | `sets` | `words`: the colors come from `highlight-words` instead of the sets ([Words](#words)) |
 | `highlight-words` | (none) | words to color, with commas, e.g. `error, status=sent` ([Words](#words)) |
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
@@ -792,7 +793,7 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
 | Restart after N s | 0: no automatic restart |
-| Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `zimbra-mta kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
+| Highlight | (•) **Sets** / ( ) **Words** (Alt-S / Alt-D), then the field: the sets, e.g. `syslog kv` ([below](#colors-highlight)), or the words, e.g. `error, status=sent` ([Words](#words)); empty: none; ↓ shows the sets and values used before (Words: the words used before) |
 | Transform | transformation sets, e.g. `show-tls` ([below](#transformations)); empty: none; ↓ shows the sets and values used before |
 
 Regular expressions are POSIX extended, like `grep -E`: alternatives with `|` (`reject:|bounced`), groups with `( )`.
@@ -871,7 +872,7 @@ the cursor goes onto the marker and the window keeps following; from higher up, 
 ### Colors (highlight)
 
 A Log View can color its lines with **highlight sets**: write their names in the **Highlight sets** field of F4 (one or
-more, with spaces or commas: `zimbra-mta kv`; the first set has priority). The arrow next to the field lists the sets. **H** turns the colors off and
+more, with spaces or commas: `syslog kv`; the first set has priority). The arrow next to the field lists the sets. **H** turns the colors off and
 on (`[H-]` in the title while off). Only the display changes: filters, search, copy and save use the text without colors. The cursor line and the
 selection keep their own colors, and the search match is drawn over the others.
 
@@ -879,9 +880,6 @@ Sets built into tvterm:
 
 | Set | Colors |
 |---|---|
-| `zimbra-mta` | Postfix / amavis (`zimbra.log`, `maillog`): red `status=bounced`, `reject:`, `NOQUEUE`, `SASL … authentication failed`; yellow `status=deferred`, `warning:`; green `status=sent`, `Passed CLEAN`; each queue-ID in its own color; then `syslog` and `kv` |
-| `zimbra-mailbox` | `mailbox.log`: ESMTP, IMAPS, Ban, reject:, `<a> -> <b>`…; then `levels`, `timestamps`, `kv` |
-| `fortigate` | FortiGate: `srccountry` (Reserved / Romania on blue, others on red), `srcip=`, policy names, SMTPS / IMAPS; then `levels`, `timestamps`, `kv` |
 | `fail2ban` | fail2ban: the logger, the action, the jail, the IP, Ban / DROP; then `levels`, `timestamps` |
 | `nginx` | nginx: the status (5xx red, 4xx yellow, 2xx green), the method; then `timestamps`, `kv` |
 | `rsync` | rsync: start, stop, sent, received, failed…; then `timestamps`, `kv` |
@@ -890,12 +888,21 @@ Sets built into tvterm:
 | `levels` | DEBUG, INFO, WARN, ERROR, NOTICE, FATAL |
 | `timestamps` | the usual date and time forms at the start of the line, and nginx's |
 
+`[logview] builtin-highlight = no` in `tvterm.ini` turns all of them off: only the sets of `tvterm.ini` are used (a set
+that includes a built-in one then gets a warning for that `include`).
+
 Your own sets, or changed copies of these, go in `tvterm.ini` as `[highlight <name>]` sections; a section with the name
 of a built-in set replaces it. `tvterm --print-highlight NAME` prints a built-in set in this format, ready to copy:
 
 ```sh
-tvterm --print-highlight fortigate >> ~/.config/tvterm/tvterm.ini   # then change the copy in the Settings editor
+tvterm --print-highlight fail2ban >> ~/.config/tvterm/tvterm.ini   # then change the copy in the Settings editor
 ```
+
+More sets, made for one particular setup (built in up to E45), are in
+`examples/highlight-sets.ini`, ready to copy into `tvterm.ini` and adapt: `zimbra-mta` (Postfix / amavis in `zimbra.log`,
+`maillog`: red `status=bounced`, `reject:`, `NOQUEUE`, failed SASL logins; yellow `status=deferred`, `warning:`; green
+`status=sent`, `Passed CLEAN`; each queue-ID in its own color), `zimbra-mailbox` (`mailbox.log`), `fortigate` (`srccountry`,
+`srcip=`, the names of one firewall's policies) and `fail2ban-ro` (`fail2ban` plus the country written by an action).
 
 The copy is active as soon as it is in the file; unchanged, it colors exactly like the built-in set. To keep a built-in
 set and add rules to it, make a new set with another name that ends with `include = <set>`. One rule per line, in this order of use:
@@ -919,7 +926,7 @@ inside them. From multitail: `cs_re` → `match`, `cs_re_s` → `groups`, `x,,bo
 line = white on red "status=bounced"
 groups = bright-yellow "from=<([^>]*)>"
 hash = "client=[^[]*\[([0-9.]+)\]"
-include = zimbra-mta
+include = syslog
 ```
 
 The sets are read again with `tvterm.ini` (2 seconds after it is saved); an invalid rule is ignored and reported in the
@@ -1190,6 +1197,7 @@ layout = tile-columns
 title = policy 37
 command = tail -n 50000 -F /var/log/fortigate.log
 include = "policyid=37 "
+# the fortigate set copied from examples/highlight-sets.ini
 highlight = fortigate
 
 [logview]

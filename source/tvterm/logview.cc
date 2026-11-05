@@ -872,7 +872,7 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(new TLabel(TRect(2, 17, 14, 18), "Transfor~m~", tfIn));
     insert(new TStaticText(TRect(3, 18, 73, 20),
         "Filters: grep -E, e.g. dstport=(993|465|587); trailing spaces kept.\n"
-        "Highlight: sets (zimbra-mta kv) or words; Transform: sets (show-tls)"));
+        "Highlight: sets (syslog kv) or words; Transform: sets (show-tls)"));
     if (apply)
     {
         // Apply: the changes are applied and the dialog stays open.
@@ -2287,7 +2287,7 @@ void LogViewWindow::toggleHighlight()
     {
         showStatus(options.highlightWordsMode ?
                    "No highlight words: write them in F4 (Highlight, Words), e.g. error, status=sent." :
-                   "No highlight sets: choose them in F4 (Highlight), e.g. zimbra-mta kv.");
+                   "No highlight sets: choose them in F4 (Highlight), e.g. syslog kv.");
         return;
     }
     options.highlightOn = !options.highlightOn;

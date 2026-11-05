@@ -105,6 +105,8 @@ E42. `[general] window-shadow` (default `no`): no shadow under the desktop windo
 E43. Log View: checked marker (Enter), `#YYYY-MM-DD hh:mm:ss ----` at the end, one per window
 E44. Window List: Filter field (title or command, case-insensitive), `Windows N/M` in the title
 E45. Tile in N Columns / Rows (More...), profile `layout = columns N` / `rows N`
+E46. Built-in highlight sets cleanup: `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to
+     `examples/highlight-sets.ini`; `[logview] builtin-highlight = no`
 
 ---
 
@@ -531,6 +533,21 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   the line before it. Only in Words mode with words and the colors on; otherwise a status message (Sets: almost every
   line has colors). Not found: `No highlighted line below.` / `above.`. The cursor line keeps its black-on-cyan color
   (no highlight on it, as before); a variant for the word under the cursor: maybe later.
+- E46 (item 27) **built-in sets cleanup**: the sets made for the user's own setup are no longer built in: `zimbra-mta`,
+  `zimbra-mailbox`, `fortigate` (its policy names and `Romania` are wrong on another FortiGate) and, from `fail2ban`, the
+  rule `groups = bright-blue " (RO, Romania)"`. Built in now: `levels`, `timestamps`, `kv`, `syslog`, `nginx`, `fail2ban`,
+  `rsync`. The removed sets, unchanged, are in **`examples/highlight-sets.ini`** (with comments), ready to copy into
+  `tvterm.ini`; the RO rule as a new set `fail2ban-ro` (`groups = bright-blue " (RO, Romania)"` + `include = fail2ban`,
+  the same colors as the old `fail2ban`). Before using a build with E46, the user saves the old sets with the old build
+  (`--print-highlight fortigate zimbra-mta zimbra-mailbox fail2ban`) into `tvterm.ini`; a section with the name of a
+  built-in set replaces it, so the copy of `fail2ban` keeps the RO rule. A profile or F4 value with a removed set that is
+  not in `tvterm.ini`: the usual note "unknown highlight set" in the Event Viewer.
+  New key **`[logview] builtin-highlight`** (`yes` / `no`, default `yes`; invalid → reported, previous value kept):
+  `no` = only the `[highlight]` sections of `tvterm.ini` (`rebuildHighlightSets(…, builtin, …)` skips
+  `builtinHighlightText()`); an `include` of a built-in set then gets "unknown set … include ignored". Applied at reload.
+  `--print-highlight` always prints the sets of the code (the key does not change it). Examples in the template, the
+  profile example, the F4 hint and the H message: `syslog kv` instead of `zimbra-mta kv`; the template's `my-mail`
+  example ends with `include = syslog`.
 
 ### Log View transformations — `far2l-extended`
 - E29: `[transform <name>]` sections in `tvterm.ini` (same name rules as highlight, parsed by `settings.cc` into
@@ -1322,6 +1339,16 @@ examples/profiles/example.ini
   nothing (disabled). The dialog field took only 1 character with `inputBox(..., 2)` (the limit counts the final NUL):
   found by the test, the limit is 3. Several characters sent at once into a selected field keep only the first one (the
   known `dlgclip` issue): the test sends the digits one by one.
+- Built-in sets cleanup (E46): unit test that includes `highlight.cc` (old from `git show HEAD:`, new from the tree) and
+  prints, for every set and 15 sample lines (Postfix, amavis, mailbox.log, FortiGate, fail2ban with `RO, Romania`, nginx,
+  rsync), the colors as runs: new + `examples/highlight-sets.ini` = old for all 150 set × line pairs, except `fail2ban`
+  on the RO line; `fail2ban-ro` = old `fail2ban` on every line; the old `--print-highlight fortigate zimbra-mta
+  zimbra-mailbox fail2ban` loaded as user sections into the new code = old, all 150; `builtin = false`: only the 4 sets of
+  the file, 9 "unknown set … include ignored" warnings; without sections: no sets. In tmux (160×40, two Log Views `cat`
+  of the sample lines, `highlight = zimbra-mta` / `syslog kv`): `builtin-highlight = maybe` → "invalid
+  builtin-highlight 'maybe' (use yes or no)", `zimbra-mta` unknown; `no` (auto-reload) → `syslog` / `kv` unknown, no
+  colors; the examples file + `yes` → both colored; + `no` → `zimbra-mta` colored without its includes, include warnings.
+  `--print-highlight` lists 7 sets, `fortigate` → error, exit 1.
 
 ## 6. Known limitations
 
@@ -1407,3 +1434,4 @@ examples/profiles/example.ini
 | Checked marker (`far2l-extended`) | E43 | Log View: Enter adds `#YYYY-MM-DD hh:mm:ss ----` at the end (one per window, dimmed); not filtered, counted, searched, copied or saved; removed by X and `max-lines`; not copied by D / New window |
 | Window List filter (`far2l-extended`) | E44 | Filter field above the list: title or command contains the text (A–Z case-insensitive); `Windows N/M`; Up/Down/PgUp/PgDn from the field move in the list; kept after Rename / Close |
 | Tile in N (`far2l-extended`) | E45 | More... Tile in N Columns / Rows (1–20, last value proposed), windows in open order, N lowered below 16 × 6 with a note; profile `layout = columns N` / `rows N` |
+| Built-in highlight cleanup (`far2l-extended`) | E46 | `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to `examples/highlight-sets.ini` (`fail2ban-ro`); `[logview] builtin-highlight = yes \| no` |

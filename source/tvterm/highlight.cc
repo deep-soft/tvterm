@@ -297,13 +297,16 @@ static int hashColor(const char *s, size_t len)
 } // namespace highlightini
 
 void rebuildHighlightSets( const std::vector<HighlightSection> &sections, const std::string &path,
-                           std::string &warnings )
+                           bool builtin, std::string &warnings )
 {
     using namespace highlightini;
     std::map<std::string, RawSet> raw;
-    std::vector<HighlightSection> builtin;
-    parseText(builtinHighlightText(), builtin);
-    addSections(raw, builtin, "built-in highlight sets", warnings);
+    if (builtin)
+    {
+        std::vector<HighlightSection> fromCode;
+        parseText(builtinHighlightText(), fromCode);
+        addSections(raw, fromCode, "built-in highlight sets", warnings);
+    }
     addSections(raw, sections, path, warnings);
     sets.clear();
     // The warnings about an include are given once, not for every set that
@@ -535,33 +538,6 @@ groups = bright-black "^([0-9]{4}(-[0-9]{2}-[0-9]{2}|/[0-9]{2}/[0-9]{2})[T^ ][0-
 groups = bright-black "^([A-Z][a-z]{2} [ 0-9][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2}) "
 hash = " ([A-Za-z][A-Za-z0-9_./-]*)\[[0-9]+\]: "
 
-[highlight zimbra-mta]
-match = bright-red "status=bounced"
-match = bright-red "reject:"
-match = bright-red "NOQUEUE"
-match = bright-red "SASL [A-Z0-9-]+ authentication failed"
-match = bright-yellow "status=deferred"
-match = bright-yellow "warning:"
-match = bright-green "status=sent"
-match = bright-green "Passed CLEAN"
-hash = "]: ([0-9A-F]{8,12}): "
-hash = "queued as ([0-9A-F]{8,12})"
-hash = "Queue-ID: ([0-9A-F]{8,12})"
-include = syslog
-include = kv
-
-[highlight zimbra-mailbox]
-groups = bright-red "(ESMTP)"
-groups = bright-green "(IMAPS)"
-groups = bright-red " (Ban)"
-groups = bright-red " (reject:)"
-groups = bright-magenta " (Hop count exceeded)"
-groups = bright-green " (Delivery OK)"
-groups = bright-cyan "( <[^>]*@[^>]*> -> <[^>]*@[^>]*> )"
-include = levels
-include = timestamps
-include = kv
-
 [highlight nginx]
 groups = bright-red "\" (5[0-9]{2}) "
 groups = bright-yellow "\" (4[0-9]{2}) "
@@ -578,24 +554,9 @@ groups = bright-yellow "^.*fail2ban\.[[:alnum:]]+\[[[:digit:]]+\]: [[:alnum:]]+ 
 groups = bright-red " (Ban)"
 groups = bright-red " (fail2ban\.actions)"
 groups = bright-red " (DROP)"
-groups = bright-blue " (RO, Romania)"
 match = bright-green "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
 include = levels
 include = timestamps
-
-[highlight fortigate]
-groups = bright-cyan on blue " (srccountry=\"Reserved\")"
-groups = bright-cyan on blue " (srccountry=\"Romania\")"
-groups = bright-cyan on red " (srccountry=\"[A-Za-z ]*\")"
-groups = bright-cyan " (srcip=)"
-groups = bright-red "(VIP-TO-MAIL[^\" ]*BLOCK)"
-groups = bright-yellow "(FIP-PERMIT-IN-993)"
-groups = bright-red "(FIP-PERMIT-IN-465)"
-groups = bright-red "(SMTPS)"
-groups = bright-green "(IMAPS)"
-include = levels
-include = timestamps
-include = kv
 
 [highlight rsync]
 groups = bright-green " (start)"

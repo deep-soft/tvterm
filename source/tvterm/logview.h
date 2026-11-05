@@ -55,7 +55,7 @@ struct LogViewOptions
     bool ignoreCase {false};
     bool wrap {false};
     bool filters {true};    // F: the include / exclude filters are used.
-    std::string highlight;  // Highlight sets, e.g. "zimbra-mta kv"; empty: none.
+    std::string highlight;  // Highlight sets, e.g. "syslog kv"; empty: none.
     bool highlightOn {true}; // H: the highlight (sets or words) is used.
     bool highlightWordsMode {false}; // F4 Highlight: Words instead of Sets.
     std::string highlightWords; // e.g. "error, status=sent" (see splitHighlightWords).

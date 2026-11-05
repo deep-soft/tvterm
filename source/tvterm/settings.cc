@@ -415,6 +415,11 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseInt(value, 100, 1000000, settings.logViewMaxLines))
                     invalid("100 to 1000000"), settings.logViewMaxLines = previous.logViewMaxLines;
             }
+            else if (key == "builtin-highlight")
+            {
+                if (!parseBool(value, settings.builtinHighlight))
+                    invalid("use yes or no"), settings.builtinHighlight = previous.builtinHighlight;
+            }
             else
                 warn("unknown key '" + key + "' in [logview]");
         }
@@ -551,11 +556,15 @@ std::string settingsTemplate()
         "# Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"
         "# can ask for another number. About 1 KB per line of a firewall log.\n"
         "#max-lines = " + std::to_string(d.logViewMaxLines) + "\n"
+        "# The highlight sets built into tvterm (listed below): yes, or no to use only\n"
+        "# the [highlight] sections of this file.\n"
+        "#builtin-highlight = " + std::string(d.builtinHighlight ? "yes" : "no") + "\n"
         "\n"
-        "# Highlight sets for Log View (F4 > Highlight sets, e.g. 'zimbra-mta kv'; H turns\n"
-        "# the colors on/off). Built-in sets: levels timestamps kv syslog zimbra-mta\n"
-        "# zimbra-mailbox nginx fail2ban fortigate rsync; a section with the same name\n"
-        "# replaces one. Rules, in order (where they overlap, the first one wins):\n"
+        "# Highlight sets for Log View (F4 > Highlight sets, e.g. 'syslog kv'; H turns\n"
+        "# the colors on/off). Built-in sets: levels timestamps kv syslog nginx\n"
+        "# fail2ban rsync; a section with the same name replaces one. More sets, to\n"
+        "# copy here: examples/highlight-sets.ini (zimbra-mta, zimbra-mailbox,\n"
+        "# fortigate). Rules, in order (where they overlap, the first one wins):\n"
         "#   line   = <color> \"<regex>\" [icase]   the whole line (first that matches)\n"
         "#   match  = <color> \"<regex>\" [icase]   every match\n"
         "#   groups = <color> \"<regex>\" [icase]   only the text in parentheses\n"
@@ -568,7 +577,7 @@ std::string settingsTemplate()
         "#line = bright-red \"status=bounced\"\n"
         "#groups = bright-yellow on blue \"from=<([^>]*)>\"\n"
         "#hash = \"client=[^[]*\\[([0-9.]+)\\]\"\n"
-        "#include = zimbra-mta\n"
+        "#include = syslog\n"
         "\n"
         "# Transformation sets for Log View (F4 > Transform, e.g. 'show-tls'; T turns\n"
         "# them on/off). They change the text shown (the filters and the alerts\n"

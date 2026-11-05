@@ -63,6 +63,9 @@ struct Settings
     uint8_t alertSeenColor {0xE0};
     // [logview]
     int logViewMaxLines {50000};
+    // builtin-highlight: the highlight sets built into tvterm (no: only the
+    // [highlight] sections of tvterm.ini).
+    bool builtinHighlight {true};
     // [highlight <name>]: highlight sets for Log View (see highlight.h).
     std::vector<HighlightSection> highlight;
     // [transform <name>]: transformation sets for Log View (see transform.h).

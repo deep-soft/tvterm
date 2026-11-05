@@ -284,9 +284,9 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     globalkeys::setMenuKeyName(currentSettings.globalKeys[gaMenu].front().name());
     if (TopBar::instance)
         TopBar::instance->menuKeyChanged();
-    // Log View highlight sets: the built-in ones and those in the file. The
-    // windows take them at their next update.
-    rebuildHighlightSets(currentSettings.highlight, path, warnings);
+    // Log View highlight sets: the built-in ones (unless builtin-highlight =
+    // no) and those in the file. The windows take them at their next update.
+    rebuildHighlightSets(currentSettings.highlight, path, currentSettings.builtinHighlight, warnings);
     // Log View transformation sets (none built in).
     rebuildTransformSets(currentSettings.transform, path, warnings);
 
