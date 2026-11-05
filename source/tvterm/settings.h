@@ -93,7 +93,9 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
 void applySettings(const Settings &settings);
 
 // Contents of a new settings file: every key, commented out, with its
-// default value.
+// default value. Layout: the header with '##', sections at the margin,
+// explanations indented by 2 spaces ('  # ...'), keys by 1 (' #key = ...'),
+// so that a key with its '#' removed is indented by 1 space.
 std::string settingsTemplate();
 
 // Sizes as in 'large-file': bytes, or a number with K, M or G (1024).

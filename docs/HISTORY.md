@@ -107,6 +107,7 @@ E44. Window List: Filter field (title or command, case-insensitive), `Windows N/
 E45. Tile in N Columns / Rows (More...), profile `layout = columns N` / `rows N`
 E46. Built-in highlight sets cleanup: `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to
      `examples/highlight-sets.ini`; `[logview] builtin-highlight = no`
+E47. Settings template layout: `##` header, explanations indented by 2 spaces, keys by 1 (` #key = …`)
 
 ---
 
@@ -287,6 +288,15 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
 - **`--print-settings`** (E25): prints `settingsTemplate()` (the text Edit settings writes into a new file) and exits;
   writes no file (the E11 rule: only Edit settings creates `tvterm.ini`). `--help` shows the examples with the real path
   (first time `> tvterm.ini`, beside it `> tvterm.ini.new`, `diff <(tvterm --print-settings) tvterm.ini` for new keys).
+- **Template layout** (E47, item 41, the user's own layout of `tvterm.ini`): `settingsTemplate()` and
+  `examples/tvterm.ini` have the header with `##`, the sections (and the commented example sections `#[highlight …]`,
+  `#[transform …]`) at the margin, the explanations indented by 2 spaces (`  # …`), the keys and the example rules by 1
+  (` #key = default`), so a key with its `#` removed is ` key = value`, indented by 1 space: the active values stand out
+  among the comments, the sections are easy to find. Only spaces (a tab is 8 columns in the editor, `cat`, `less`). The
+  text is the same as before after removing the spaces at the start (the reader already trimmed them; nothing changed
+  in parsing), apart from the header, which now explains the layout. `## The alignments first…` in
+  `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
+  `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
 - **Default profile**: `profile = NAME` is opened when tvterm starts without `-p`; `-p OTHER` wins; `-p none` starts without it.
   If it is missing or has errors: a normal terminal opens, the reason goes to the Event Viewer and the status line.
 - Reloaded automatically (checked every 2 s, by modification time and size) and with More... > Reload settings;
@@ -1349,6 +1359,11 @@ examples/profiles/example.ini
   builtin-highlight 'maybe' (use yes or no)", `zimbra-mta` unknown; `no` (auto-reload) → `syslog` / `kv` unknown, no
   colors; the examples file + `yes` → both colored; + `no` → `zimbra-mta` colored without its includes, include warnings.
   `--print-highlight` lists 7 sets, `fortigate` → error, exit 1.
+- Template layout (E47): `--print-settings` before and after compared in Python: from `[general]` on, the same 151 lines
+  after removing the leading spaces; every line is a section, `#[…]`, `  # …` or ` #key`; no line longer than before.
+  In tmux (`-p none`, Event Viewer): the new template as `tvterm.ini` → no settings notes; every key and example section
+  uncommented (` #x` → ` x`, `#[` → `[`, 46 keys, `menu-key = Ctrl-X`) → no notes, Ctrl-X opens the menu (the indented
+  values are read); `examples/tvterm.ini` as `tvterm.ini` → no notes.
 
 ## 6. Known limitations
 
@@ -1435,3 +1450,4 @@ examples/profiles/example.ini
 | Window List filter (`far2l-extended`) | E44 | Filter field above the list: title or command contains the text (A–Z case-insensitive); `Windows N/M`; Up/Down/PgUp/PgDn from the field move in the list; kept after Rename / Close |
 | Tile in N (`far2l-extended`) | E45 | More... Tile in N Columns / Rows (1–20, last value proposed), windows in open order, N lowered below 16 × 6 with a note; profile `layout = columns N` / `rows N` |
 | Built-in highlight cleanup (`far2l-extended`) | E46 | `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to `examples/highlight-sets.ini` (`fail2ban-ro`); `[logview] builtin-highlight = yes \| no` |
+| Template layout (`far2l-extended`) | E47 | Edit settings / `--print-settings` / `examples/tvterm.ini`: `##` header, sections at the margin, explanations `  # …`, keys ` #key = …` (uncommented: indented by 1 space) |

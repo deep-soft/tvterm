@@ -501,7 +501,11 @@ installed everywhere (it depends on the package). far2l can also show the output
 if missing, with every key commented out, and opens it. Keys added in newer versions are added by hand
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
-- `#` or `;` at the start of a line: comment. Section and key names ignore case.
+- `#` or `;` at the start of a line: comment. Section and key names ignore case. Spaces at the start of a line are
+  ignored, so the file can be indented. The file made by Edit settings (and `--print-settings`) uses this layout:
+  the header with `##` and the sections at the margin, the explanations indented by 2 spaces (`  # ...`), the keys by 1
+  (` #lines = 10000`). To change a value, remove only the `#`: ` lines = 500` stays indented by 1 space, so the active
+  values stand out among the comments.
 - Changes apply when the file is saved (checked every 2 seconds), or with **More... > Reload settings**.
 - An invalid value keeps the previous one; a removed key (or file) goes back to the default.
   Problems are reported in the Event Viewer, with a summary in the status line. After a reload without problems only
