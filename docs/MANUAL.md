@@ -194,6 +194,11 @@ terminals); menus and dialogs always have one.
 The windows are listed by desktop and, on each desktop, in the order they were opened; the list opens on the focused
 window. Buttons: **Go** (Enter; a window of another desktop shows that desktop), **Rename**, **Close**, Cancel.
 
+**Filter** (the field above the list; Alt-F or Tab): only the windows whose title or command contains the text are
+listed (case-insensitive for A–Z; empty: all); the dialog title shows how many, e.g. `Windows 2/12`. In the field,
+Up / Down / PgUp / PgDn move in the list and Enter is Go. With nothing listed, Go, Rename and Close do nothing. The text
+stays while the list opens again after Rename or Close; a new Ctrl-B W starts empty.
+
 The dialog can be resized with the mouse (bottom right corner) or **Ctrl-F5** (arrows move it, Shift+arrows change its
 size, Enter or Esc end); **F5** or the zoom button: whole screen, again: back. The columns follow its width; a cut text
 ends with `…`. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,

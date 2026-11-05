@@ -3,6 +3,7 @@
 #define Uses_TScrollBar
 #define Uses_TButton
 #define Uses_TLabel
+#define Uses_TInputLine
 #define Uses_TDeskTop
 #define Uses_TProgram
 #define Uses_TEvent
@@ -111,8 +112,13 @@ class WindowListDialog : public TDialog
 public:
 
     WindowListViewer *list;
+    TInputLine *filter;
     bool autoFit {false}; // the next changeBounds is not the user's choice
     bool inZoom {false};
+    // All the rows and, after the filter, the indexes of those shown.
+    std::vector<Row> allRows;
+    std::vector<size_t> visible;
+    std::string lastFilter;
 
     WindowListDialog(const TRect &bounds) noexcept :
         TWindowInit(&initFrame),
@@ -123,13 +129,19 @@ public:
         dragMode = dmLimitAll;
         TRect r = getExtent().grow(-2, -2);
         r.b.x -= buttonsWidth + 1;
+        // The filter field on the first row, the list below it.
+        filter = new TInputLine(TRect(r.a.x + 8, r.a.y, r.b.x + 1, r.a.y + 1), 128);
+        filter->growMode = gfGrowHiX;
+        insert(filter);
+        insert(new TLabel(TRect(r.a.x - 1, r.a.y, r.a.x + 8, r.a.y + 1), "~F~ilter", filter));
+        r.a.y += 2;
         auto *sb = new TScrollBar(TRect(r.b.x, r.a.y, r.b.x + 1, r.b.y));
         sb->growMode = gfGrowLoX | gfGrowHiX | gfGrowHiY;
         insert(sb);
         list = new WindowListViewer(r, sb);
         list->growMode = gfGrowHiX | gfGrowHiY;
         insert(list);
-        insert(new TLabel(TRect(r.a.x, r.a.y - 1, r.a.x + 10, r.a.y), "~W~indows", list));
+        insert(new TLabel(TRect(r.a.x - 1, r.a.y - 1, r.a.x + 10, r.a.y), "~W~indows", list));
         int x = size.x - buttonsWidth, y = 2;
         auto addButton = [&] (const char *text, ushort cmd, ushort flags) {
             auto *b = new TButton(TRect(x, y, x + 10, y + 2), text, cmd, flags);
@@ -142,6 +154,68 @@ public:
         addButton("~C~lose", cmWinListClose, bfNormal);
         addButton("Cancel", cmCancel, bfNormal);
         list->select();
+    }
+
+    // The rows of all the windows; 'focusedRow' (index in 'rows') is focused.
+    void setAllRows(std::vector<Row> rows, size_t focusedRow, const std::string &text)
+    {
+        allRows = std::move(rows);
+        filter->setData((void *) text.c_str());
+        applyFilter(focusedRow);
+    }
+
+    // Shows the rows whose title or command contains the filter text
+    // (case-insensitive; empty: all). 'keep' (index in allRows) stays
+    // focused if shown, otherwise the first row.
+    void applyFilter(size_t keep)
+    {
+        lastFilter = filter->data;
+        std::string needle = lowerAscii(lastFilter);
+        visible.clear();
+        std::vector<Row> rows;
+        short focusedItem = 0;
+        for (size_t i = 0; i < allRows.size(); ++i)
+        {
+            const Row &r = allRows[i];
+            if ( needle.empty() ||
+                 lowerAscii(r.title).find(needle) != std::string::npos ||
+                 lowerAscii(r.command).find(needle) != std::string::npos )
+            {
+                if (i == keep)
+                    focusedItem = (short) visible.size();
+                visible.push_back(i);
+                rows.push_back(r);
+            }
+        }
+        list->setRows(std::move(rows));
+        if (!visible.empty())
+            list->focusItem(focusedItem);
+        // The title shows how many are left: "Windows 3/12".
+        std::string t = "Windows";
+        if (!needle.empty())
+            t += " " + std::to_string(visible.size()) + "/" + std::to_string(allRows.size());
+        delete[] (char *) title;
+        title = newStr(t.c_str());
+        if (frame)
+            frame->drawView();
+    }
+
+    // The window of the focused row (index in allRows), or -1.
+    long focusedRow() const
+    {
+        short i = list->focused;
+        if (i < 0 || (size_t) i >= visible.size())
+            return -1;
+        return (long) visible[i];
+    }
+
+    static std::string lowerAscii(const std::string &s)
+    {
+        std::string out = s;
+        for (char &c : out)
+            if (c >= 'A' && c <= 'Z')
+                c = char(c - 'A' + 'a');
+        return out;
     }
 
     // Moves 'r' inside the owner, then shrinks it if it still does not fit.
@@ -204,7 +278,29 @@ public:
             ev.message.command = cmd;
             ev.message.infoPtr = nullptr;
         }
+        // In the filter field, Up / Down / PgUp / PgDn move in the list.
+        if ( ev.what == evKeyDown && current == filter &&
+             ( ev.keyDown.keyCode == kbUp || ev.keyDown.keyCode == kbDown ||
+               ev.keyDown.keyCode == kbPgUp || ev.keyDown.keyCode == kbPgDn ) )
+        {
+            list->handleEvent(ev);
+            clearEvent(ev);
+            return;
+        }
+        // Nothing shown (filter): Go, Rename and Close do nothing.
+        if ( ev.what == evCommand && visible.empty() &&
+             ( ev.message.command == cmOK || ev.message.command == cmWinListRename ||
+               ev.message.command == cmWinListClose ) )
+        {
+            clearEvent(ev);
+            return;
+        }
         TDialog::handleEvent(ev);
+        if (filter && lastFilter != filter->data)
+        {
+            long cur = focusedRow();
+            applyFilter(cur < 0 ? allRows.size() : (size_t) cur);
+        }
         if ( ev.what == evCommand &&
              (ev.message.command == cmWinListRename || ev.message.command == cmWinListClose) )
         {
@@ -335,6 +431,8 @@ void execWindowList(TDeskTop &deskTop)
 {
     using namespace winlist;
     TWindow *focusedWindow = dynamic_cast<TWindow *>(deskTop.current);
+    // The filter text stays when the list opens again (after Rename, Close).
+    std::string filterText;
     while (true)
     {
         std::vector<TWindow *> windows = getSortedWindows(deskTop);
@@ -357,13 +455,15 @@ void execWindowList(TDeskTop &deskTop)
         if (r.b.x > deskTop.size.x) r.b.x = deskTop.size.x;
         if (r.b.y > deskTop.size.y) r.b.y = deskTop.size.y;
         auto *d = new WindowListDialog(r);
-        d->list->setRows(std::move(rows));
-        d->list->focusItem(focused);
+        d->setAllRows(std::move(rows), (size_t) focused, filterText);
+        // The list keeps the focus (Enter: Go); Alt-F or Tab: the filter.
+        d->list->select();
         TView *p = TProgram::application->validView(d);
         if (!p)
             return;
         ushort result = deskTop.execView(p);
-        short index = d->list->focused;
+        long index = d->focusedRow();
+        filterText = d->lastFilter;
         TObject::destroy(p);
 
         if (index < 0 || (size_t) index >= windows.size())

@@ -103,6 +103,7 @@ E41. Ctrl-B menu letters (D Desktop..., L Log View, A Alerts, T Select Text, B /
      Load Profile in Editor (I)
 E42. `[general] window-shadow` (default `no`): no shadow under the desktop windows
 E43. Log View: checked marker (Enter), `#YYYY-MM-DD hh:mm:ss ----` at the end, one per window
+E44. Window List: Filter field (title or command, case-insensitive), `Windows N/M` in the title
 
 ---
 
@@ -762,6 +763,11 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 - **Window List** (Ctrl-B W (J before E17), or a click on `WinList` in the top bar from E33; until E32 in the status line, E8: right after `Ctrl-B Menu` in the
   terminal, Log View, Event Viewer and editor lines, at the end of the History, selection and Grab Input lines; not while
   moving/resizing or in the menu; no key; in Grab Input the click first releases the input): Go / Rename / Close. **Rename Term** (Ctrl-B T); an empty title restores the automatic one.
+  E44 (item 33): a Filter field above the list (`WindowListDialog::applyFilter`: rows whose title or command contains
+  the text, A–Z folded; `visible` maps the list rows to the windows; title `Windows N/M`); the list keeps the focus at
+  open (Enter = Go as before), Alt-F / Tab reach the field; there Up / Down / PgUp / PgDn go to the list and Enter is
+  the default button (Go); with no row, Go / Rename / Close are ignored; the text is kept by `execWindowList` while the
+  list reopens (Rename, Close).
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
 - **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
   the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
@@ -1282,6 +1288,10 @@ examples/profiles/example.ini
   Enter → the same first line on the screen, `[+2]` unchanged, the marker last (End). D and Search > New window
   (`line`, 10/10): no marker. X → `0/15`; Enter on the empty window + 2 lines → marker first, `2/17`. `max-lines = 100`,
   marker after line 50: 120 lines → still there (after line 50); 170 lines → gone. F9 menu: "Mark checked Enter", `k`.
+- Window List filter (E44), in tmux (110×34), profile with `Mail queue`, `Files`, `MailLog` (Log View), `Build`: Ctrl-B W
+  → 4 rows, title `Windows`; Alt-F `MAIL` → 2 rows (`Windows 2/4`, case-insensitive), `MAILl` → 1; `log:` → the Log View
+  (command column); `zzz` → `<empty>`, `0/4`, Enter does nothing (dialog stays); `a` + Down + Enter → goes to the second
+  row (MailLog); a new Ctrl-B W → empty filter; `b` + Alt-R + Esc → the list opens again with `b` and 1 row.
 
 ## 6. Known limitations
 
@@ -1365,3 +1375,4 @@ examples/profiles/example.ini
 | Menu letters, two items (`far2l-extended`) | E41 | D Desktop..., L Log View, A Alerts, T Select Text, B Load Profile, C Save Profile As, Rename Term without a letter; new S Editor Save As, I Load Profile in Editor |
 | Window shadow (`far2l-extended`) | E42 | `[general] window-shadow = yes \| no` (default `no`): desktop windows without a shadow (it dimmed the title of the window below after Tile); applied at reload; dialogs and menus keep theirs |
 | Checked marker (`far2l-extended`) | E43 | Log View: Enter adds `#YYYY-MM-DD hh:mm:ss ----` at the end (one per window, dimmed); not filtered, counted, searched, copied or saved; removed by X and `max-lines`; not copied by D / New window |
+| Window List filter (`far2l-extended`) | E44 | Filter field above the list: title or command contains the text (A–Z case-insensitive); `Windows N/M`; Up/Down/PgUp/PgDn from the field move in the list; kept after Rename / Close |
