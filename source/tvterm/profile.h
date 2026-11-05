@@ -62,10 +62,12 @@ struct WindowProfile
 
 struct Profile
 {
-    enum Layout { Auto, Manual, TileColumns, TileRows, Cascade };
+    // Columns / Rows: 'layout = columns N' / 'rows N' (layoutCount = N).
+    enum Layout { Auto, Manual, TileColumns, TileRows, Cascade, Columns, Rows };
 
     std::string path;
     Layout layout {Auto};
+    int layoutCount {0}; // N of Columns / Rows (1-20).
     int focus {0}; // 1-based index of the window to focus; 0: the last one.
     int desktop {1}; // The desktop shown after loading (1-9).
     // desktop-name-N: names of desktops (1-9); only those in the file.

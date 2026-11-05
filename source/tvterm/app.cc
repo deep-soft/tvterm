@@ -121,6 +121,8 @@ TCommandSet TVTermApp::tileCmds = []()
     ts += cmTile;
     ts += cmTileCols;
     ts += cmTileRows;
+    ts += cmTileNCols;
+    ts += cmTileNRows;
     ts += cmCascade;
     return ts;
 }();
@@ -502,6 +504,46 @@ void TVTermApp::noteNoFreeArea()
         note("no free area beside the fixed windows, using the whole desktop");
 }
 
+void TVTermApp::tileInN(bool columns)
+{
+    const char *what = columns ? "columns" : "rows";
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d", tileCount);
+    for (;;)
+    {
+        std::string label = std::string("~N~umber of ") + what + " (1-" + std::to_string((int) maxTileCount) + ")";
+        if (inputBox(columns ? "Tile in N Columns" : "Tile in N Rows", label.c_str(), buf, 3) == cmCancel)
+            return;
+        char *end;
+        long n = strtol(buf, &end, 10);
+        while (*end == ' ')
+            ++end;
+        if (buf[0] != '\0' && *end == '\0' && n >= 1 && n <= maxTileCount)
+        {
+            tileCount = (int) n;
+            break;
+        }
+        messageBox(mfError | mfOKButton, "Enter a number from 1 to %d.", (int) maxTileCount);
+    }
+    tileGrid(tileCount, columns);
+}
+
+void TVTermApp::tileGrid(int n, bool columns)
+{
+    TVTermDesk::GridResult res = getDeskTop()->tileGrid(n, columns, getTileRect());
+    noteNoFreeArea();
+    if (res.used == 0)
+        return;
+    auto what = [&] (int count) {
+        return std::to_string(count) + (columns ? " column" : " row") + (count == 1 ? "" : "s");
+    };
+    std::string need = " (windows need " + std::to_string(res.minSize.x) + "x" + std::to_string(res.minSize.y) + ")";
+    if (res.reduced)
+        note("Tile in " + what(n) + ": only " + std::to_string(res.used) + " fit" + need);
+    if (res.crowded)
+        note("Tile in " + what(res.used) + ": too many windows, some overlap" + need);
+}
+
 void TVTermApp::handleEvent(TEvent &event)
 {
     // Instead of TApplication's: the Event Viewer and editors stay in place.
@@ -556,6 +598,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmNextAlert: nextAlert(); break;
                 case cmTileCols: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
+                case cmTileNCols: tileInN(true); break;
+                case cmTileNRows: tileInN(false); break;
                 default:
                     handled = false;
                     break;
@@ -704,6 +748,8 @@ void TVTermApp::openMenu()
             newLine() +
             *new TMenuItem("Tile (~C~olumns First)", cmTileCols, kbNoKey) +
             *new TMenuItem("Tile (~R~ows First)", cmTileRows, kbNoKey) +
+            *new TMenuItem("Tile in N C~o~lumns...", cmTileNCols, kbNoKey) +
+            *new TMenuItem("Tile in N Ro~w~s...", cmTileNRows, kbNoKey) +
             *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             newLine() +
@@ -1122,6 +1168,8 @@ void TVTermApp::openProfile(const Profile &profile)
             }
     }
 
+    // The windows get their order (Window List, Tile in N) as in the profile.
+    desktops::prune(*deskTop);
     // Each window on its desktop (the Event Viewer: on all of them). The
     // layout is applied to each desktop that got windows, the one to show
     // last.
@@ -1154,6 +1202,8 @@ void TVTermApp::openProfile(const Profile &profile)
             case Profile::TileColumns: getDeskTop()->tileVertical(getTileRect()); noteNoFreeArea(); break;
             case Profile::TileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
             case Profile::Cascade: getDeskTop()->cascadeWindows(getTileRect()); noteNoFreeArea(); break;
+            case Profile::Columns: tileGrid(profile.layoutCount, true); break;
+            case Profile::Rows: tileGrid(profile.layoutCount, false); break;
             default: break;
         }
     }

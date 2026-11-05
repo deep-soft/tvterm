@@ -27,6 +27,21 @@ public:
     void tileVertical(const TRect &bounds);
     void tileHorizontal(const TRect &bounds);
     void cascadeWindows(const TRect &bounds);
+    // Tile in 'n' columns ('columns') or rows, in the order the windows
+    // were opened (as in the Window List): column by column, top to bottom
+    // (rows: row by row, left to right); the first columns (rows) get the
+    // windows left over and the cells left over. Fewer windows than 'n':
+    // one column (row) each. 'n' is lowered while a column (row) would be
+    // narrower (lower) than the windows' minimum size.
+    struct GridResult
+    {
+        int used {0};          // Columns (rows) used; 0: no window.
+        bool reduced {false};  // 'used' < n because of the minimum size.
+        bool crowded {false};  // The windows of a column (row) do not fit
+                               // the other way: some overlap.
+        TPoint minSize {0, 0}; // The windows' minimum size.
+    };
+    GridResult tileGrid(int n, bool columns, const TRect &bounds);
     // Whether there is a window that Tile or Cascade would arrange.
     bool hasTileable();
 

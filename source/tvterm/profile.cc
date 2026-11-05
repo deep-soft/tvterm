@@ -229,6 +229,22 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else if (v == "tile-columns") profile.layout = Profile::TileColumns;
                 else if (v == "tile-rows") profile.layout = Profile::TileRows;
                 else if (v == "cascade") profile.layout = Profile::Cascade;
+                else if (v.compare(0, 7, "columns") == 0 || v.compare(0, 4, "rows") == 0)
+                {
+                    // columns N / rows N: N from 1 to 20.
+                    bool cols = v[0] == 'c';
+                    std::string num = trim(v.substr(cols ? 7 : 4));
+                    char *end;
+                    long n = strtol(num.c_str(), &end, 10);
+                    bool spaced = v.size() > (cols ? 7u : 4u) && (v[cols ? 7 : 4] == ' ' || v[cols ? 7 : 4] == '\t');
+                    if (!spaced || num.empty() || *end || n < 1 || n > 20)
+                        warn("invalid layout '" + value + "' (columns N or rows N, N from 1 to 20)");
+                    else
+                    {
+                        profile.layout = cols ? Profile::Columns : Profile::Rows;
+                        profile.layoutCount = (int) n;
+                    }
+                }
                 else warn("invalid layout '" + value + "'");
             }
             else if (key == "focus")

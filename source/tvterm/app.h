@@ -62,6 +62,13 @@ struct TVTermApp : public TApplication
     bool closeWindowsBeforeLoad();
     // After Tile / Cascade: a note if the fixed windows left no room.
     void noteNoFreeArea();
+    // More... > Tile in N Columns / Rows: asks for N (1-20; the last value
+    // is proposed), then tileGrid.
+    void tileInN(bool columns);
+    // Tile in 'n' columns / rows (see TVTermDesk::tileGrid), with notes in
+    // the Event Viewer when 'n' was lowered or windows overlap.
+    void tileGrid(int n, bool columns);
+    enum { maxTileCount = 20 };
     void saveProfile();
     void windowList();
     void renameTerm();
@@ -98,6 +105,8 @@ private:
     std::string pendingMessage;
     // Last profile loaded (path), shown in the About dialog.
     std::string loadedProfile;
+    // Last N of Tile in N Columns / Rows (kept while tvterm runs).
+    int tileCount {2};
 
     void checkSettingsFile();
 

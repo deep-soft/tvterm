@@ -11,6 +11,8 @@ enum : ushort
     cmTileRows,
     cmStartSelection,
     cmHistoryMode,
+    cmTileNCols, // More... > Tile in N Columns...
+    cmTileNRows, // More... > Tile in N Rows...
     // Commands that cannot be deactivated.
     cmNewTerm = 2000,
     cmCheckTerminalUpdates,

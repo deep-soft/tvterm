@@ -2,6 +2,7 @@
 #include <tvision/tv.h>
 
 #include "desk.h"
+#include "desktops.h"
 
 #include <algorithm>
 
@@ -155,6 +156,67 @@ void TVTermDesk::tileVertical(const TRect &bounds)
 void TVTermDesk::tileHorizontal(const TRect &bounds)
 {
     tileWithOrientation(false, bounds);
+}
+
+TVTermDesk::GridResult TVTermDesk::tileGrid(int n, bool columns, const TRect &bounds)
+{
+    GridResult res;
+    TRect r = freeArea(bounds);
+    // The windows opened just now get their order first.
+    desktops::prune(*this);
+    std::vector<TView *> views;
+    for (TView *p : tvtermdesk::children(*this))
+        if ((p->options & ofTileable) && (p->state & sfVisible) && !isFixed(p))
+            views.push_back(p);
+    if (views.empty() || n < 1)
+        return res;
+    auto order = [] (TView *v) {
+        auto *w = dynamic_cast<TWindow *>(v);
+        return w ? desktops::openedOrder(w) : (unsigned long) -1;
+    };
+    std::stable_sort(views.begin(), views.end(), [&] (TView *a, TView *b) {
+        return order(a) < order(b);
+    });
+    for (TView *p : views)
+    {
+        TPoint mn, mx;
+        p->sizeLimits(mn, mx);
+        res.minSize.x = std::max(res.minSize.x, mn.x);
+        res.minSize.y = std::max(res.minSize.y, mn.y);
+    }
+    int k = (int) views.size();
+    // 'along': the size split into the n columns (rows); 'across': the
+    // size of a column (row), split among its windows.
+    int along = columns ? r.b.x - r.a.x : r.b.y - r.a.y;
+    int across = columns ? r.b.y - r.a.y : r.b.x - r.a.x;
+    int minAlong = columns ? res.minSize.x : res.minSize.y;
+    int minAcross = columns ? res.minSize.y : res.minSize.x;
+    int lines = std::min(n, k);
+    int wanted = lines;
+    while (lines > 1 && along / lines < minAlong)
+        --lines;
+    res.reduced = lines < wanted;
+    int perLine = k / lines, extra = k % lines;
+    res.crowded = across / (perLine + (extra ? 1 : 0)) < minAcross;
+    int idx = 0;
+    int pos = columns ? r.a.x : r.a.y;
+    for (int i = 0; i < lines; ++i)
+    {
+        int size = along / lines + (i < along % lines ? 1 : 0);
+        int count = perLine + (i < extra ? 1 : 0);
+        int pos2 = columns ? r.a.y : r.a.x;
+        for (int j = 0; j < count; ++j)
+        {
+            int size2 = across / count + (j < across % count ? 1 : 0);
+            TRect cell = columns ? TRect(pos, pos2, pos + size, pos2 + size2)
+                                 : TRect(pos2, pos, pos2 + size2, pos + size);
+            views[idx++]->locate(cell);
+            pos2 += size2;
+        }
+        pos += size;
+    }
+    res.used = lines;
+    return res;
 }
 
 void TVTermDesk::cascadeWindows(const TRect &bounds)

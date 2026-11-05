@@ -165,7 +165,8 @@ writes Ctrl-B.
 | `U` | Suspend | stops tvterm and returns to the outer shell; `fg` brings it back |
 | `Q` | Exit | asks first if terminals or Log Views are running |
 
-**More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Cascade · Grab Input ·
+**More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
+Cascade · Grab Input ·
 View file ([chapter 5](#opening-and-viewing-files)) · Edit settings (tvterm.ini) · Reload settings · About tvterm.
 
 **Ctrl-W** closes the focused Editor, Log View or Event Viewer (an editor with unsaved changes asks first). In a
@@ -177,6 +178,22 @@ Tile and Cascade arrange the terminals and Log Views of the current desktop. The
 windows use the largest rectangle that overlaps none of them. If that rectangle is smaller than 20 columns × 6 rows
 (or there is no fixed window), the whole desktop is used and the Event Viewer gets the note
 "no free area beside the fixed windows, using the whole desktop".
+
+**Tile in N Columns...** / **Tile in N Rows...** (More..., keys `o` / `w`) ask for a number from 1 to 20 (the last one
+used is proposed; 2 at start) and arrange the windows in exactly that many columns (rows):
+
+- the windows go **in the order they were opened** (as in the Window List), column by column from top to bottom
+  (rows: row by row from left to right); focusing a window does not change the order;
+- the windows left over go to the first columns (rows): 5 windows in 2 columns = 3 on the left, 2 (taller) on the
+  right; the widths (heights) are equal, the cells left over go to the first columns (rows);
+- fewer windows than N: one column (row) per window; N = 1: all windows one below the other (side by side);
+- a column narrower than the windows' minimum size (16 columns × 6 rows) lowers N, with the note
+  `Tile in 9 columns: only 7 fit (windows need 16x6)`; when the windows of a column (row) do not fit the other way
+  they overlap, with the note `Tile in 1 column: too many windows, some overlap (windows need 16x6)`;
+- the same area rule as Tile: only the current desktop, beside the Event Viewer and the editors.
+
+The same in a profile: `layout = columns N` / `layout = rows N` ([Profiles](#7-profiles)). New windows are not arranged
+automatically: use the menu item again.
 
 The desktop windows (terminals, Log Views, editors, Event Viewer) have **no shadow** by default, so a window does not
 darken the title of the window below it. `window-shadow = yes` in `tvterm.ini` gives them the shadow back (also to the
@@ -585,7 +602,7 @@ in Editor...) opens a profile file of the same directory in a tvterm editor, to 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade` |
+| `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade`, `columns N`, `rows N` (N = 1–20, as Tile in N Columns / Rows, [Tile and Cascade](#tile-and-cascade)) |
 | `focus` | last window | window focused at start, 1 = the first window section |
 | `desktop` | `1` | desktop shown after loading (1–9) |
 | `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |

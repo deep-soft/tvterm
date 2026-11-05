@@ -104,6 +104,7 @@ E41. Ctrl-B menu letters (D Desktop..., L Log View, A Alerts, T Select Text, B /
 E42. `[general] window-shadow` (default `no`): no shadow under the desktop windows
 E43. Log View: checked marker (Enter), `#YYYY-MM-DD hh:mm:ss ----` at the end, one per window
 E44. Window List: Filter field (title or command, case-insensitive), `Windows N/M` in the title
+E45. Tile in N Columns / Rows (More...), profile `layout = columns N` / `rows N`
 
 ---
 
@@ -168,6 +169,20 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   rectangle under 20 columns × 6 rows → the whole desktop, as before. An L-shaped free space is not split into several areas.
   Also for the `layout` of profiles. Code: `TVTermDesk::freeArea` (`desk.cc`; `noFreeArea` tells the caller the whole desktop
   was used).
+- **Tile in N Columns / Rows** (E45, item 34): More... `Tile in N C~o~lumns...` / `Tile in N Ro~w~s...` (`cmTileNCols` /
+  `cmTileNRows`, in `tileCmds`: disabled like Tile when there is nothing to arrange) ask for N with `inputBox` (1–20, field
+  of 2 characters; invalid → "Enter a number from 1 to 20." and the dialog again; the last valid N is proposed, 2 at start,
+  kept only while tvterm runs). `TVTermDesk::tileGrid(n, columns, bounds)`: the same `freeArea` and the same windows as
+  Tile (visible, tileable, not fixed), sorted by `desktops::openedOrder` (`prune` first: the windows opened just now get
+  their order), so the order is the Window List's, not the stacking order. `k` windows in `min(n, k)` columns, lowered while
+  a column is narrower than the largest minimum size of the windows (`sizeLimits`, 16 × 6 from tvision); `k / lines` per
+  column, the first `k % lines` columns one more; sizes split evenly, the cells left over to the first columns / windows.
+  `GridResult` (`used`, `reduced`, `crowded`, `minSize`) → `TVTermApp::tileGrid` writes the notes "Tile in N columns:
+  only M fit (windows need 16x6)" and "…: too many windows, some overlap (…)" (decided in chat 48 instead of 10 × 3,
+  so that `locate` never enlarges a cell over its neighbour). Profiles: `layout = columns N` / `rows N` (case ignored,
+  spaces or a tab before N, N = 1–20; otherwise "invalid layout '…' (columns N or rows N, N from 1 to 20)" and the
+  default stays); `openProfile` calls `desktops::prune` before moving the windows to their desktops, so that the order is
+  the order of the sections; applied per desktop like the other layouts. Save Profile still writes `layout = manual`.
 
 ### History (scrollback) — `far2l-extended`
 - Each terminal keeps up to `lines` (default 10000) lines that left the screen. Only the normal screen has a history:
@@ -677,7 +692,7 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 
 ### Profiles
 - `tvterm -p NAME` → `~/.config/tvterm/profiles/NAME.ini` (or `$XDG_CONFIG_HOME/...`); `tvterm -p /path/file.ini`; `tvterm --help`.
-- Sections: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade, `focus` = 1-based index),
+- Sections: `[profile]` (`layout` = auto|manual|tile-columns|tile-rows|cascade|columns N|rows N (E45), `focus` = 1-based index),
   `[terminal]` (`title`, `dir`, `command`, `keep-open` yes/no, `pos`), `[editor]` (`file`, `pos`), `[eventviewer]` (`pos`, filters: `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages`).
 - `pos = x y width height` in **percent** of the desktop, decimals allowed. Save Profile writes positions inside the desktop
   (a window moved partly off the screen is saved as moved back inside; rounded to one decimal so that x + width ≤ 100);
@@ -1292,6 +1307,21 @@ examples/profiles/example.ini
   → 4 rows, title `Windows`; Alt-F `MAIL` → 2 rows (`Windows 2/4`, case-insensitive), `MAILl` → 1; `log:` → the Log View
   (command column); `zzz` → `<empty>`, `0/4`, Enter does nothing (dialog stays); `a` + Down + Enter → goes to the second
   row (MailLog); a new Ctrl-B W → empty filter; `b` + Alt-R + Esc → the list opens again with `b` and 1 row.
+- Tile in N (E45), in tmux (120×40, desktop 120 × 38 from row 1): the windows' rectangles are read from the screen (the
+  corners `┌╔` / `┐╗` / `└╚` around a title `T1`…) and compared with an independent Python model of the rule. Profiles:
+  `columns 2` / `rows 2` with 5 windows, `columns 7` with 5 (5 columns), `columns 9` with 9 (7 columns, note), `rows 20`
+  with 10 (6 rows, note), `columns 1` with 8 (note "too many windows, some overlap"), `rows 1`; `Columns 2`, `ROWS  3`,
+  `columns<TAB>2` accepted; `columns`, `columns 0`, `columns 21`, `columnsx 2`, `columns2`, `rows two`, `rows -1`,
+  `rows 3x` → warning, default kept; `tile-columns` / `auto` unchanged and equal to More... Tile (Columns First). Menu:
+  items shown, dialog proposes 2, `3` → 3 columns, the rows dialog proposes 3; `0`, `ab`, `21` → the error and the dialog
+  again, Esc → nothing moves, 3 still proposed; `12` with 6 windows → 6 columns. Order: Window List Go to T1 (in front),
+  then Tile → T1…T4 in open order; a new terminal goes last. Event Viewer at `pos = 70 0 30 100` → the grid in the 84
+  columns left of it (profile and menu); an editor at the bottom left + a Log View → arranged right of the editor, the Log
+  View in its place in the order; Save Profile afterwards → `layout = manual` and the `pos` lines. Desktops: `rows 2` with
+  3 windows on D1 and 2 on D2, then More... columns 3 on D1 → D2 still in 2 rows. Only an editor open → `o` / `w` do
+  nothing (disabled). The dialog field took only 1 character with `inputBox(..., 2)` (the limit counts the final NUL):
+  found by the test, the limit is 3. Several characters sent at once into a selected field keep only the first one (the
+  known `dlgclip` issue): the test sends the digits one by one.
 
 ## 6. Known limitations
 
@@ -1376,3 +1406,4 @@ examples/profiles/example.ini
 | Window shadow (`far2l-extended`) | E42 | `[general] window-shadow = yes \| no` (default `no`): desktop windows without a shadow (it dimmed the title of the window below after Tile); applied at reload; dialogs and menus keep theirs |
 | Checked marker (`far2l-extended`) | E43 | Log View: Enter adds `#YYYY-MM-DD hh:mm:ss ----` at the end (one per window, dimmed); not filtered, counted, searched, copied or saved; removed by X and `max-lines`; not copied by D / New window |
 | Window List filter (`far2l-extended`) | E44 | Filter field above the list: title or command contains the text (A–Z case-insensitive); `Windows N/M`; Up/Down/PgUp/PgDn from the field move in the list; kept after Rename / Close |
+| Tile in N (`far2l-extended`) | E45 | More... Tile in N Columns / Rows (1–20, last value proposed), windows in open order, N lowered below 16 × 6 with a note; profile `layout = columns N` / `rows N` |
