@@ -101,6 +101,7 @@ E40. Seen alert color: the title of a window reached from an alert is black on y
      `[alerts] seen-color`
 E41. Ctrl-B menu letters (D Desktop..., L Log View, A Alerts, T Select Text, B / C profiles), Editor Save As (S),
      Load Profile in Editor (I)
+E42. `[general] window-shadow` (default `no`): no shadow under the desktop windows
 
 ---
 
@@ -252,6 +253,13 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
   is kept).
+  E42: `[general]` `window-shadow` (`yes` / `no`, default `no`): the shadow of the desktop windows. Before E42 the
+  terminals had none (`BasicTerminalWindow`, magiblot) and the Log Views, editors and Event Viewer had tvision's: with
+  Tile, the shadow row of a window fell on the title of the window below and dimmed its alert colors (red / yellow).
+  `TVTermApp::insertWindow` (virtual in tvision; every desktop window goes through it: profiles, Ctrl-B, D, Find > New
+  window, View file, Settings editor) sets `sfShadow` from the setting before inserting; a reload calls
+  `applyWindowShadowToAll` (all the windows of the desktop, also the hidden ones of the other desktops; `setState`
+  redraws what is under the window). `TDialog` (a `TWindow` too) is skipped: dialogs and menus keep their shadow.
 - **`--print-highlight [NAME...]`** (E36): prints the built-in highlight sets (`printBuiltinHighlight`, `highlight.cc`,
   cut from `builtinHighlightText()` at each `[highlight ` line) after 4 comment lines (the names of all sets, how to replace
   or extend one); all of them, or the named ones in the given order (every argument after the option is a name). An
@@ -1240,6 +1248,15 @@ examples/profiles/example.ini
   editors only); B still loads it (No: add). Log View F9 menu: `Alerts... Ctrl-B A`; `--print-settings`: Ctrl-B A / L.
   The profile text shown in the editor contains `title = T1`, so "not loaded" is checked in the Window List rows, not on
   the whole screen.
+- Window shadow (E42), in tmux (100×40, `capture-pane -e`): the shadow cells are dark gray on black (SGR `90;40`); the
+  captures are compared cell by cell (fg, bg, attributes) with a small Python parser. Profile with a Log View, an editor,
+  a terminal and the Event Viewer in four quarters: `no` and no file give the same colors (0 shadow cells); `yes` → the
+  Log View's shadow on the editor (2 columns) and on the terminal's title row. A terminal above a Log View: `yes` → the
+  terminal has a shadow too. Reload (file changed while running): no → yes → no, each the same as a start with that
+  value; changed while the windows were hidden on desktop 2 → back on desktop 1 the same as a start with `yes`. With
+  `no`: the Ctrl-B menu (88 cells) and the Alerts dialog (68) keep their shadow. `yes` + Tile (More... C) with two
+  terminals, a Log View and an editor: shadows present. `window-shadow = maybe` → 1 problem in the Event Viewer, value
+  kept. `--print-settings` contains the new lines, the same as `examples/tvterm.ini`.
 
 ## 6. Known limitations
 
@@ -1321,3 +1338,4 @@ examples/profiles/example.ini
 | Desktop in the alerts list (`far2l-extended`) | E38 | Event Viewer A: the desktop of each window after the time (`*D1`, ` 2:mail`, as in the Window List), aligned |
 | Menu order, desktop list (`far2l-extended`) | E39 | Ctrl-B menu grouped: desktops/windows, alerts, terminals, size, text/editors, profiles, rest; Desktop... / Ctrl-B Y: header `S C Win Title`, rows `2 +   2 :mail` |
 | Menu letters, two items (`far2l-extended`) | E41 | D Desktop..., L Log View, A Alerts, T Select Text, B Load Profile, C Save Profile As, Rename Term without a letter; new S Editor Save As, I Load Profile in Editor |
+| Window shadow (`far2l-extended`) | E42 | `[general] window-shadow = yes \| no` (default `no`): desktop windows without a shadow (it dimmed the title of the window below after Tile); applied at reload; dialogs and menus keep theirs |

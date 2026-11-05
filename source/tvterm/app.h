@@ -28,6 +28,13 @@ struct TVTermApp : public TApplication
     Boolean valid(ushort command) override;
     void idle() override;
     void getEvent(TEvent &event) override;
+    // Every desktop window goes through here: its shadow follows
+    // 'window-shadow' (tvterm.ini). Dialogs keep theirs.
+    TWindow *insertWindow(TWindow *window) override;
+    // 'window-shadow' for one window (not a dialog) / for all the desktop
+    // windows (after a reload).
+    static void applyWindowShadow(TView *view);
+    static void applyWindowShadowToAll();
     // Global keys (tvterm.ini, [keys]): turns 'event' into a command or
     // handles it.
     void handleGlobalKey(TEvent &event);

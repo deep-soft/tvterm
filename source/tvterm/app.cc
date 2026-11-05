@@ -274,6 +274,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
                     w->frame->drawView();
             }, nullptr);
     }
+    // [general] window-shadow: the desktop windows already open.
+    applyWindowShadowToAll();
     // The 'file-filters' patterns, in the lists of the file dialogs.
     fileopen::addFileFilters(currentSettings.fileFilters);
     // The first menu key, in the status line and in messages.
@@ -312,6 +314,34 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     }
     else if (!existed && !startup)
         note("settings file " + path + " removed: using the default settings");
+}
+
+void TVTermApp::applyWindowShadow(TView *view)
+{
+    // Only windows; dialogs (TDialog is a TWindow) keep their shadow.
+    if (!dynamic_cast<TWindow *>(view) || dynamic_cast<TDialog *>(view))
+        return;
+    bool on = settings().windowShadow;
+    // setState redraws what is under the window (and its shadow) only if
+    // the window is already on the desktop.
+    if (bool(view->state & sfShadow) != on)
+        view->setState(sfShadow, Boolean(on));
+}
+
+void TVTermApp::applyWindowShadowToAll()
+{
+    // Also the hidden windows of the other desktops.
+    if (TProgram::deskTop)
+        TProgram::deskTop->forEach([] (TView *v, void *) {
+            applyWindowShadow(v);
+        }, nullptr);
+}
+
+TWindow *TVTermApp::insertWindow(TWindow *window)
+{
+    if (window)
+        applyWindowShadow(window);
+    return TApplication::insertWindow(window);
 }
 
 void TVTermApp::checkSettingsFile()

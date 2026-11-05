@@ -178,6 +178,10 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 (or there is no fixed window), the whole desktop is used and the Event Viewer gets the note
 "no free area beside the fixed windows, using the whole desktop".
 
+The desktop windows (terminals, Log Views, editors, Event Viewer) have **no shadow** by default, so a window does not
+darken the title of the window below it. `window-shadow = yes` in `tvterm.ini` gives them the shadow back (also to the
+terminals); menus and dialogs always have one.
+
 ### Window List
 
 **Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in three columns:
@@ -493,6 +497,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `file-filters` | `*.txt *` | patterns offered by Down in the name field of Open File in Editor, View file and Save file as, separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
 | | `file-dialog-size` | (none) | size of the file dialogs when they open, columns x rows, e.g. `120x40` (at least `49x19`); smaller if the screen is smaller; empty or `none`: tvision's size ([File dialogs](#file-dialogs)) |
 | | `file-list-columns` | `2` | columns of the list of files in the file dialogs: `1` (long names whole) or `2` ([File dialogs](#file-dialogs)) |
+| | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
 | | `word-chars` | `-._/@:~+%=` | characters that belong to a word on double click, besides letters and digits |

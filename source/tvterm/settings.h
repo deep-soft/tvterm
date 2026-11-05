@@ -43,6 +43,9 @@ struct Settings
     int fileDialogHeight {0};
     // Columns of the list of files in the file dialogs (1 or 2).
     int fileListColumns {2};
+    // window-shadow: the shadow of the desktop windows (terminals, Log View,
+    // editors, Event Viewer); menus and dialogs always keep theirs.
+    bool windowShadow {false};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

@@ -340,6 +340,11 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseInt(value, 1, 2, settings.fileListColumns))
                     invalid("1 or 2"), settings.fileListColumns = previous.fileListColumns;
             }
+            else if (key == "window-shadow")
+            {
+                if (!parseBool(value, settings.windowShadow))
+                    invalid("use yes or no"), settings.windowShadow = previous.windowShadow;
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -508,6 +513,10 @@ std::string settingsTemplate()
         "# Columns of the list of files in those dialogs: 1 shows long names whole\n"
         "# (the date and size of the chosen file are on the bottom line), or 2.\n"
         "#file-list-columns = " + std::to_string(d.fileListColumns) + "\n"
+        "# Shadow under the desktop windows (terminals, Log View, editors, Event\n"
+        "# Viewer): yes or no. With Tile, the shadow of a window falls on the title\n"
+        "# of the window below it. Menus and dialogs always have a shadow.\n"
+        "#window-shadow = " + std::string(d.windowShadow ? "yes" : "no") + "\n"
         "\n"
         "[scrollback]\n"
         "# Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"
