@@ -127,6 +127,7 @@ enum : ushort
     cmLogNextHighlighted,
     cmLogPrevHighlighted,
     cmLogTransform,
+    cmLogMarkChecked,
     // Button of the search dialog.
     cmLogFindNew,
 };
@@ -140,6 +141,7 @@ static const TColorAttr colMarker = 0x0E;   // Yellow on black.
 static const TColorAttr colSelected = 0x70; // Black on light gray.
 static const TColorAttr colCursor = 0x30;   // Black on cyan (focused window only).
 static const TColorAttr colMatch = 0xE0;    // Black on yellow.
+static const TColorAttr colChecked = 0x08;  // Dark gray on black (the checked marker).
 
 static const int tabWidth = 8;
 
@@ -333,15 +335,16 @@ void LogViewInterior::draw()
         if (w.source && i < w.shown.size())
         {
             uint64_t seq = w.shown[i];
-            const LogLine &line = w.source->line(seq);
+            bool isMark = seq == LogViewWindow::markId;
             // The text shown (transformed or not): everything below uses it.
             const std::string raw = w.displayText(seq);
             text = expandTabs(raw);
             bool isCursor = (w.state & sfFocused) && w.isCursor(seq);
             TColorAttr attr = isCursor ? colCursor :
                               w.isSelected(seq) ? colSelected :
-                              line.marker ? colMarker : colNormal;
-            if (attr != colNormal && attr != colMarker)
+                              isMark ? colChecked :
+                              w.source->line(seq).marker ? colMarker : colNormal;
+            if (attr != colNormal && attr != colMarker && attr != colChecked)
                 b.moveChar(0, ' ', attr, size.x);
             int matchB = -1, matchE = -1;
             if (w.hasMatch && w.matchSeq == seq)
@@ -418,7 +421,7 @@ void LogViewInterior::copyWordAt(TPoint p)
     using namespace logview;
     size_t index;
     int row;
-    if (!w.source || !lineAt(p.y, index, row))
+    if (!w.source || !lineAt(p.y, index, row) || w.shown[index] == LogViewWindow::markId)
         return;
     std::string text = expandTabs(w.displayText(w.shown[index]));
     int col = p.x;
@@ -1226,8 +1229,97 @@ void LogViewWindow::detachSource()
         source.reset();
     }
     shown.clear();
+    hasMark = false;
     top = 0;
     topRow = 0;
+}
+
+int64_t LogViewWindow::keyOf(uint64_t entry) const noexcept
+{
+    using namespace logview;
+    return entry == markId ? 2 * (int64_t) markEnd - 1 : 2 * (int64_t) entry;
+}
+
+size_t LogViewWindow::lowerIndex(uint64_t entry) const
+{
+    using namespace logview;
+    int64_t k = keyOf(entry);
+    return std::partition_point(shown.begin(), shown.end(),
+                                [&] (uint64_t e) { return keyOf(e) < k; }) - shown.begin();
+}
+
+size_t LogViewWindow::upperIndex(uint64_t entry) const
+{
+    using namespace logview;
+    int64_t k = keyOf(entry);
+    return std::partition_point(shown.begin(), shown.end(),
+                                [&] (uint64_t e) { return keyOf(e) <= k; }) - shown.begin();
+}
+
+size_t LogViewWindow::insertMark()
+{
+    using namespace logview;
+    size_t i = lowerIndex(markId);
+    // A copy: markId itself is not bound to a reference (C++14 builds).
+    shown.insert(shown.begin() + i, uint64_t(markId));
+    return i;
+}
+
+void LogViewWindow::removeMark()
+{
+    using namespace logview;
+    if (!hasMark)
+        return;
+    size_t j = lowerIndex(markId);
+    if (j < shown.size() && shown[j] == markId)
+    {
+        // The cursor goes to the line before the marker (or after it).
+        if (cursorSeq == markId)
+            cursorSeq = j > 0 ? shown[j - 1] : j + 1 < shown.size() ? shown[j + 1] : 0;
+        if (hasSel && (selAnchor == markId || selCursor == markId))
+            hasSel = false;
+        shown.erase(shown.begin() + j);
+        if (j < top)
+            --top;
+        else if (j == top)
+            topRow = 0;
+        if (top >= shown.size())
+            top = shown.empty() ? 0 : shown.size() - 1, topRow = 0;
+    }
+    hasMark = false;
+}
+
+void LogViewWindow::markChecked()
+{
+    using namespace logview;
+    if (!source)
+        return;
+    bool atLast = follow || cursorIsLast();
+    removeMark();
+    // After the lines taken so far; while paused, after those shown before
+    // the pause (the ones kept come below the marker).
+    markEnd = paused ? newAfterSeq + 1 : nextSeq;
+    time_t now = time(nullptr);
+    struct tm tm {};
+    localtime_r(&now, &tm);
+    char buf[64];
+    strftime(buf, sizeof(buf), "#%Y-%m-%d %H:%M:%S ----", &tm);
+    markText = buf;
+    hasMark = true;
+    size_t i = insertMark();
+    // The view stays where it was.
+    if (i <= top && top + 1 < shown.size())
+        ++top;
+    if (atLast && !paused)
+    {
+        // Following: the cursor on the marker, new lines come below it.
+        cursorSeq = markId;
+        follow = true;
+        scrollToEnd();
+    }
+    redraw();
+    strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
+    showStatus(std::string("Checked at ") + buf + ": the marker is at the end (Enter moves it).");
 }
 
 void LogViewWindow::setCustomTitle(const std::string &title)
@@ -1262,6 +1354,21 @@ void LogViewWindow::refilter()
         if (passes(source->line(seq)))
             shown.push_back(seq);
     nextSeq = end;
+    // The marker keeps its place among the lines (not filtered); gone with
+    // the lines before it (max-lines).
+    if (hasMark)
+    {
+        if (source->firstSeq() > markEnd)
+        {
+            hasMark = false;
+            if (cursorSeq == markId)
+                cursorSeq = from;
+            if (hasSel && (selAnchor == markId || selCursor == markId))
+                hasSel = false;
+        }
+        else
+            insertMark();
+    }
     if (paused)
         newAfterSeq = std::min(newAfterSeq, end);
     else if (follow)
@@ -1275,7 +1382,7 @@ void LogViewWindow::refilter()
     }
     else
     {
-        top = std::lower_bound(shown.begin(), shown.end(), oldTopSeq) - shown.begin();
+        top = lowerIndex(oldTopSeq);
         topRow = 0;
         size_t endIndex;
         int endRow;
@@ -1294,8 +1401,20 @@ void LogViewWindow::dropOldLines()
     using namespace logview;
     uint64_t first = source->firstSeq();
     size_t dropped = 0;
-    while (!shown.empty() && shown.front() < first)
+    while (!shown.empty())
     {
+        uint64_t entry = shown.front();
+        // The marker goes with the lines before it.
+        if (entry == markId ? first <= markEnd : entry >= first)
+            break;
+        if (entry == markId)
+        {
+            hasMark = false;
+            if (cursorSeq == markId)
+                cursorSeq = first;
+            if (hasSel && (selAnchor == markId || selCursor == markId))
+                hasSel = false;
+        }
         shown.pop_front();
         ++dropped;
     }
@@ -1427,6 +1546,8 @@ bool LogViewWindow::resolveTransform()
 std::string LogViewWindow::displayText(uint64_t seq) const
 {
     using namespace logview;
+    if (seq == markId)
+        return markText;
     const LogLine &line = source->line(seq);
     if (line.marker || !transformActive())
         return line.text;
@@ -1616,7 +1737,11 @@ void LogViewWindow::changeBounds(const TRect &bounds)
 size_t LogViewWindow::newLineCount() const
 {
     using namespace logview;
-    return shown.end() - std::upper_bound(shown.begin(), shown.end(), newAfterSeq);
+    // The marker is not a new line.
+    size_t n = shown.size() - upperIndex(newAfterSeq);
+    if (hasMark && keyOf(markId) > keyOf(newAfterSeq))
+        --n;
+    return n;
 }
 
 const char *LogViewWindow::getTitle(short)
@@ -1644,7 +1769,7 @@ const char *LogViewWindow::getTitle(short)
         text += " [T-]";
     if (source)
     {
-        text += " " + std::to_string(shown.size()) + "/" +
+        text += " " + std::to_string(lineCount()) + "/" +
                 std::to_string(source->endSeq() - source->firstSeq());
         if (!source->isRunning() && !fixedSource)
             text += " (ended)";
@@ -1793,7 +1918,7 @@ size_t LogViewWindow::cursorIndex() const
     using namespace logview;
     if (shown.empty())
         return 0;
-    size_t i = std::upper_bound(shown.begin(), shown.end(), cursorSeq) - shown.begin();
+    size_t i = upperIndex(cursorSeq);
     return i == 0 ? 0 : i - 1;
 }
 
@@ -1937,14 +2062,15 @@ bool LogViewWindow::isSelected(uint64_t seq) const
         return false;
     uint64_t a, b;
     selectionBounds(a, b);
-    return a <= seq && seq <= b;
+    return keyOf(a) <= keyOf(seq) && keyOf(seq) <= keyOf(b);
 }
 
 void LogViewWindow::selectionBounds(uint64_t &a, uint64_t &b) const
 {
     using namespace logview;
-    a = std::min(selAnchor, selCursor);
-    b = std::max(selAnchor, selCursor);
+    bool ordered = keyOf(selAnchor) <= keyOf(selCursor);
+    a = ordered ? selAnchor : selCursor;
+    b = ordered ? selCursor : selAnchor;
 }
 
 std::string LogViewWindow::selectedText() const
@@ -1955,9 +2081,11 @@ std::string LogViewWindow::selectedText() const
         return out;
     uint64_t a, b;
     selectionBounds(a, b);
-    auto it = std::lower_bound(shown.begin(), shown.end(), a);
-    for (; it != shown.end() && *it <= b; ++it)
+    // Without the checked marker.
+    for (auto it = shown.begin() + lowerIndex(a); it != shown.end() && keyOf(*it) <= keyOf(b); ++it)
     {
+        if (*it == markId)
+            continue;
         out += displayText(*it);
         out += '\n';
     }
@@ -1969,7 +2097,7 @@ std::string LogViewWindow::selectedOrCursorText() const
     using namespace logview;
     if (hasSel)
         return selectedText();
-    if (!source || shown.empty())
+    if (!source || shown.empty() || shown[cursorIndex()] == markId)
         return {};
     return displayText(shown[cursorIndex()]) + '\n';
 }
@@ -1982,6 +2110,8 @@ std::string LogViewWindow::shownText() const
         return out;
     for (uint64_t seq : shown)
     {
+        if (seq == markId)
+            continue;
         out += displayText(seq);
         out += '\n';
     }
@@ -2007,6 +2137,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("~P~ause/continue", cmLogPause, kbNoKey, hcNoContext, "Space") +
         *new TMenuItem("~W~rap long lines on/off", cmLogWrap, kbNoKey, hcNoContext, "W") +
         *new TMenuItem("Clear window (~X~)", cmLogClear, kbNoKey, hcNoContext, "X") +
+        *new TMenuItem("Mar~k~ checked", cmLogMarkChecked, kbNoKey, hcNoContext, "Enter") +
         newLine() +
         *new TMenuItem("Searc~h~...", cmLogSearch, kbNoKey, hcNoContext, "/") +
         *new TMenuItem("Find ~o~lder", cmLogFindOlder, kbNoKey, hcNoContext, "F3 n") +
@@ -2049,6 +2180,7 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogPause: togglePause(); break;
         case cmLogWrap: toggleWrap(); break;
         case cmLogClear: clearWindow(); break;
+        case cmLogMarkChecked: markChecked(); break;
         case cmLogSearch: openSearch(); break;
         case cmLogFindOlder: findNext(true); break;
         case cmLogFindNewer: findNext(false); break;
@@ -2129,7 +2261,8 @@ void LogViewWindow::togglePause()
     {
         paused = true;
         follow = false;
-        newAfterSeq = shown.empty() ? 0 : shown.back();
+        // The lines taken so far are seen (shown.back() may be the marker).
+        newAfterSeq = nextSeq > 0 ? nextSeq - 1 : 0;
     }
     redraw();
 }
@@ -2207,6 +2340,7 @@ void LogViewWindow::clearWindow()
     clearedSeq = source->endSeq();
     cursorSeq = clearedSeq;
     shown.clear();
+    hasMark = false;
     top = 0;
     topRow = 0;
     hasSel = hasMatch = false;
@@ -2357,6 +2491,8 @@ void LogViewWindow::openFindWindow()
     std::vector<LogLine> lines;
     for (uint64_t seq : shown)
     {
+        if (seq == markId)
+            continue;
         const LogLine &line = source->line(seq);
         if (line.marker)
             continue;
@@ -2410,8 +2546,9 @@ void LogViewWindow::findNext(bool older)
         return;
     // Starting line: after the current match, or the lines on the screen.
     long index;
-    if (hasMatch && std::binary_search(shown.begin(), shown.end(), matchSeq))
-        index = (long) (std::lower_bound(shown.begin(), shown.end(), matchSeq) - shown.begin()) + (older ? -1 : 1);
+    size_t matchIndex = hasMatch ? lowerIndex(matchSeq) : shown.size();
+    if (matchIndex < shown.size() && shown[matchIndex] == matchSeq)
+        index = (long) matchIndex + (older ? -1 : 1);
     else if (older)
     {
         size_t i;
@@ -2425,6 +2562,9 @@ void LogViewWindow::findNext(bool older)
         index = (long) top;
     for (; index >= 0 && index < (long) shown.size(); index += older ? -1 : 1)
     {
+        // The checked marker is not searched.
+        if (shown[index] == markId)
+            continue;
         const std::string text = displayText(shown[index]);
         int b, e;
         bool found = searchRe ? searchRe->find(text, 0, b, e)
@@ -2502,6 +2642,8 @@ void LogViewWindow::findHighlighted(bool down)
     std::vector<int> colors;
     for (; index >= 0 && index < (long) shown.size(); index += down ? 1 : -1)
     {
+        if (shown[index] == markId)
+            continue;
         const LogLine &line = source->line(shown[index]);
         if (line.marker)
             continue;
@@ -2521,7 +2663,8 @@ void LogViewWindow::copySelection()
     std::string text = selectedOrCursorText();
     if (text.empty())
     {
-        showStatus("Nothing to copy: the window is empty.");
+        showStatus(lineCount() ? "Nothing to copy: the checked marker is not copied." :
+                                 "Nothing to copy: the window is empty.");
         return;
     }
     size_t lines = std::count(text.begin(), text.end(), '\n');
@@ -2617,7 +2760,8 @@ void LogViewWindow::sendToEditor(bool newEditor)
     std::string text = selectedOrCursorText();
     if (text.empty())
     {
-        showStatus("Nothing to send: the window is empty.");
+        showStatus(lineCount() ? "Nothing to send: the checked marker is not sent." :
+                                 "Nothing to send: the window is empty.");
         return;
     }
     size_t lines = std::count(text.begin(), text.end(), '\n');
@@ -2742,6 +2886,7 @@ void LogViewWindow::handleEvent(TEvent &ev)
         int page = interior ? std::max(1, interior->size.y - 1) : 1;
         bool handled = true;
         if (key == TKey(kbF4)) editOptions(0);
+        else if (key == TKey(kbEnter)) markChecked();
         else if (key == TKey(kbF9)) openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);
         else if (key == TKey(kbF2)) save();
         else if (key == TKey(kbF3)) findNext(true);

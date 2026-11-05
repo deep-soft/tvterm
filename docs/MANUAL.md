@@ -813,6 +813,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Space | pause / continue (new lines are kept, shown on continue) |
 | `W` | long lines: wrapped / scrolled (Left / Right, 8 columns) |
 | `X` | clear this window (not the source) |
+| Enter | mark as checked: the line `#YYYY-MM-DD hh:mm:ss ----` at the end ([below](#checked-marker)) |
 | `/` | search (plain text or regular expression; match black on yellow); **New window** in the dialog: all the matching lines in a new window ([below](#search-new-window)) |
 | F3 or `n` / Shift-F3 or `N` | next match, older / newer |
 | Ctrl-Down / Ctrl-Up | next / previous line with a highlighted word (only with [Words](#words)) |
@@ -834,6 +835,16 @@ at the bottom, following starts again.
 New filters apply to the whole buffer at once. The clipboard gets the lines without the last line break, so pasting
 into a shell runs nothing. Saving uses the same dialog as the history ([chapter 4](#save)); the proposed directory is
 `save-dir`, or else tvterm's current directory.
+
+#### Checked marker
+
+Enter (or F9 > Mark checked) adds at the end the line `#2026-11-05 12:06:00 ----` (local time,
+dark gray), to show when you last looked. New lines come below it. There is one marker per window: Enter again moves
+it to the end. It belongs to the window, not to the source: D (duplicate) and Search > New window do not copy it, X
+removes it, R keeps it, and lines dropped by `max-lines` take it with them. It is not filtered (Include / Exclude), not colored, not
+searched, not counted (title, `[+N]`) and never copied, sent to an editor or saved. With the cursor on the last line,
+the cursor goes onto the marker and the window keeps following; from higher up, the view stays where it is. While paused
+(Space), it goes after the lines shown before the pause. Not saved in profiles.
 
 ### Colors (highlight)
 

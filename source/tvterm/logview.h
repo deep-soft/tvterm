@@ -150,6 +150,15 @@ private:
     // X: lines before this one are hidden.
     uint64_t clearedSeq {0};
 
+    // Checked marker (Enter): a line of this window only (not of the
+    // source), "#YYYY-MM-DD hh:mm:ss ----", between the source lines before
+    // 'markEnd' and the following ones. In 'shown' as 'markId'; 'shown' is
+    // ordered by keyOf(). Only the last one is kept.
+    static constexpr uint64_t markId = UINT64_MAX;
+    bool hasMark {false};
+    uint64_t markEnd {0};
+    std::string markText;
+
     // First line on the screen (index in 'shown') and, for wrapped lines,
     // the first row of that line on the screen.
     size_t top {0};
@@ -213,6 +222,20 @@ private:
     std::string lastTitle;
 
     void attachSource();
+    // Order of the entries of 'shown': a line by its sequence number, the
+    // marker between markEnd - 1 and markEnd.
+    int64_t keyOf(uint64_t entry) const noexcept;
+    // Index of the first entry of 'shown' not before / after 'entry'.
+    size_t lowerIndex(uint64_t entry) const;
+    size_t upperIndex(uint64_t entry) const;
+    // Lines in 'shown' (without the marker).
+    size_t lineCount() const noexcept { return shown.size() - (hasMark ? 1 : 0); }
+    // The marker into 'shown' at its place (returns its index) / out of it
+    // (the cursor, the selection and the view follow).
+    size_t insertMark();
+    void removeMark();
+    // Enter: the marker at the end, with the current time.
+    void markChecked();
     void detachSource();
     bool passes(const LogLine &line) const;
     void refilter();

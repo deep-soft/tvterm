@@ -102,6 +102,7 @@ E40. Seen alert color: the title of a window reached from an alert is black on y
 E41. Ctrl-B menu letters (D Desktop..., L Log View, A Alerts, T Select Text, B / C profiles), Editor Save As (S),
      Load Profile in Editor (I)
 E42. `[general] window-shadow` (default `no`): no shadow under the desktop windows
+E43. Log View: checked marker (Enter), `#YYYY-MM-DD hh:mm:ss ----` at the end, one per window
 
 ---
 
@@ -422,6 +423,20 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   the cursor line. A resize (screen, Ctrl-F5, Zoom, Tile) updates the view and the bar at once (`changeBounds`): a window
   that follows stays at the end (before, the view kept its first line and the last lines could be hidden until the next
   new line came). The horizontal bar is unchanged.
+- **Checked marker** (E43, item 32, rules agreed in chat 44 and 47): Enter (F9 > Mark checked, `cmLogMarkChecked`) adds
+  `#YYYY-MM-DD hh:mm:ss ----` (local time, `colChecked` dark gray) at the end = when the user last looked. A line of the
+  window, not of the source: it is in `shown` as `markId` (`UINT64_MAX`) with `markEnd` (it stands between the source lines
+  `markEnd - 1` and `markEnd`; `nextSeq` at Enter, while paused `newAfterSeq + 1`) and `markText`. `shown` stays ordered
+  by `keyOf()` (a line: 2 × seq; the marker: 2 × markEnd − 1), so the searches by sequence (`lowerIndex` / `upperIndex`,
+  replacing `std::lower_bound` / `upper_bound` / `binary_search`: cursor, selection, `[+N]`, F3 after a match, the view
+  after a refilter) also work for the marker; `displayText(markId)` is its text (so wrap, widths and rows work as for a
+  line). Only one: Enter removes the old one first (`removeMark`: the cursor on it goes to the line before, a selection
+  touching it is cleared, the view keeps its place). Kept by refilter (F, F4, new sets) and R; removed by X,
+  `detachSource` (new command) and `dropOldLines` / refilter once `firstSeq > markEnd` (`max-lines`). Skipped by draw
+  colors (highlight, markers), double click, search (F3, New window), Ctrl-Down / Ctrl-Up, Ctrl-C / Ctrl-E / Ctrl-A,
+  Save; not counted in the title (`lineCount()`) or in `[+N]` (`newLineCount`). With the cursor on the last line (or
+  following), the cursor goes onto the marker and `follow` stays on; otherwise the view and the cursor stay. The pause
+  now sets `newAfterSeq` from `nextSeq` (`shown.back()` may be the marker). Not in D, Find > New window, profiles.
 
 ### Log View highlighting — `far2l-extended`
 - E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
@@ -1257,6 +1272,16 @@ examples/profiles/example.ini
   `no`: the Ctrl-B menu (88 cells) and the Alerts dialog (68) keep their shadow. `yes` + Tile (More... C) with two
   terminals, a Log View and an editor: shadows present. `window-shadow = maybe` → 1 problem in the Event Viewer, value
   kept. `--print-settings` contains the new lines, the same as `examples/tvterm.ini`.
+- Checked marker (E43), in tmux (100×30, `LANG=C.UTF-8`, `capture-pane -e`), a Log View on `tail -n 1000 -F` of a test
+  file (lines appended by the test): Enter → `#… ----` as the last line, title count unchanged, the cursor (black on cyan)
+  on it, dark gray (`90;40`) after Up; 3 new lines come below it and are followed; Enter again → one marker, at the end.
+  `include = keep` on `keep N` / `drop N` lines: the marker stays after `drop 6` with F off and on (title `5/10`); W
+  unchanged. Ctrl-C on the marker → "Nothing to copy: the checked marker is not copied."; Shift-Up ×2 from it + Ctrl-E
+  → the editor gets the two lines only. `/` `2026` → "No older match". R → the marker stays, `-- source restarted --` and
+  the lines again below it. Space, 2 lines, Enter, Space → the marker before the 2 kept lines. Scrolled up with `[+2]`:
+  Enter → the same first line on the screen, `[+2]` unchanged, the marker last (End). D and Search > New window
+  (`line`, 10/10): no marker. X → `0/15`; Enter on the empty window + 2 lines → marker first, `2/17`. `max-lines = 100`,
+  marker after line 50: 120 lines → still there (after line 50); 170 lines → gone. F9 menu: "Mark checked Enter", `k`.
 
 ## 6. Known limitations
 
@@ -1339,3 +1364,4 @@ examples/profiles/example.ini
 | Menu order, desktop list (`far2l-extended`) | E39 | Ctrl-B menu grouped: desktops/windows, alerts, terminals, size, text/editors, profiles, rest; Desktop... / Ctrl-B Y: header `S C Win Title`, rows `2 +   2 :mail` |
 | Menu letters, two items (`far2l-extended`) | E41 | D Desktop..., L Log View, A Alerts, T Select Text, B Load Profile, C Save Profile As, Rename Term without a letter; new S Editor Save As, I Load Profile in Editor |
 | Window shadow (`far2l-extended`) | E42 | `[general] window-shadow = yes \| no` (default `no`): desktop windows without a shadow (it dimmed the title of the window below after Tile); applied at reload; dialogs and menus keep theirs |
+| Checked marker (`far2l-extended`) | E43 | Log View: Enter adds `#YYYY-MM-DD hh:mm:ss ----` at the end (one per window, dimmed); not filtered, counted, searched, copied or saved; removed by X and `max-lines`; not copied by D / New window |
