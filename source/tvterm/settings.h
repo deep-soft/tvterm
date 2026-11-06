@@ -46,6 +46,9 @@ struct Settings
     // window-shadow: the shadow of the desktop windows (terminals, Log View,
     // editors, Event Viewer); menus and dialogs always keep theirs.
     bool windowShadow {false};
+    // editor-selection: color of the selected text in the editors (also the
+    // text found by Find), a BIOS attribute; -1: tvision's color.
+    int editorSelection {-1};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

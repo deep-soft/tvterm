@@ -463,6 +463,7 @@ not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Clos
 | **F7**, **Ctrl-F**, Ctrl-Q F | Find |
 | **Ctrl-F7**, **Ctrl-H**, Ctrl-Q A | Replace |
 | **F3**, **Shift-F7**, Ctrl-L | Search again: the last Find or Replace, from the cursor |
+| **Ctrl-U**, **Alt-Backspace** | Undo; right after Replace all: the whole Replace all |
 
 The items `F7 Find`, `Ctrl-F7 Replace` and `F3 Next` of the status line can be clicked too. The keys work in every
 editor, also in the Settings editor (Edit settings).
@@ -480,6 +481,13 @@ editor, also in the Settings editor (Edit settings).
   otherwise with the last text searched. An empty text does nothing.
 - **Not found**: `Not found: "alpha".` in the status line (no box); the cursor stays where it was.
 - F3 before any search opens Find. After a Replace, F3 repeats the replace (with Replace all: all of them again).
+- **Undo**: tvision's editor has one level of undo (Ctrl-U; Alt-Backspace too, as in far2l; Ctrl-Backspace still
+  deletes the word on the left). Right after a **Replace all** (no change in the text since), Ctrl-U or Alt-Backspace
+  bring back the whole text from before it and the cursor: `Undone: Replace all (3 replacement(s)).` It cannot be
+  redone. After any change in the text, they are the usual Undo (the last change only). A single Replace is undone
+  by the usual Undo.
+- The found text is shown as the **selection**: its color is `editor-selection` in `tvterm.ini` (e.g. `black on
+  bright-green`; default: tvision's), for every selection in the editors.
 - The texts and the options are the same for all the editors and are kept while tvterm runs (not saved).
 - Without Case sensitive only the ASCII letters are folded (`ș` does not match `Ș`). Whole words: a word ends at a
   space, a tab, the end of the line or a punctuation character.
@@ -555,6 +563,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `file-filters` | `*.txt *` | patterns offered by Down in the name field of Open File in Editor, View file and Save file as, separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
 | | `file-dialog-size` | (none) | size of the file dialogs when they open, columns x rows, e.g. `120x40` (at least `49x19`); smaller if the screen is smaller; empty or `none`: tvision's size ([File dialogs](#file-dialogs)) |
 | | `file-list-columns` | `2` | columns of the list of files in the file dialogs: `1` (long names whole) or `2` ([File dialogs](#file-dialogs)) |
+| | `editor-selection` | `default` | color of the selected text in the editors (also the text found by Find): `<color>` or `<color> on <color>`, the names of the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-green`; `default`: tvision's color; applies at once to the open editors ([Find and Replace](#find-and-replace)) |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |

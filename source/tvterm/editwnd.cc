@@ -23,10 +23,13 @@
 #include "apputil.h"
 #include "fileopen.h"
 #include "statline.h"
+#include "app.h"
+#include "settings.h"
 
 #include <stdarg.h>
 #include <string.h>
 #include <string>
+#include <algorithm>
 
 namespace editwnd
 {
@@ -57,6 +60,8 @@ static struct
 {
     bool active {false};
     int depth {0};          // handleEvent level that started the run
+    std::string before;     // the text before the run (for the undo)
+    uint cursor {0};
     bool forcedPrompt {false};
     bool stopped {false};
     int found {0};
@@ -71,6 +76,16 @@ static void showStatus(const std::string &text)
 static std::string quoted(const char *s)
 {
     return "\"" + std::string(s) + "\"";
+}
+
+// The whole text of an editor (its buffer has a gap at the cursor).
+static std::string editorText(const TEditor *e)
+{
+    std::string s;
+    s.reserve(e->bufLen);
+    s.append(e->buffer, e->curPtr);
+    s.append(e->buffer + e->curPtr + e->gapLen, e->bufLen - e->curPtr);
+    return s;
 }
 
 // The selected text of the current editor, when it is on one line and fits
@@ -206,6 +221,11 @@ static void startReplaceRun(ushort &flags)
     replaceRun = {};
     replaceRun.active = true;
     replaceRun.depth = handleDepth;
+    if (currentEditor)
+    {
+        replaceRun.before = editorText(currentEditor);
+        replaceRun.cursor = currentEditor->curPtr;
+    }
     if (!(flags & efPromptOnReplace))
     {
         flags |= efPromptOnReplace;
@@ -248,12 +268,20 @@ static ushort replacePrompt(const TPoint &cursor)
 }
 
 // After a Replace all run: the result in the status line; the prompt bit
-// set only for counting is removed again. Only at the level that started
-// the run.
-static void endReplaceRun()
+// set only for counting is removed again; the window keeps what its undo
+// needs. Only at the level that started the run.
+static void endReplaceRun(TVTermEditWindow &w)
 {
     if (!replaceRun.active || replaceRun.depth != handleDepth)
         return;
+    if (replaceRun.replaced > 0 && w.editor)
+    {
+        w.replaceUndo.valid = true;
+        w.replaceUndo.before = std::move(replaceRun.before);
+        w.replaceUndo.after = editorText(w.editor);
+        w.replaceUndo.cursor = replaceRun.cursor;
+        w.replaceUndo.count = replaceRun.replaced;
+    }
     if (replaceRun.forcedPrompt)
         TEditor::editorFlags &= ~efPromptOnReplace;
     std::string what = quoted(TEditor::findStr);
@@ -267,6 +295,15 @@ static void endReplaceRun()
                     std::to_string(replaceRun.found) + " occurrence(s) of " + what +
                     (replaceRun.stopped ? " (stopped)." : ".") );
     replaceRun = {};
+}
+
+// Ctrl-U or Alt-Backspace (Undo), not inside Ctrl-Q / Ctrl-K.
+static bool isUndo(const TEditor *e, const TEvent &ev)
+{
+    if (ev.what == evCommand)
+        return ev.message.command == cmUndo;
+    return ev.what == evKeyDown && e && e->keyState == 0 &&
+           (ev.keyDown.keyCode == kbCtrlU || ev.keyDown.keyCode == kbAltBack);
 }
 
 // The keys of Find / Replace / Search again (not while the editor waits
@@ -297,9 +334,55 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
     helpCtx = hcEditor;
 }
 
+TColorAttr TVTermEditWindow::mapColor(uchar index)
+{
+    // 7: the selected text of the editor (cpEditor "\x06\x07" in the window
+    // palette); the other parts of the window do not use it.
+    int attr = TVTermApp::settings().editorSelection;
+    if (index == 7 && attr >= 0)
+        return TColorAttr(attr);
+    return TEditWindow::mapColor(index);
+}
+
+bool TVTermEditWindow::undoReplaceAll()
+// The text from before the last Replace all, if nothing changed after it.
+{
+    if (!replaceUndo.valid || !editor)
+        return false;
+    replaceUndo.valid = false;
+    if (editwnd::editorText(editor) != replaceUndo.after)
+        return false;
+    editor->lock();
+    editor->setSelect(0, editor->bufLen, False);
+    editor->insertText(replaceUndo.before.data(), (uint) replaceUndo.before.size(), False);
+    editor->setCurPtr(std::min<uint>(replaceUndo.cursor, editor->bufLen), 0);
+    editor->trackCursor(True);
+    editor->unlock();
+    editwnd::showStatus( "Undone: Replace all (" + std::to_string(replaceUndo.count) +
+                         " replacement(s))." );
+    replaceUndo = {};
+    return true;
+}
+
 void TVTermEditWindow::handleEvent(TEvent &ev)
 {
     closeKeyToCommand(*this, ev);
+    if (editwnd::isUndo(editor, ev))
+    {
+        if (undoReplaceAll())
+        {
+            clearEvent(ev);
+            return;
+        }
+        if (ev.what == evKeyDown && ev.keyDown.keyCode == kbAltBack)
+        {
+            // As in far2l: Alt-Backspace = Undo (Ctrl-Backspace still
+            // deletes the word on the left).
+            ev.what = evCommand;
+            ev.message.command = cmUndo;
+            ev.message.infoPtr = nullptr;
+        }
+    }
     if (ev.what == evKeyDown)
         if (ushort cmd = editwnd::searchKeyCommand(editor, ev.keyDown.keyCode))
         {
@@ -315,7 +398,10 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
         else if ( (TEditor::editorFlags & (efReplaceAll | efDoReplace)) ==
                   (efReplaceAll | efDoReplace) )
         {
+            TEditor *saved = editwnd::currentEditor;
+            editwnd::currentEditor = editor;
             editwnd::startReplaceRun(TEditor::editorFlags);
+            editwnd::currentEditor = saved;
             // Run by the handleEvent call below (one level deeper).
             editwnd::replaceRun.depth = editwnd::handleDepth + 1;
         }
@@ -324,7 +410,7 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     editwnd::currentEditor = editor;
     ++editwnd::handleDepth;
     TEditWindow::handleEvent(ev);
-    editwnd::endReplaceRun();
+    editwnd::endReplaceRun(*this);
     --editwnd::handleDepth;
     editwnd::currentEditor = saved;
 }

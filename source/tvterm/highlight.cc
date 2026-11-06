@@ -636,3 +636,9 @@ bool printBuiltinHighlight(const std::vector<std::string> &names, std::string &o
         out += "\n" + *body;
     return true;
 }
+
+bool parseColorName(const std::string &text, int &attr, std::string &error)
+{
+    using namespace highlightini;
+    return parseColor(words(text), attr, error);
+}

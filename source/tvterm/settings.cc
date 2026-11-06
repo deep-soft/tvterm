@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "profile.h"
+#include "highlight.h"
 
 #include <tvterm/termopts.h>
 
@@ -345,6 +346,19 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseBool(value, settings.windowShadow))
                     invalid("use yes or no"), settings.windowShadow = previous.windowShadow;
             }
+            else if (key == "editor-selection")
+            {
+                // "default" (or empty): tvision's color.
+                std::string v = lower(trim(value)), error;
+                int attr = 0;
+                if (v.empty() || v == "default")
+                    settings.editorSelection = -1;
+                else if (parseColorName(value, attr, error))
+                    settings.editorSelection = attr;
+                else
+                    invalid(error + "; e.g. black on bright-green, or default"),
+                    settings.editorSelection = previous.editorSelection;
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -523,6 +537,10 @@ std::string settingsTemplate()
         "  # Viewer): yes or no. With Tile, the shadow of a window falls on the title\n"
         "  # of the window below it. Menus and dialogs always have a shadow.\n"
         " #window-shadow = " + std::string(d.windowShadow ? "yes" : "no") + "\n"
+        "  # Color of the selected text in the editors, also the text found by Find:\n"
+        "  # <color> on <color> (black red green yellow blue magenta cyan white,\n"
+        "  # bright-<color>), e.g. black on bright-green; default: tvision's color.\n"
+        " #editor-selection = default\n"
         "\n"
         "[scrollback]\n"
         "  # Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

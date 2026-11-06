@@ -77,6 +77,11 @@ HighlightRules wordHighlightRules(const std::string &text);
 // The built-in sets, in the format of tvterm.ini.
 const char *builtinHighlightText();
 
+// A color as in the highlight rules ("black on bright-green", "red"): the
+// BIOS attribute (background * 16 + foreground) in 'attr'; false and an
+// 'error' when it is not valid. Also used by tvterm.ini (editor-selection).
+bool parseColorName(const std::string &text, int &attr, std::string &error);
+
 // --print-highlight [NAME...]: the built-in sets (all, or those named, in
 // the given order) in tvterm.ini format, after a header of comments. Returns
 // false, with 'error' set, if a name is not a built-in set.

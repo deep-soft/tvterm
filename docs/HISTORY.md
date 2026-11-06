@@ -110,6 +110,8 @@ E46. Built-in highlight sets cleanup: `zimbra-mta`, `zimbra-mailbox`, `fortigate
 E47. Settings template layout: `##` header, explanations indented by 2 spaces, keys by 1 (` #key = …`)
 E48. Editor Find / Replace: F7 / Ctrl-F, Ctrl-F7 / Ctrl-H, F3 / Shift-F7; "Not found" and the Replace all count in the
      status line; tvision fix: whole words at the end of a line
+E49. Editor: `[general] editor-selection` (color of the selection and of the text found); Ctrl-U / Alt-Backspace right
+     after Replace all undo all of it; Alt-Backspace = Undo
 
 ---
 
@@ -820,6 +822,19 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 - **tvision fix** (E48, `deps/tvision-fixes.cmake`, like `histlist.cpp`): `isWordChar` in `teditor2.cpp` did not count
   tab, LF and CR as word ends, so Whole words only never found a word at the end of a line. The file is copied to the
   build directory with `" \t\n\r!` at the start of the list. Candidate for the tvision PR.
+- **Selection color** (E49): `[general] editor-selection` (`<color> [on <color>]`, the highlight color names,
+  `parseColorName` in `highlight.cc`; `default` / empty = -1: tvision's color). `TVTermEditWindow::mapColor` returns the
+  attribute for index 7 (the editor's selected text: `cpEditor` `"\x06\x07"` → entry 7 of the window palette; the
+  frame, the indicator and the scroll bars use 1–5). Found text is the selection, so it has the same color. At a settings
+  load the visible editors are redrawn with `editor->drawView()` (the window's `drawView` only rewrites its cached
+  buffer). Invalid value: warning, previous value kept.
+- **Undo of Replace all** (E49): tvision's undo is one level and covers only the last replacement. When a Replace all
+  run starts (dialog or Search again), the whole text and the cursor are kept; at its end, if something was replaced,
+  the window keeps `before`, `after` and the count (`replaceUndo`). Ctrl-U / Alt-Backspace (or `cmUndo`), when the text
+  is still `after`: the whole text is replaced by `before` (`insertText` with `allowUndo = False`: no redo), the cursor
+  goes back, `Undone: Replace all (N replacement(s)).`; otherwise the usual undo. Alt-Backspace (tvision: delete word
+  left, like Ctrl-Backspace) becomes `cmUndo`, as in far2l. Two copies of the text per window while the undo is
+  possible.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -924,7 +939,8 @@ source/tvterm/             the application
   transform.cc/.h          Log View transformation sets (E29, E30): [transform <name>] rules (replace, fields), compiled when
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
-  editwnd.cc/.h            editor (Save As, Find, Replace dialogs; F7 / Ctrl-F7 / F3 keys, E48)
+  editwnd.cc/.h            editor (Save As, Find, Replace dialogs; F7 / Ctrl-F7 / F3 keys, E48; selection color,
+                           undo of Replace all, E49)
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
@@ -1406,6 +1422,14 @@ examples/profiles/example.ini
   the dialogs still makes `a.bak`. F3 with nothing searched → Find. Clicks (SGR via `TIOCSTI`) on the three status items
   work. Edit settings: F7 finds `general`. `CSI 104;5u` and `CSI 27;5;104~` (Ctrl-H with modifiers) open Replace; `^H`
   (`tmux send-keys C-h`) and Backspace still delete. UTF-8: `și` found as a whole word, `Și` not (ASCII case folding).
+- Selection color and undo of Replace all (E49), in tmux: the SGR codes before the found text (`capture-pane -e`):
+  default `34;47`, `editor-selection = black on bright-green` → `30;102`; changed in the file while the editor is open
+  (auto-reload) → `default` brings `34;47` back (it did not before the editor was redrawn itself: the window redrew its
+  cached buffer), `pink` → "Settings: 1 problem(s)", the color kept. Replace all `a` → `ZZ` from 2:1 (2 replaced) →
+  Ctrl-U: the text from before, `Undone: Replace all (2 replacement(s)).`, cursor 2:1; a second Ctrl-U changes nothing;
+  Alt-Backspace (`ESC DEL`) the same; a character typed after Replace all → Ctrl-U undoes only it; Alt-Backspace after
+  typing = Undo; Ctrl-Backspace (`CSI 127;5u`) deletes the word on the left; a single Replace → Ctrl-U undoes it. The
+  E48 tests pass again (47).
 
 ## 6. Known limitations
 
@@ -1495,3 +1519,4 @@ examples/profiles/example.ini
 | Built-in highlight cleanup (`far2l-extended`) | E46 | `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to `examples/highlight-sets.ini` (`fail2ban-ro`); `[logview] builtin-highlight = yes \| no` |
 | Template layout (`far2l-extended`) | E47 | Edit settings / `--print-settings` / `examples/tvterm.ini`: `##` header, sections at the margin, explanations `  # …`, keys ` #key = …` (uncommented: indented by 1 space) |
 | Editor Find / Replace (`far2l-extended`) | E48 | F7 / Ctrl-F Find, Ctrl-F7 / Ctrl-H Replace, F3 / Shift-F7 / Ctrl-L again (Case sensitive, Whole words only, Prompt on replace, Replace all); selection as the first text; "Not found" and the Replace all count in the status line; tvision fix for whole words at line ends |
+| Selection color, undo of Replace all (`far2l-extended`) | E49 | `[general] editor-selection` (color of the selection and of the found text, applied at reload); Ctrl-U / Alt-Backspace right after Replace all bring back the whole text; Alt-Backspace = Undo |
