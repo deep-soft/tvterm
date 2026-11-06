@@ -116,6 +116,8 @@ E50. File dialogs: row `[ ] Hidden  Filter  Folder` above the list (hidden files
      `file-dirs`), directories with `/`; `file-filters` default `*.txt *.ini *.log *`
 E51. Editor: multi-level undo and redo (Ctrl-Z / Ctrl-U / Alt-Backspace, Ctrl-Shift-Z / Alt-Shift-Backspace);
      `[general] undo-limit-steps`, `undo-limit-memory`
+E52. Editor keys: Ctrl-Down / Ctrl-Up (next / previous line with text in the cursor's column, with Shift: selection),
+     Alt-F8 Go to line, Alt-D Duplicate line, Alt-W Select word
 
 ---
 
@@ -901,6 +903,21 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   window can be destroyed inside its own `handleEvent`: a flag on the stack set by the destructor stops the rest.
   Keys (`TKey`, not while `keyState` ≠ 0): Ctrl-Z, Ctrl-U, Alt-Backspace, `cmUndo` → undo; Ctrl-Shift-Z,
   Alt-Shift-Backspace → redo (in a plain terminal they arrive without Shift).
+- **Editor keys** (E52, item 45; `editwnd.cc`, `TVTermEditWindow::editorKeys`, called instead of
+  `TEditWindow::handleEvent` for its keys, inside the undo tracking, so Alt-D is one step and the moves end a typing
+  run; `TKey`, not while `keyState` ≠ 0). Ctrl-Down / Ctrl-Up (with Shift, or `selecting` after Ctrl-K B: `smExtend`):
+  from the cursor's visual column `curPos.x`, line by line, the character covering it (`nextCharAndPos`: tabs to the
+  next multiple of 8, wide characters 2 columns) must not be a space or a tab; the cursor goes to that character's
+  start; none → `No other line.`; `trackCursor` centers only when the target was not visible (whole 15 MB file
+  searched in ~0.2 s). Alt-F8: dialog `Line[:column]` (history 107, a line with the cursor's place and the last line);
+  invalid → `messageBox` and the dialog again; past the end → the last line / `charPtr` stops at the line end; the line
+  in the middle (`scrollTo`). Alt-D: the block = the lines from `lineStart(selStart or cursor)` to the line of
+  `selEnd` (or of `selEnd - 1` when `selEnd` is at a line start); `"\n" + block` inserted at the end of its last line
+  with `insertText` (tvision converts the line ends to the file's); the cursor and the selection put back by line in
+  the block + visual column (independent of the converted length). Alt-W: own word test equal to tvision's
+  `getCharType` = 3 (not space, tab, line end or ASCII punctuation; UTF-8 bytes are word bytes); on a non-word
+  character the one on the left is tried; `setCurPtr(start)` + `setCurPtr(end, smExtend)`. tvision's editor uses none of
+  these keys; Log View's Ctrl-Down / Ctrl-Up and the terminals are not touched.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1006,7 +1023,7 @@ source/tvterm/             the application
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As, Find, Replace dialogs; F7 / Ctrl-F7 / F3 keys, E48; selection color,
-                           E49; undo / redo keys, E51)
+                           E49; undo / redo keys, E51; Ctrl-Down / Ctrl-Up, Alt-F8, Alt-D, Alt-W, E52)
   editundo.cc/.h           multi-level undo / redo of the editors (E51): steps found by comparing the text with a copy
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
@@ -1527,6 +1544,22 @@ examples/profiles/example.ini
   Event Viewer cuts the lines; the text checked by the settings test); Settings editor; Ctrl-Z in a terminal still stops
   the shell's job; a mixed CRLF / LF file: select all, Del, undo, save → the same bytes; click ends a step; overwrite
   mode; typing over a selection.
+- Editor keys (E52), in tmux (100×30, `LANG=C.UTF-8`, an editor from a profile, the cursor read from the frame
+  indicator; keys `C-Down`, `C-S-Down`, `M-F8`, `M-d`, `M-w`; selections checked by Del + F2 + the bytes of the file),
+  105 checks: Ctrl-Down / Ctrl-Up over spaces, empty and short lines, `No other line.` at both ends, columns 1 and 3;
+  Ctrl-Shift-Down / Up select (Del removes exactly that), one Ctrl-Z brings it back; typing, Ctrl-Down, typing → two
+  undo steps; a tab (column 9 inside a tab skipped, the `T` after it found), a line of wide characters shorter than the
+  column skipped, the second column of a wide character → its start. Ctrl-K B + Ctrl-Down extends; Ctrl-Q + Ctrl-Down
+  does nothing. Alt-F8: `5`, `5:9`, `99` (last line + message), `2:50` (end of line), `3:50` (empty line), ` 4 : 1 `;
+  `abc`, `0`, `2:0`, `2:`, `-1`, `1x`, `:3` → error, the dialog again, Esc keeps the cursor; empty closes; ↓ history;
+  300 lines: `150` on the middle row, `300`, `2` (top). Alt-D: one line (cursor 3:4), undo one step, redo; two selected
+  lines, again (selection kept on the copy), selection from 1:3 to 2:5 (the copy's selection exactly 3:3–4:5), an
+  upward selection (cursor at the copy's start), the last line without a line end, CRLF, an empty file (`\r\n`, like
+  Enter there). Alt-W: `beta` (then F7 starts with it), the word left of the cursor at the line end, `bar_baz` in
+  `foo.bar_baz-x`, `șir`, spaces / empty line → `No word at the cursor.`; typing over the word, one undo. Settings
+  editor: Alt-F8, Alt-W, Ctrl-Down. A terminal with `cat -v`: the keys still reach it (`^[[1;5B` …). 15 MB (320000
+  lines): Alt-F8 to the end ~0.2 s, Ctrl-Down over the whole file ~0.2 s, Alt-D at the end immediate. In a plain
+  terminal Alt-Shift-D arrives as Alt-D (duplicates too).
 
 ## 6. Known limitations
 
@@ -1620,3 +1653,4 @@ examples/profiles/example.ini
 | Selection color, undo of Replace all (`far2l-extended`) | E49 | `[general] editor-selection` (color of the selection and of the found text, applied at reload); Ctrl-U / Alt-Backspace right after Replace all bring back the whole text; Alt-Backspace = Undo |
 | File dialog row (`far2l-extended`) | E50 | `[ ] Hidden  Filter  Folder` above the list in Open, View file, Save file as, Load Profile (in Editor), Save Profile As: hidden names, several patterns, folder list (Home, Profiles, Settings, `file-dirs`); directories with `/`; `file-filters` default `*.txt *.ini *.log *` |
 | Multi-level undo (`far2l-extended`) | E51 | Ctrl-Z / Ctrl-U / Alt-Backspace undo, Ctrl-Shift-Z / Alt-Shift-Backspace redo, in every editor; steps per typing / deleting run, Enter, paste, cut, Ctrl-Y, Replace, Replace all; undo back to the saved text clears the modified mark; `undo-limit-steps` (500), `undo-limit-memory` (20M) |
+| Editor keys (`far2l-extended`) | E52 | Ctrl-Down / Ctrl-Up (with Shift: selection) to the next / previous line with text in the cursor's column, `No other line.`; Alt-F8 Go to line (`120`, `120:15`, history, centered); Alt-D Duplicate line (or the selection's lines, one undo step); Alt-W Select word |

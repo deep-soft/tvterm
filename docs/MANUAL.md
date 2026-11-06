@@ -479,7 +479,8 @@ not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Clos
 
 **More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
 **F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and
-**Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)).
+**Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
+line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
 
 ### Find and Replace
 
@@ -545,6 +546,42 @@ the left.
   terminals that send keys with their modifiers; in a plain terminal it arrives as Ctrl-Z (Undo). Alt-Shift-Backspace
   the same.
 - Ctrl-Z in a terminal window still goes to the program in it (e.g. the shell's job control); only editors use it.
+
+### Moving and selecting
+
+| Key | Action |
+|---|---|
+| **Ctrl-Down** / **Ctrl-Up** | to the next / previous line that has text in the cursor's column |
+| **Ctrl-Shift-Down** / **Ctrl-Shift-Up** | the same, extending the selection |
+| **Alt-F8** | Go to line |
+| **Alt-D** | Duplicate line: the current line, or the lines of the selection, copied below |
+| **Alt-W** | Select word: the word under the cursor |
+
+The keys work in every tvterm editor (Ctrl-B E, Ctrl-B O, the editors that get lines from Log View, the Settings
+editor). In a terminal window they still go to the program in it; Log View keeps its own Ctrl-Down / Ctrl-Up (the next
+/ previous highlighted line).
+
+- **Ctrl-Down / Ctrl-Up** skip the lines that are shorter than the cursor's column or have a space or a tab there
+  (columns as shown: a tab counts up to the next multiple of 8, a wide character two columns), e.g. to go from one
+  block of a log or a configuration file to the next. On a wide character the cursor goes to its first column. When no
+  such line exists the cursor stays and the status line shows `No other line.` With **Shift** (or after Ctrl-K B) the
+  selection grows up to the new place. They arrive as keys of their own through far2l's extensions (putty4far2l →
+  far2l → tvterm) or terminals that send keys with their modifiers.
+- **Alt-F8 Go to line**: a small dialog with the field **Line[:column]**: `120` or `120:15` (the first line and the
+  first column are 1; spaces around are allowed). Below it: the cursor's place and the last line, e.g. `Now 12:5, last
+  line 340.` A line past the end goes to the last line (`Past the end: last line 340.` in the status line); a column
+  past the end of the line goes to its end. The line goes to the middle of the window. ↓ shows the values used before
+  (kept while tvterm runs). An empty field closes the dialog; anything else (e.g. `abc`, `0`, `12:`) shows an error and
+  the dialog again.
+- **Alt-D Duplicate line**: the copy goes below the line, and the cursor goes to the same column in the copy. With a
+  selection, all its lines are copied below the last one (a selection that ends at the start of a line does not take
+  that line), and the selection moves to the same place in the copy, so Alt-D again adds one more copy. One undo step.
+  The copy uses the file's line ends.
+- **Alt-W Select word**: selects the word under the cursor, or the word just left of it (the cursor right after a
+  word), like a double click; the cursor goes to the end of the word. Words as in Ctrl-Left / Ctrl-Right: letters,
+  digits, `_` and non-ASCII characters; a space, a tab or a punctuation character ends a word. Then F7 / Ctrl-F7 start
+  with the word ([Find and Replace](#find-and-replace)). No word there: `No word at the cursor.` in the status line.
+- The editor's status line does not list these keys (no room).
 
 ### Opening and viewing files
 

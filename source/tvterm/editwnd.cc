@@ -30,6 +30,7 @@
 #include <string.h>
 #include <string>
 #include <algorithm>
+#include <limits.h>
 
 namespace editwnd
 {
@@ -334,6 +335,304 @@ static ushort searchKeyCommand(const TEditor *e, ushort keyCode)
     return 0;
 }
 
+// History list of the Go to line field.
+enum : uchar { hiEditorGoToLine = 107 };
+
+// A word character for Alt-W, as tvision's editor sees words (double
+// click, Ctrl-Left / Ctrl-Right): not a space, tab, line break or
+// punctuation. Bytes of UTF-8 characters count as word characters.
+static bool isWordByte(char c)
+{
+    return c != '\0' && !strchr("\t \n\r!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~", c);
+}
+
+// Moves the cursor of 'e' to 'p' (extending the selection when 'extend'),
+// scrolling only as much as needed, or centering the cursor line when it
+// was not visible.
+static void moveCursor(TEditor &e, uint p, bool extend)
+{
+    e.lock();
+    e.setCurPtr(p, extend ? smExtend : 0);
+    e.trackCursor(Boolean(!e.cursorVisible()));
+    e.unlock();
+}
+
+// The character of the line starting at 'line' that covers the visual
+// column 'col' (tabs expanded, wide characters two columns): its position
+// in 'at'. False when the line is shorter, or the column is a space or tab.
+static bool nonSpaceAt(TEditor &e, uint line, int col, uint &at)
+{
+    uint p = line;
+    int pos = 0;
+    while (p < e.bufLen)
+    {
+        char c = e.bufChar(p);
+        if (c == '\r' || c == '\n')
+            return false;
+        uint start = p;
+        int startPos = pos;
+        if (!e.nextCharAndPos(p, pos) || p == start)
+            return false;
+        if (startPos <= col && col < pos)
+        {
+            at = start;
+            return c != ' ' && c != '\t';
+        }
+        if (startPos > col)
+            return false;
+    }
+    return false;
+}
+
+// Ctrl-Down / Ctrl-Up: the next / previous line with a non-space
+// character in the cursor's column. Returns its position, or false.
+static bool findColumnLine(TEditor &e, bool down, uint &target)
+{
+    int col = e.curPos.x;
+    uint line = e.lineStart(e.curPtr);
+    while (true)
+    {
+        uint next;
+        if (down)
+        {
+            uint end = e.lineEnd(line);
+            if (end >= e.bufLen)
+                return false;
+            next = e.nextChar(end);
+        }
+        else
+        {
+            if (line == 0)
+                return false;
+            next = e.lineStart(e.prevChar(line));
+        }
+        line = next;
+        if (nonSpaceAt(e, line, col, target))
+            return true;
+    }
+}
+
+// Alt-W: selects the word under the cursor (or the one just left of it),
+// the cursor at its end.
+static void selectWord(TEditor &e)
+{
+    uint p = e.curPtr;
+    if (p >= e.bufLen || !isWordByte(e.bufChar(p)))
+    {
+        uint q = p > 0 ? e.prevChar(p) : p;
+        if (q < p && isWordByte(e.bufChar(q)))
+            p = q;
+        else
+        {
+            showStatus("No word at the cursor.");
+            return;
+        }
+    }
+    uint start = p, end = p;
+    while (start > 0)
+    {
+        uint q = e.prevChar(start);
+        if (q >= start || !isWordByte(e.bufChar(q)))
+            break;
+        start = q;
+    }
+    while (end < e.bufLen && isWordByte(e.bufChar(end)))
+        end = e.nextChar(end);
+    e.lock();
+    e.setCurPtr(start, 0);
+    e.setCurPtr(end, smExtend);
+    e.trackCursor(False);
+    e.unlock();
+}
+
+// The line number (0-based) of position 'p' and the position of a line.
+static uint lineIndexOf(TEditor &e, uint p)
+{
+    uint n = 0;
+    for (uint q = e.lineStart(p); q > 0; q = e.lineStart(e.prevChar(q)))
+        ++n;
+    return n;
+}
+
+static uint nextLines(TEditor &e, uint line, uint count)
+{
+    for (uint i = 0; i < count; ++i)
+    {
+        uint end = e.lineEnd(line);
+        if (end >= e.bufLen)
+            break;
+        line = e.nextChar(end);
+    }
+    return line;
+}
+
+// Alt-D: the current line, or the lines of the selection, copied below
+// them. The cursor (and the selection) go to the same place in the copy.
+static void duplicateLines(TEditor &e)
+{
+    uint selA = e.selStart, selB = e.selEnd;
+    bool sel = selA < selB;
+    uint first = e.lineStart(sel ? selA : e.curPtr);
+    uint lastPtr = sel ? selB : e.curPtr;
+    // A selection ending at the start of a line does not take that line.
+    if (sel && lastPtr > first && e.lineStart(lastPtr) == lastPtr)
+        lastPtr = e.prevChar(lastPtr);
+    uint last = e.lineStart(lastPtr);
+    uint end = e.lineEnd(last);
+    // The places to restore in the copy: line within the block, column.
+    struct Mark { uint line; int col; };
+    auto markOf = [&] (uint p) {
+        uint ls = e.lineStart(p);
+        uint n = 0;
+        for (uint q = ls; q > first; q = e.lineStart(e.prevChar(q)))
+            ++n;
+        return Mark {n, e.charPos(ls, p)};
+    };
+    Mark cur = markOf(e.curPtr);
+    Mark a = markOf(sel ? selA : e.curPtr), b = markOf(sel ? selB : e.curPtr);
+    bool curAtStart = sel && e.curPtr == selA;
+    uint blockLines = markOf(last).line + 1;
+
+    std::string text = "\n";
+    for (uint i = first; i < end; ++i)
+        text += e.bufChar(i);
+    e.lock();
+    e.setCurPtr(end, 0);
+    if (!e.insertText(text.data(), (uint) text.size(), False))
+    {
+        e.unlock();
+        return;
+    }
+    uint copy = nextLines(e, first, blockLines);
+    auto ptrOf = [&] (const Mark &m) {
+        return e.charPtr(nextLines(e, copy, m.line), m.col);
+    };
+    if (sel)
+    {
+        uint na = ptrOf(a), nb = ptrOf(b);
+        e.setCurPtr(curAtStart ? nb : na, 0);
+        e.setCurPtr(curAtStart ? na : nb, smExtend);
+    }
+    else
+        e.setCurPtr(ptrOf(cur), 0);
+    e.trackCursor(Boolean(!e.cursorVisible()));
+    e.unlock();
+}
+
+// Parses "line" or "line:column" (1-based, spaces around allowed). Values
+// too large become the largest int.
+static bool parseLineColumn(const char *s, long &line, long &col)
+{
+    auto number = [] (const char *&s, long &v) {
+        while (*s == ' ')
+            ++s;
+        if (*s < '0' || *s > '9')
+            return false;
+        v = 0;
+        while (*s >= '0' && *s <= '9')
+        {
+            if (v < 1000000000L)
+                v = v * 10 + (*s - '0');
+            ++s;
+        }
+        while (*s == ' ')
+            ++s;
+        return true;
+    };
+    col = 0;
+    if (!number(s, line) || line < 1)
+        return false;
+    if (*s == ':')
+    {
+        ++s;
+        if (!number(s, col) || col < 1)
+            return false;
+    }
+    return *s == '\0';
+}
+
+// Alt-F8: Go to line ("120" or "120:15"); past the end: the last line /
+// the end of the line. The line is shown in the middle of the window.
+static void goToLine(TEditor &e)
+{
+    uint curLine = lineIndexOf(e, e.curPtr);
+    uint lastLine = curLine;
+    for (uint end = e.lineEnd(e.curPtr); end < e.bufLen; end = e.lineEnd(e.nextChar(end)))
+        ++lastLine;
+    char text[32] = {};
+    std::string info = "Now " + std::to_string(curLine + 1) + ":" +
+                       std::to_string(e.curPos.x + 1) + ", last line " +
+                       std::to_string(lastLine + 1) + ".";
+    while (true)
+    {
+        TDialog *d = newDialog(42, 9, "Go to line");
+        auto *input = new TInputLine(TRect(3, 3, 36, 4), sizeof(text));
+        d->insert(input);
+        d->insert(new TLabel(TRect(2, 2, 36, 3), "~L~ine[:column]", input));
+        d->insert(new THistory(TRect(36, 3, 39, 4), input, hiEditorGoToLine));
+        d->insert(new TStaticText(TRect(3, 4, 40, 5), info));
+        d->insert(new TButton(TRect(8, 6, 18, 8), "~G~o", cmOK, bfDefault));
+        d->insert(new TButton(TRect(21, 6, 33, 8), "Cancel", cmCancel, bfNormal));
+        d->selectNext(False);
+        if (execDialog(d, text) == cmCancel)
+            return;
+        std::string t = text;
+        while (!t.empty() && t.back() == ' ')
+            t.pop_back();
+        if (t.find_first_not_of(' ') == std::string::npos)
+            return;
+        long line, col;
+        if (parseLineColumn(t.c_str(), line, col))
+        {
+            historyAdd(hiEditorGoToLine, t.c_str());
+            uint target = (uint) std::min<long>(line - 1, lastLine);
+            uint p = nextLines(e, 0, target);
+            if (col > 0)
+                p = e.charPtr(p, (int) std::min<long>(col - 1, INT_MAX));
+            e.lock();
+            e.setCurPtr(p, 0);
+            e.scrollTo( std::max(e.curPos.x - e.size.x + 1, std::min(e.delta.x, e.curPos.x)),
+                        e.curPos.y - e.size.y / 2 );
+            e.unlock();
+            if (line - 1 > (long) lastLine)
+                showStatus("Past the end: last line " + std::to_string(lastLine + 1) + ".");
+            return;
+        }
+        messageBox(mfError | mfOKButton,
+                   "Invalid line \"%s\": use a line number or line:column, e.g. 120 or 120:15.",
+                   t.c_str());
+    }
+}
+
+enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord };
+
+// The keys of 45 (not while the editor waits for the second key of
+// Ctrl-Q / Ctrl-K). 'extend': with Shift (Ctrl-Shift-Down / Up).
+static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
+{
+    extend = false;
+    if (ev.what != evKeyDown || !e || e->keyState != 0)
+        return ekNone;
+    TKey k(ev.keyDown);
+    if (k == TKey(kbDown, kbCtrlShift) || k == TKey(kbDown, kbCtrlShift | kbShift))
+    {
+        extend = (k.mods & kbShift) != 0;
+        return ekColumnDown;
+    }
+    if (k == TKey(kbUp, kbCtrlShift) || k == TKey(kbUp, kbCtrlShift | kbShift))
+    {
+        extend = (k.mods & kbShift) != 0;
+        return ekColumnUp;
+    }
+    if (k == TKey(kbAltF8))
+        return ekGoToLine;
+    if (k == TKey(kbAltD))
+        return ekDuplicate;
+    if (k == TKey(kbAltW))
+        return ekSelectWord;
+    return ekNone;
+}
+
 } // namespace editwnd
 
 TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept :
@@ -390,6 +689,41 @@ bool TVTermEditWindow::undoKeys(TEvent &ev)
     return true;
 }
 
+bool TVTermEditWindow::editorKeys(TEvent &ev)
+{
+    bool extend;
+    editwnd::EditorKey key = editwnd::editorKey(editor, ev, extend);
+    if (key == editwnd::ekNone)
+        return false;
+    clearEvent(ev);
+    TEditor &e = *editor;
+    switch (key)
+    {
+        case editwnd::ekColumnDown:
+        case editwnd::ekColumnUp:
+        {
+            uint target;
+            if (editwnd::findColumnLine(e, key == editwnd::ekColumnDown, target))
+                editwnd::moveCursor(e, target, extend || e.selecting);
+            else
+                editwnd::showStatus("No other line.");
+            break;
+        }
+        case editwnd::ekGoToLine:
+            editwnd::goToLine(e);
+            break;
+        case editwnd::ekDuplicate:
+            editwnd::duplicateLines(e);
+            break;
+        case editwnd::ekSelectWord:
+            editwnd::selectWord(e);
+            break;
+        default:
+            break;
+    }
+    return true;
+}
+
 void TVTermEditWindow::handleEvent(TEvent &ev)
 {
     closeKeyToCommand(*this, ev);
@@ -440,7 +774,8 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     bool *outerFlag = destroyedFlag;
     destroyedFlag = &destroyed;
     ++eventDepth;
-    TEditWindow::handleEvent(ev);
+    if (!editorKeys(ev))
+        TEditWindow::handleEvent(ev);
     if (!destroyed)
     {
         --eventDepth;

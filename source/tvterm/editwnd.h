@@ -25,6 +25,9 @@ public:
     // Ctrl-W closes the window (asks to save the changes). Find / Replace
     // keys: F7 and Ctrl-F (Find), Ctrl-F7 and Ctrl-H (Replace), F3,
     // Shift-F7 and Ctrl-L (Search again); the dialogs are in editwnd.cc.
+    // Also Ctrl-Down / Ctrl-Up (next / previous line with text in the
+    // cursor's column; with Shift the selection grows), Alt-F8 (Go to line),
+    // Alt-D (Duplicate line) and Alt-W (Select word).
     void handleEvent(TEvent &ev) override;
 
     // The selected text of the editor in the color of 'editor-selection'
@@ -56,6 +59,9 @@ private:
     bool *destroyedFlag {nullptr};
 
     bool undoKeys(TEvent &ev);
+    // Ctrl-Down / Ctrl-Up (and with Shift), Alt-F8 Go to line, Alt-D
+    // Duplicate line, Alt-W Select word (editwnd.cc).
+    bool editorKeys(TEvent &ev);
 };
 
 #endif // TVTERM_EDITWND_H
