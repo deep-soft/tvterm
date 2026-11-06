@@ -317,6 +317,14 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 else
                     settings.fileFilters = std::move(filters);
             }
+            else if (key == "file-dirs")
+            {
+                std::vector<std::string> dirs;
+                std::istringstream words(value);
+                for (std::string w; words >> w;)
+                    dirs.push_back(w);
+                settings.fileDirs = std::move(dirs);
+            }
             else if (key == "file-dialog-size")
             {
                 // "120x40"; empty or "none": the size chosen by tvision.
@@ -520,11 +528,15 @@ std::string settingsTemplate()
         "  # --mortal: far2l ends with the window (otherwise it stays in the background).\n"
         " #external-viewer = far2l --mortal -v %f\n"
         " #external-editor = far2l --mortal -e %f\n"
-        "  # Patterns offered by Down in the Name field of the file dialogs (Ctrl-B O,\n"
-        "  # More... View file, the editor's Save file as), separated by spaces, e.g.\n"
-        "  # *.txt *log* *.ini *. The first one is the initial filter of Ctrl-B O and\n"
-        "  # View file. One pattern at a time (* and ?): *.txt|*.log does not work.\n"
+        "  # Filters offered in the Filter list of the file dialogs (and by Down in\n"
+        "  # the Name field of Ctrl-B O, More... View file, the editor's Save file as),\n"
+        "  # separated by spaces, e.g. *.txt *log* *.ini *. The first one is the\n"
+        "  # initial filter of Ctrl-B O and View file. A filter typed in the Filter\n"
+        "  # field can hold several patterns separated by spaces: *.log *.txt\n"
         " #file-filters = " + settingsini::joinWords(d.fileFilters) + "\n"
+        "  # Directories offered in the Folder list of the file dialogs, after Home,\n"
+        "  # Profiles and Settings, separated by spaces ('~' is the home directory).\n"
+        " #file-dirs = ~/logs /var/log\n"
         "  # Size of the file dialogs (Ctrl-B O, More... View file, Save file as, Load /\n"
         "  # Save Profile) when they open, columns x rows; smaller if the screen is\n"
         "  # smaller. Without it, tvision's size. A dialog resized with the mouse (or\n"

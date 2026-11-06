@@ -336,13 +336,37 @@ For example `/var/` + `l` → `lib/`, `local/`, `lock/`, `log/`.
   directory. The list of files of the dialog does not change while you type.
 - Pasted text (Shift-Ins, Ctrl-V) opens the list too. At most 10 rows are shown, with a scroll bar for the rest.
 
-**Filters** (`file-filters` in `tvterm.ini`, [chapter 6](#6-settings-file-tvtermini)). In Open File in Editor, View file
-and the editor's Save file as, **Down** in the name field (with the directory list closed) offers the patterns of
-`file-filters` (default `*.txt *`), besides the names typed before; choose one and press Enter to list those files.
+**The row above the list** (all these dialogs, except the Save dialog of the history and the Log View):
+
+```
+[ ] Hidden  Filter: [*.ini         ]↓  Folder: [~/.config/tvterm/profiles ]↓
+```
+
+- **Hidden** (Alt-H): also lists the files and directories whose names begin with `.`. It stays as you set it in all
+  file dialogs until tvterm exits.
+- **Filter** (Alt-T): the patterns of the listed files (`*` and `?`, upper and lower case differ), several separated by
+  spaces, e.g. `*.log *.txt`. **Enter** lists the files and moves to the list; **Tab** applies a changed filter and moves
+  on. A pattern with `/` is refused. The arrow (or Down in the field) offers the `file-filters` patterns (default
+  `*.txt *.ini *.log *`), then the filters used before (kept until tvterm exits). A pattern typed in the name field with
+  Enter (e.g. `*.log`) changes the filter too.
+- **Folder** (Alt-D): the listed directory, also after you move in the list (`~` is your home directory; a long path
+  shows its end, with `…` in front). Type a directory (absolute, relative to the listed one, or with `~`) and press
+  **Enter** to list it; **Tab** applies a changed one. A directory that does not exist gives "Not a directory" and
+  the text stays selected. The arrow (or Down) offers **Home**, **Profiles** (`~/.config/tvterm/profiles`),
+  **Settings** (`~/.config/tvterm`), then the directories of `file-dirs` in `tvterm.ini` (e.g.
+  `file-dirs = ~/logs /var/log`).
+- Tab goes Name → Hidden → Filter → Folder → the list → the buttons. The row ends where the list ends; when it is too
+  narrow (e.g. the default size on an 80-column screen), Folder is left out and Filter takes the rest. A name typed in
+  the name field stays when Hidden or Filter change.
+- Directories are shown with a trailing `/` (`sub/`, `../`), in the list and in the name field (`sub/*.ini`).
+
+**Filters in the name field** (`file-filters` in `tvterm.ini`, [chapter 6](#6-settings-file-tvtermini)). In Open File
+in Editor, View file and the editor's Save file as, **Down** in the name field (with the directory list closed) also
+offers the patterns of `file-filters`, besides the names typed before; choose one and press Enter to list those files.
 Open File in Editor and View file start with the first pattern (default `*.txt`, so executables and archives are not
-listed; `*` shows everything). Save file as starts with the name of the file. One pattern at a time (`*` and `?`):
-`*.txt|*.log` does not work. Changed patterns are added when `tvterm.ini` is reloaded; names typed in the dialogs are
-kept only while tvterm runs. Load Profile and Save Profile As keep `*.ini` and have their own lists.
+listed; `*` shows everything). Save file as starts with the name of the file and the filter `*`. Changed patterns are
+added when `tvterm.ini` is reloaded; names typed in the dialogs are kept only while tvterm runs. Load Profile and Save
+Profile As start with `*.ini` in the profiles directory and have their own name lists.
 
 **Size and columns** (`file-dialog-size`, `file-list-columns` in `tvterm.ini`). Open File in Editor, View file, Save file
 as, Load Profile and Save Profile As open with the size of `file-dialog-size` (e.g. `120x40`, columns x rows; without it,
@@ -560,7 +584,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `large-file` | `5M` | files larger than this ask before they open in tvterm; `K`, `M`, `G` (×1024) or bytes; `0`: never ask ([chapter 5](#opening-and-viewing-files)) |
 | | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
 | | `external-editor` | (none) | program offered for large files, e.g. `far2l --mortal -e %f` |
-| | `file-filters` | `*.txt *` | patterns offered by Down in the name field of Open File in Editor, View file and Save file as, separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
+| | `file-filters` | `*.txt *.ini *.log *` | patterns offered in the Filter list of the file dialogs (and by Down in the name field of Open File in Editor, View file and Save file as), separated by spaces, e.g. `*.txt *log* *.ini *`; the first one is the initial filter of Open and View file ([File dialogs](#file-dialogs)) |
+| | `file-dirs` | (none) | directories offered in the Folder list of the file dialogs after Home, Profiles and Settings, separated by spaces, e.g. `~/logs /var/log` ([File dialogs](#file-dialogs)) |
 | | `file-dialog-size` | (none) | size of the file dialogs when they open, columns x rows, e.g. `120x40` (at least `49x19`); smaller if the screen is smaller; empty or `none`: tvision's size ([File dialogs](#file-dialogs)) |
 | | `file-list-columns` | `2` | columns of the list of files in the file dialogs: `1` (long names whole) or `2` ([File dialogs](#file-dialogs)) |
 | | `editor-selection` | `default` | color of the selected text in the editors (also the text found by Find): `<color>` or `<color> on <color>`, the names of the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-green`; `default`: tvision's color; applies at once to the open editors ([Find and Replace](#find-and-replace)) |

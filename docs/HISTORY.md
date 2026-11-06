@@ -112,6 +112,8 @@ E48. Editor Find / Replace: F7 / Ctrl-F, Ctrl-F7 / Ctrl-H, F3 / Shift-F7; "Not f
      status line; tvision fix: whole words at the end of a line
 E49. Editor: `[general] editor-selection` (color of the selection and of the text found); Ctrl-U / Alt-Backspace right
      after Replace all undo all of it; Alt-Backspace = Undo
+E50. File dialogs: row `[ ] Hidden  Filter  Folder` above the list (hidden files, several patterns, folder list with
+     `file-dirs`), directories with `/`; `file-filters` default `*.txt *.ini *.log *`
 
 ---
 
@@ -277,6 +279,8 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
   is kept).
+  E50: `file-filters` default `*.txt *.ini *.log *`; `[general]` `file-dirs` (directories separated by spaces, kept as
+  written, `~` expanded when chosen; empty: none; not checked at load).
   E42: `[general]` `window-shadow` (`yes` / `no`, default `no`): the shadow of the desktop windows. Before E42 the
   terminals had none (`BasicTerminalWindow`, magiblot) and the Log Views, editors and Event Viewer had tvision's: with
   Tile, the shadow row of a window fell on the title of the window below and dimmed its alert colors (red / yellow).
@@ -796,6 +800,40 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   tvision lists only names, so one column shows long names whole (date and size stay on the info line). **Ctrl-F5**
   becomes `cmResize` (as in the Quit Dialog); F5 does nothing (`TFileDialog` has no `wfZoom`). The Save dialog of the
   history / Log View (`histdlg.cc`) is not changed.
+- **Row of controls in the file dialogs** (E50, item 35): `SizedFileDialog` (`fileopen.cc`) adds, on the empty row
+  between the Name field and the "Files" label, `[ ] Hidden` (Alt-H), `Filter:` (Alt-T) and `Folder:` (Alt-D), each
+  field with an arrow list (`ItemListButton`: a `THistory` with its own items, like E16; history id 105 is never added
+  to). The row goes from the left edge of the list to its right edge (the first button and its shadow are on the right):
+  Hidden 12 columns, `Filter:` 8, the field 10 (14 when the row is wide) + arrow 3, then `Folder:` 8 + the rest + arrow
+  3 when at least 8 columns are left for its field; otherwise Folder is hidden and Filter takes the rest.
+  `changeBounds` places them again (with `locate`, which redraws what a moved view uncovers). The views are inserted right
+  after the list, so Tab goes Name → Hidden → Filter → Folder → list; the constructor selects Name again (tvision's
+  initial focus; Name keeps the filter instead of the first file).
+  - **Own list reading**: tvision's `TFileList::readDirectory` is not virtual, hides every name beginning with `.`
+    (`findfrst.cpp`) and takes one pattern. `readList` reads the directory with `opendir` / `stat` (regular files that
+    match one of the patterns, with tvision's `*` / `?` matching and `*.*` = `*`; directories; names with `.` only with
+    Hidden; `..` except at `/`; date packed as tvision's `cvtTime`) and calls `newList` + `cmFileFocused` like tvision.
+    tvision still reads the directory when a pattern or directory is given in the Name field (`TFileDialog::valid`):
+    the overridden `valid` reads it again when tvision changed the list (the collection pointer differs), so the
+    patterns, Hidden and the Folder field follow. The profile dialogs set their directory with
+    `fileopen::setDialogDirectory` (was `fileList->readDirectory`).
+  - The list is a `FileListView` (a `TFileList` whose `getText` adds `/` instead of `\`), replacing tvision's list
+    and its "Files" label (the label links to the view). A directory focused in the list gives `sub/*.ini` in Name
+    (tvision writes `\`; `fixNameField` after the broadcast).
+  - **Filter**: the patterns separated by spaces are kept in `TFileDialog::wildCard` (one space between them; tvision
+    joins it to the directory and the Name field, which still works: `sub/*.log *.ini` + Enter enters `sub`). A pattern
+    with `/` or `\` is refused. Its list: `file-filters`, then the filters applied before (20, newest first, while
+    tvterm runs). **Folder**: shows the directory with `~` (`FolderInputLine` draws `…` + the end of the path while not
+    focused); Enter / Tab / a list item → `setDirectory` (absolute, relative to the listed directory, `~`; `fexpand`
+    removes `..`); not a directory → error box, the text stays selected. List: Home, Profiles (`profileDir`), Settings
+    (the directory of `settingsPath`), `file-dirs`.
+  - Enter in Filter / Folder applies the field and selects the list; Tab / Shift-Tab apply a changed value first (an
+    error keeps the focus). Hidden and Filter keep a name typed in Name (`autoName`: the text the list last put there).
+  - The row's views have `dataSize` 0: `TFileDialog::setData` (Save file as gives the editor's MAXPATH buffer) goes
+    through `TDialog::setData`, which shares the buffer among all fields; with a data size the new fields read past
+    the buffer (seen in the test: Hidden checked and the fields empty in Save file as).
+  - Not changed: the directory completion (`dircompl.cc`, its list still opens over the row), the Save dialog of the
+    history / Log View (`histdlg.cc`), tvision.
 
 ### Editor Find / Replace — `far2l-extended`
 - **Dialogs** (E48, `editwnd.cc`): tvision's `TEditor` already searches and replaces (`find`, `replace`,
@@ -951,7 +989,8 @@ source/tvterm/             the application
   histdlg.cc/.h            search and save dialogs of history mode; openTextSave (the save dialog for Log Views)
   fileopen.cc/.h           opening files (E25): editor, viewer (fixed Log View), large file dialog, external programs;
                            history ids of the file dialogs and `file-filters` (E26); newFileDialog: size and
-                           columns of the file dialogs (E28)
+                           columns of the file dialogs (E28); row Hidden / Filter / Folder, own list reading,
+                           directories with '/' (E50)
   statline.cc/.h           status line (last line) that can show a message for a few seconds or a hint of the top bar;
                            items that send a key when clicked (keyCommand: a command per key, turned into the key event
                            in putEvent)
@@ -1430,6 +1469,19 @@ examples/profiles/example.ini
   Alt-Backspace (`ESC DEL`) the same; a character typed after Replace all → Ctrl-U undoes only it; Alt-Backspace after
   typing = Undo; Ctrl-Backspace (`CSI 127;5u`) deletes the word on the left; a single Replace → Ctrl-U undoes it. The
   E48 tests pass again (47).
+- File dialog row (E50), in tmux (`HOME=/tmp/th`, a directory with `a.txt`, `b.log`, `c.ini`, `d.md`, `.hidden.txt`, a
+  name with spaces, `sub1/`, `.hiddendir/`; profiles `p1.ini`, `.hp.ini`), 59 checks: the row at 120×40 (79-column
+  dialog), `sub1/` and `../`, no hidden names; initial focus on Name (`*.txt`), Tab order (cursor positions); Alt-H
+  shows / hides `.hidden.txt` and `.hiddendir/`, kept in the next dialog; Filter `*.txt *.log` + Enter → `b.log` too,
+  focus on the list; a name typed in Name stays after Hidden; Filter list (`file-filters` + used), Folder list (Home,
+  Profiles, Settings); Profiles from the list, `/tmp/th/logs` typed, `/nonexistent` → error, Tab applies `sub1`; Enter on
+  `../`; Name `*.log` + Enter → Filter `*.log`; `sub1/*.log *.ini` in Name, Enter enters `sub1` keeping both patterns;
+  `x/*.log` refused; Open a file; Load Profile (`*.ini`, `.hp.ini` only with Hidden), Folder → Settings; Save Profile
+  As; editor Save file as (Filter `*`, Folder `~/work`, Hidden off: before `dataSize` 0 it showed Hidden checked and
+  empty fields), typed name kept, Folder `~/logs` + save writes the file. 80×25: Folder left out, Filter to the list's
+  edge; Ctrl-F5 smaller / larger: Folder hidden / shown, no stale characters (before `locate`: `▐▐↓▌`). `tvterm.ini`
+  `file-dirs = ~/logs /var/log /nonexist` (+ `file-dialog-size = 110x30`, one column): in the list, `/nonexist` → error,
+  `/var/log` listed, no Event Viewer warning; directory completion (`su`) still opens over the row.
 
 ## 6. Known limitations
 
@@ -1520,3 +1572,4 @@ examples/profiles/example.ini
 | Template layout (`far2l-extended`) | E47 | Edit settings / `--print-settings` / `examples/tvterm.ini`: `##` header, sections at the margin, explanations `  # …`, keys ` #key = …` (uncommented: indented by 1 space) |
 | Editor Find / Replace (`far2l-extended`) | E48 | F7 / Ctrl-F Find, Ctrl-F7 / Ctrl-H Replace, F3 / Shift-F7 / Ctrl-L again (Case sensitive, Whole words only, Prompt on replace, Replace all); selection as the first text; "Not found" and the Replace all count in the status line; tvision fix for whole words at line ends |
 | Selection color, undo of Replace all (`far2l-extended`) | E49 | `[general] editor-selection` (color of the selection and of the found text, applied at reload); Ctrl-U / Alt-Backspace right after Replace all bring back the whole text; Alt-Backspace = Undo |
+| File dialog row (`far2l-extended`) | E50 | `[ ] Hidden  Filter  Folder` above the list in Open, View file, Save file as, Load Profile (in Editor), Save Profile As: hidden names, several patterns, folder list (Home, Profiles, Settings, `file-dirs`); directories with `/`; `file-filters` default `*.txt *.ini *.log *` |

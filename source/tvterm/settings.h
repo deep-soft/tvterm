@@ -36,7 +36,10 @@ struct Settings
     std::string externalEditor;
     // Patterns offered in the Name field of the file dialogs (its history);
     // the first one is the initial filter of Ctrl-B O and View file.
-    std::vector<std::string> fileFilters {"*.txt", "*"};
+    std::vector<std::string> fileFilters {"*.txt", "*.ini", "*.log", "*"};
+    // file-dirs: directories offered in the Folder list of the file
+    // dialogs, after Home, Profiles and Settings (as written; '~' allowed).
+    std::vector<std::string> fileDirs;
     // Size of the file dialogs when they open (columns x rows); 0: the size
     // chosen by tvision. Made smaller to fit the screen.
     int fileDialogWidth {0};

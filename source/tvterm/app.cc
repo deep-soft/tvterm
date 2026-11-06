@@ -1245,9 +1245,7 @@ static TFileDialog *newDialog(const std::string &dir, const char *title,
     if (path.back() != '/')
         path += '/';
     // Names typed in the dialog are relative to 'directory'.
-    delete[] (char *) d->directory;
-    d->directory = newStr(path.c_str());
-    d->fileList->readDirectory(d->directory, d->wildCard);
+    fileopen::setDialogDirectory(d, path);
     return d;
 }
 

@@ -55,8 +55,19 @@ std::string firstFileFilter();
 // 'file-dialog-size' and the columns of 'file-list-columns' (tvterm.ini).
 // A dialog resized by the user gives its size to the next ones, until
 // tvterm exits or 'file-dialog-size' changes.
+//
+// Above the list of files, one row: [ ] Hidden (names beginning with '.'),
+// Filter (patterns separated by spaces; its list: 'file-filters' and the
+// filters used before) and Folder (the listed directory; its list: Home,
+// Profiles, Settings and 'file-dirs'). Enter in Filter or Folder applies
+// it and moves to the list; Tab applies a changed value. Folder is left
+// out when the row is too narrow. Hidden and the filters used before are
+// kept until tvterm exits. Directories are listed with '/'.
 TFileDialog *newFileDialog(const std::string &wildCard, const char *title,
                            unsigned short options, unsigned char histId);
+
+// Lists 'dir' in a dialog made by newFileDialog with fdNoLoadDir.
+void setDialogDirectory(TFileDialog *d, const std::string &dir);
 
 // The path quoted for the shell ('...', with ' written as '\'').
 std::string shellQuote(const std::string &path);
