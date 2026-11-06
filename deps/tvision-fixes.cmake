@@ -35,3 +35,30 @@ else()
     message(STATUS "tvision fix for histlist.cpp not needed (source already changed)")
 endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_TV_SRC}")
+
+# teditor2.cpp: "Whole words only" in the editor's Find / Replace. isWordChar
+# lists the characters that end a word, without tab, LF and CR, so a word at
+# the end of a line (or before a tab) was never found as a whole word. The
+# three characters are added to the list.
+
+set(_TV_SRC2 "${CMAKE_CURRENT_LIST_DIR}/tvision/source/tvision/teditor2.cpp")
+set(_TV_FIXED2 "${CMAKE_CURRENT_BINARY_DIR}/tvision-fixed/teditor2.cpp")
+file(READ "${_TV_SRC2}" _tv_text)
+string(REPLACE "return strchr(\" !" "return strchr(\" \\t\\n\\r!" _tv_new "${_tv_text}")
+if (NOT _tv_new STREQUAL _tv_text)
+    file(WRITE "${_TV_FIXED2}.tmp" "${_tv_new}")
+    configure_file("${_TV_FIXED2}.tmp" "${_TV_FIXED2}" COPYONLY)
+    get_target_property(_tv_sources tvision SOURCES)
+    list(FIND _tv_sources "${_TV_SRC2}" _tv_index)
+    if (_tv_index EQUAL -1)
+        message(WARNING "tvision fix: teditor2.cpp not found among the tvision sources; not applied")
+    else()
+        list(REMOVE_AT _tv_sources ${_tv_index})
+        list(APPEND _tv_sources "${_TV_FIXED2}")
+        set_property(TARGET tvision PROPERTY SOURCES ${_tv_sources})
+        message(STATUS "Applied tvision fix: teditor2.cpp (whole words at the end of a line)")
+    endif()
+else()
+    message(STATUS "tvision fix for teditor2.cpp not needed (source already changed)")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_TV_SRC2}")

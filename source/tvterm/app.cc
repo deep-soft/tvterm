@@ -476,6 +476,10 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
+            // The keys are handled by the editor window (editwnd.cc).
+            *new TStatusItem("~F7~ Find", kbNoKey, cmFind) +
+            *new TStatusItem("~Ctrl-F7~ Replace", kbNoKey, cmReplace) +
+            *new TStatusItem("~F3~ Next", kbNoKey, cmSearchAgain) +
             *new TStatusItem("~Ctrl-Ins~ Copy", kbNoKey, 0) +
             *new TStatusItem("~Shift-Ins~ Paste", kbNoKey, 0) +
             *new TStatusItem("~Shift-Del~ Cut", kbNoKey, 0) +

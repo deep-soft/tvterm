@@ -17,11 +17,13 @@ public:
 
     TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept;
 
-    // Ctrl-W closes the window (asks to save the changes).
+    // Ctrl-W closes the window (asks to save the changes). Find / Replace
+    // keys: F7 and Ctrl-F (Find), Ctrl-F7 and Ctrl-H (Replace), F3,
+    // Shift-F7 and Ctrl-L (Search again); the dialogs are in editwnd.cc.
     void handleEvent(TEvent &ev) override;
 
     // Must be called once at startup: installs the dialogs used by the
-    // editor (Save As, 'file modified', errors...).
+    // editor (Save As, Find, Replace, 'file modified', errors...).
     static void initEditorDialogs();
 };
 

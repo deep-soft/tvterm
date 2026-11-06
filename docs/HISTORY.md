@@ -108,6 +108,8 @@ E45. Tile in N Columns / Rows (More...), profile `layout = columns N` / `rows N`
 E46. Built-in highlight sets cleanup: `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to
      `examples/highlight-sets.ini`; `[logview] builtin-highlight = no`
 E47. Settings template layout: `##` header, explanations indented by 2 spaces, keys by 1 (` #key = …`)
+E48. Editor Find / Replace: F7 / Ctrl-F, Ctrl-F7 / Ctrl-H, F3 / Shift-F7; "Not found" and the Replace all count in the
+     status line; tvision fix: whole words at the end of a line
 
 ---
 
@@ -793,6 +795,32 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   becomes `cmResize` (as in the Quit Dialog); F5 does nothing (`TFileDialog` has no `wfZoom`). The Save dialog of the
   history / Log View (`histdlg.cc`) is not changed.
 
+### Editor Find / Replace — `far2l-extended`
+- **Dialogs** (E48, `editwnd.cc`): tvision's `TEditor` already searches and replaces (`find`, `replace`,
+  `doSearchReplace`, Ctrl-Q F / Ctrl-Q A / Ctrl-L), but asks the program for the dialogs through `editorDialog`;
+  `edFind`, `edReplace` and `edReplacePrompt` were not handled (the keys did nothing). Find: Text to find (history id
+  105), Case sensitive, Whole words only. Replace: also New text (id 106), Prompt on replace, Replace all. The other bits
+  of `TEditor::editorFlags` are kept (`efBackupFiles`: Save still makes `name.bak`); Find clears `efReplaceAll`
+  (otherwise `TEditor::find` would run to the last occurrence). An empty text = Cancel. The field starts with the
+  selection when it is on one line and shorter than `maxFindStrLen` (80); otherwise with `TEditor::findStr` (static:
+  shared by all the editors). The texts are added to the histories by the dialog (`historyAdd`): `THistory` records only
+  when the field loses the focus.
+- **Keys** (E48): `TVTermEditWindow::handleEvent` turns F7 / Ctrl-F into `cmFind`, Ctrl-F7 / Ctrl-H into `cmReplace`,
+  F3 / Shift-F7 / Ctrl-L into `cmSearchAgain` (not while the editor waits for the second key of Ctrl-Q / Ctrl-K,
+  `keyState`); `cmSearchAgain` with no text yet → `cmFind`. Ctrl-F (Word right) and Ctrl-H (Backspace) of tvision's
+  table are replaced; a plain `^H` byte is decoded by tvision as `kbBack`, so only far2l's extensions or keys with
+  modifiers (`CSI 104;5u`) give `kbCtrlH`. Status line (`hcEditor`): `F7 Find`, `Ctrl-F7 Replace`, `F3 Next`
+  (commands, clickable). The Settings editor inherits all of it.
+- **Messages** (E48): `edSearchFailed` → `Not found: "x".` in the status line (before: an error box). Replace all:
+  `doSearchReplace` gives no callback at the end, so the run is counted in `edReplacePrompt`; without Prompt on replace
+  the prompt bit is set for the run and every prompt is answered Yes without a box, then removed again. The result is
+  shown when the `handleEvent` call that started the run ends (`handleDepth`: a modal box inside it lets broadcasts
+  reach the editor windows again, so inner calls must not end the run). The prompt box is placed at the bottom of the
+  desktop when the cursor is in the upper half, otherwise at the top.
+- **tvision fix** (E48, `deps/tvision-fixes.cmake`, like `histlist.cpp`): `isWordChar` in `teditor2.cpp` did not count
+  tab, LF and CR as word ends, so Whole words only never found a word at the end of a line. The file is copied to the
+  build directory with `" \t\n\r!` at the start of the list. Candidate for the tvision PR.
+
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
   `Alerts: N (Ctrl-B G)` counter drawn over the right end covers it less often).
@@ -896,7 +924,7 @@ source/tvterm/             the application
   transform.cc/.h          Log View transformation sets (E29, E30): [transform <name>] rules (replace, fields), compiled when
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
-  editwnd.cc/.h            editor (Save As dialogs etc.)
+  editwnd.cc/.h            editor (Save As, Find, Replace dialogs; F7 / Ctrl-F7 / F3 keys, E48)
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
@@ -1365,6 +1393,20 @@ examples/profiles/example.ini
   uncommented (` #x` → ` x`, `#[` → `[`, 46 keys, `menu-key = Ctrl-X`) → no notes, Ctrl-X opens the menu (the indented
   values are read); `examples/tvterm.ini` as `tvterm.ini` → no notes.
 
+- Editor Find / Replace (E48), in tmux (120×40, an editor from a profile with 4 lines `line one alpha`, `Beta alpha
+  gamma`, `alphabet soup`, `ALPHA end`; the cursor read from the frame indicator `L:C`): F7 → dialog, `alpha` → 1:15;
+  F3 → 2:11, Shift-F7 → 3:6, Ctrl-L → 4:6, F3 → `Not found: "alpha".` in the status line, no box, cursor kept; Case
+  sensitive + Whole words → 1:15 (failed before the tvision fix: the word at the end of the line), 2:11, then not
+  found; Ctrl-F and Ctrl-Q F open Find with the options kept; ↓ shows the history; an empty text closes the dialog.
+  Replace: Prompt checked at first; Replace all without prompt (whole words) → 3 replaced, `Replaced 3 occurrence(s)`,
+  Prompt still unchecked afterwards; with prompt Y / N / Y / N → `Replaced 2 of 4` (the count was 0 of 1 before
+  `handleDepth`: broadcasts during the box ended the run); Y + Esc → `(stopped)`; one Replace + F3 → the next one;
+  `zzz` → Not found; F3 after Replace all repeats it on new text. The prompt box is below the cursor line when the cursor
+  is high and above it when low. The selection `Beta` fills the field; a selection over two lines does not. Save after
+  the dialogs still makes `a.bak`. F3 with nothing searched → Find. Clicks (SGR via `TIOCSTI`) on the three status items
+  work. Edit settings: F7 finds `general`. `CSI 104;5u` and `CSI 27;5;104~` (Ctrl-H with modifiers) open Replace; `^H`
+  (`tmux send-keys C-h`) and Backspace still delete. UTF-8: `și` found as a whole word, `Și` not (ASCII case folding).
+
 ## 6. Known limitations
 
 - The vertical block marker does not survive a trip through Windows (only between far2l instances in the same tvterm).
@@ -1377,7 +1419,8 @@ examples/profiles/example.ini
 - Log View: the scroll bar counts lines, not wrapped rows; a search finds the first match of each line (F3 goes to the next
   line); restarting a source with `tail -n N` shows those N lines again; the regular expressions of the history search
   (ECMAScript) and of the Log View (POSIX, like `grep -E`) differ in details (e.g. `\d` only in ECMAScript).
-- tvision (for a PR to magiblot): `histlist.cpp` memcpy → memmove (fixed locally, commit 22); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
+- tvision (for a PR to magiblot): `histlist.cpp` memcpy → memmove (fixed locally, commit 22); `teditor2.cpp`
+  `isWordChar` without tab / LF / CR (fixed locally, E48); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
   → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators;
   `fmtstr.cpp` `vFormatStr`: GCC 15 + fortify-headers (Alpine) warn about `vsprintf` → proposal `vsnprintf(buf, n + 1, …)`.
 
@@ -1451,3 +1494,4 @@ examples/profiles/example.ini
 | Tile in N (`far2l-extended`) | E45 | More... Tile in N Columns / Rows (1–20, last value proposed), windows in open order, N lowered below 16 × 6 with a note; profile `layout = columns N` / `rows N` |
 | Built-in highlight cleanup (`far2l-extended`) | E46 | `zimbra-mta`, `zimbra-mailbox`, `fortigate` and the RO rule of `fail2ban` moved to `examples/highlight-sets.ini` (`fail2ban-ro`); `[logview] builtin-highlight = yes \| no` |
 | Template layout (`far2l-extended`) | E47 | Edit settings / `--print-settings` / `examples/tvterm.ini`: `##` header, sections at the margin, explanations `  # …`, keys ` #key = …` (uncommented: indented by 1 space) |
+| Editor Find / Replace (`far2l-extended`) | E48 | F7 / Ctrl-F Find, Ctrl-F7 / Ctrl-H Replace, F3 / Shift-F7 / Ctrl-L again (Case sensitive, Whole words only, Prompt on replace, Replace all); selection as the first text; "Not found" and the Replace all count in the status line; tvision fix for whole words at line ends |

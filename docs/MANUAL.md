@@ -454,6 +454,38 @@ is wider than 100 columns. **F2** saves (an untitled editor asks for a name);
 not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
 
 **More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
+**F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)).
+
+### Find and Replace
+
+| Key | Action |
+|---|---|
+| **F7**, **Ctrl-F**, Ctrl-Q F | Find |
+| **Ctrl-F7**, **Ctrl-H**, Ctrl-Q A | Replace |
+| **F3**, **Shift-F7**, Ctrl-L | Search again: the last Find or Replace, from the cursor |
+
+The items `F7 Find`, `Ctrl-F7 Replace` and `F3 Next` of the status line can be clicked too. The keys work in every
+editor, also in the Settings editor (Edit settings).
+
+- **Find**: Text to find (↓: the texts used before), Case sensitive, Whole words only. The search starts at the cursor
+  and goes towards the end of the file (it does not wrap around and does not search backwards); the text found is
+  selected.
+- **Replace**: Text to find, New text (each with its own ↓ list), Case sensitive, Whole words only, Prompt on replace
+  (checked at first), Replace all. With Prompt on replace, a box asks **Replace this occurrence?** (Yes / No / Cancel),
+  at the bottom or at the top of the screen, away from the line of the cursor. Without Replace all, one occurrence is
+  replaced; F3 goes on with the next one. **Replace all** goes from the cursor to the end of the file; the status line
+  then shows `Replaced 3 occurrence(s) of "alpha".`, or with Prompt on replace `Replaced 2 of 4 occurrence(s) of
+  "alpha".` (`(stopped)` after Cancel).
+- The Text to find field starts with the **selected text**, when the selection is on one line (at most 79 bytes);
+  otherwise with the last text searched. An empty text does nothing.
+- **Not found**: `Not found: "alpha".` in the status line (no box); the cursor stays where it was.
+- F3 before any search opens Find. After a Replace, F3 repeats the replace (with Replace all: all of them again).
+- The texts and the options are the same for all the editors and are kept while tvterm runs (not saved).
+- Without Case sensitive only the ASCII letters are folded (`ș` does not match `Ș`). Whole words: a word ends at a
+  space, a tab, the end of the line or a punctuation character.
+- **Ctrl-F** and **Ctrl-H** were Word right and Backspace in tvision's editor: Ctrl-Right and Backspace still do that.
+  Ctrl-H arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or terminals that
+  send keys with their modifiers; in a plain terminal Ctrl-H is the Backspace character, and it deletes as before.
 
 ### Opening and viewing files
 
@@ -1248,4 +1280,5 @@ Mind the trailing space: `policyid=37 ` (in quotes) does not match `policyid=370
 - Log View: the scroll bar counts lines, not wrapped rows; a search finds the first match of each line; restarting a
   `tail -n N` source shows those N lines again.
 - The top bar does nothing while a dialog or a menu is open.
+- Editor: **Ctrl-H** (Replace) works only through far2l's extensions; in a plain terminal it is Backspace. Use Ctrl-F7.
 - On a narrow screen the top bar drops `Alerts: N`, then `WinList`, then `Ctrl-B Menu`, to keep the desktop buttons.
