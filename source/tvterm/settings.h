@@ -52,6 +52,10 @@ struct Settings
     // editor-selection: color of the selected text in the editors (also the
     // text found by Find), a BIOS attribute; -1: tvision's color.
     int editorSelection {-1};
+    // undo-limit-steps / undo-limit-memory: the undo steps kept per editor
+    // (the oldest are dropped over a limit); memory in bytes, 0: no limit.
+    int undoLimitSteps {500};
+    long long undoLimitMemory {20LL * 1024 * 1024};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

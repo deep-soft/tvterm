@@ -367,6 +367,16 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                     invalid(error + "; e.g. black on bright-green, or default"),
                     settings.editorSelection = previous.editorSelection;
             }
+            else if (key == "undo-limit-steps")
+            {
+                if (!parseInt(value, 1, 100000, settings.undoLimitSteps))
+                    invalid("1 to 100000"), settings.undoLimitSteps = previous.undoLimitSteps;
+            }
+            else if (key == "undo-limit-memory")
+            {
+                if (!parseSize(value, settings.undoLimitMemory))
+                    invalid("e.g. 20M, 500K, 1G or 0"), settings.undoLimitMemory = previous.undoLimitMemory;
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -553,6 +563,12 @@ std::string settingsTemplate()
         "  # <color> on <color> (black red green yellow blue magenta cyan white,\n"
         "  # bright-<color>), e.g. black on bright-green; default: tvision's color.\n"
         " #editor-selection = default\n"
+        "  # Undo in the editors (Ctrl-Z, Ctrl-U, Alt-Backspace; Redo: Ctrl-Shift-Z,\n"
+        "  # Alt-Shift-Backspace): the steps kept per editor (1 to 100000) and the\n"
+        "  # memory they may use (K, M or G; 0: no limit). Over a limit, the oldest\n"
+        "  # steps are dropped.\n"
+        " #undo-limit-steps = " + std::to_string(d.undoLimitSteps) + "\n"
+        " #undo-limit-memory = " + sizeName(d.undoLimitMemory) + "\n"
         "\n"
         "[scrollback]\n"
         "  # Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

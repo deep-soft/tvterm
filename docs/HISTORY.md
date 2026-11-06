@@ -114,6 +114,8 @@ E49. Editor: `[general] editor-selection` (color of the selection and of the tex
      after Replace all undo all of it; Alt-Backspace = Undo
 E50. File dialogs: row `[ ] Hidden  Filter  Folder` above the list (hidden files, several patterns, folder list with
      `file-dirs`), directories with `/`; `file-filters` default `*.txt *.ini *.log *`
+E51. Editor: multi-level undo and redo (Ctrl-Z / Ctrl-U / Alt-Backspace, Ctrl-Shift-Z / Alt-Shift-Backspace);
+     `[general] undo-limit-steps`, `undo-limit-memory`
 
 ---
 
@@ -279,6 +281,8 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `external-viewer`, `external-editor` (commands, `%f` = the path quoted for the shell).
   E26: `[general]` `file-filters` (patterns separated by spaces, default `*.txt *`; empty: invalid, the previous value
   is kept).
+  E51: `[general]` `undo-limit-steps` (1–100000, default `500`), `undo-limit-memory` (`parseSize`, default `20M`,
+  `0` = no limit); invalid value: warning, previous value kept.
   E50: `file-filters` default `*.txt *.ini *.log *`; `[general]` `file-dirs` (directories separated by spaces, kept as
   written, `~` expanded when chosen; empty: none; not checked at load).
   E42: `[general]` `window-shadow` (`yes` / `no`, default `no`): the shadow of the desktop windows. Before E42 the
@@ -872,7 +876,31 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   is still `after`: the whole text is replaced by `before` (`insertText` with `allowUndo = False`: no redo), the cursor
   goes back, `Undone: Replace all (N replacement(s)).`; otherwise the usual undo. Alt-Backspace (tvision: delete word
   left, like Ctrl-Backspace) becomes `cmUndo`, as in far2l. Two copies of the text per window while the undo is
-  possible.
+  possible. Replaced by E51.
+- **Multi-level undo / redo** (E51, `editundo.cc/.h`, item 44): tvision's `TEditor` is not changed and cannot be
+  extended for this (`insertBuffer`, through which every change goes, is not virtual; `TEditWindow` creates its own
+  `TFileEditor`). `TVTermEditWindow::handleEvent` calls `EditUndo::before` / `after` around the events that can change
+  the text (`evKeyDown`, `evCommand`, `evMouseDown`; not `cmClose`, not inside a modal box opened by the window:
+  `eventDepth`). The text is compared with a copy of it (`shadow`, the text after the last event): common prefix and
+  suffix with `memcmp` in blocks over the two parts of the gap buffer (~2.8 ms per key for 15 MB). The difference is
+  the step: position, removed text, inserted text, cursor before / after. For a typed or deleted character the prefix
+  is limited to the cursor (before or after the key), so that among equal characters the change is put at the cursor
+  and joins the step. Joining: typing (printable keys, overwrite too) at the end of the last step; deleting (Backspace,
+  Del, Ctrl-G, Ctrl-Backspace, Ctrl-T, Ctrl-Del, without a selection) on its left or right; only while the step is open
+  (a cursor move without a change, a save, an undo or redo closes it). Everything else is a step of its own (Enter,
+  `kbPaste`, `cmPaste`, cut, Ctrl-Y, Replace, Replace all: the count from `endReplaceRun` → `replaceAllCount`, for the
+  messages). Changes made outside the events (Log View `appendToEditor`) are found by `before` and become a step.
+  Undo / redo replace the range with `insertBuffer(…, allowUndo = False)`; tvision converts the line ends of inserted
+  text to the editor's, so the text is inserted in parts with `lineEndingType` set to each part's line ends (mixed
+  files come back byte for byte); `insertBuffer` counts the converted length from its pointer and ignores the offset,
+  so each part is passed as a pointer with offset 0. tvision's own `delCount` / `insCount` are reset after an undo.
+  Saved state: `!modified` after an event → `savedPos = pos`; undo / redo set `modified` from `pos == savedPos`
+  (unreachable after a new branch or dropped steps: -1). Limits: `std::deque` of steps; over `undo-limit-steps` /
+  `undo-limit-memory` (removed + inserted + `sizeof(Step)`) the oldest steps are dropped (only the newest redo steps
+  when nothing is left to undo); set at the window's creation and at each settings load (`applyUndoLimits`). The
+  window can be destroyed inside its own `handleEvent`: a flag on the stack set by the destructor stops the rest.
+  Keys (`TKey`, not while `keyState` ≠ 0): Ctrl-Z, Ctrl-U, Alt-Backspace, `cmUndo` → undo; Ctrl-Shift-Z,
+  Alt-Shift-Backspace → redo (in a plain terminal they arrive without Shift).
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -978,7 +1006,8 @@ source/tvterm/             the application
                            tvterm.ini is read; transformLine (the text shown)
   procinfo.cc/.h           /proc helpers: readLink, readCommandLine, describeForeground (what runs in a terminal)
   editwnd.cc/.h            editor (Save As, Find, Replace dialogs; F7 / Ctrl-F7 / F3 keys, E48; selection color,
-                           undo of Replace all, E49)
+                           E49; undo / redo keys, E51)
+  editundo.cc/.h           multi-level undo / redo of the editors (E51): steps found by comparing the text with a copy
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
@@ -1482,6 +1511,22 @@ examples/profiles/example.ini
   edge; Ctrl-F5 smaller / larger: Folder hidden / shown, no stale characters (before `locate`: `▐▐↓▌`). `tvterm.ini`
   `file-dirs = ~/logs /var/log /nonexist` (+ `file-dialog-size = 110x30`, one column): in the list, `/nonexist` → error,
   `/var/log` listed, no Event Viewer warning; directory completion (`su`) still opens over the row.
+- Multi-level undo (E51): a C++ test linked with `editundo.cc` and `libtvision.a` (a `TEditor` without an application
+  works: nothing is drawn), 75 checks, also with `-fsanitize=address,undefined`: steps (typing, Enter, typing / deleting
+  switch, cursor move, Del and Backspace joined), redo cleared by a new change, typing among equal characters, change
+  from outside, saved state (after a save, after a new branch), step and memory limits (`0`: none), mixed line ends
+  (CRLF / CR / LF) restored byte for byte (the test fails with the offset passed to `insertBuffer`), CRLF Enter, typing
+  over a selection, 2000 random edits undone and redone completely, `TKey` of Ctrl-Shift-Z / Alt-Shift-Backspace.
+  Settings: a test linked with `settings.cc` (+ a stub for `terminalOptions`): invalid `0`, `100001`, `lots` → the
+  warnings, `100000` / `512K` / `0` accepted, the template lines. In tmux (keys: Ctrl-Shift-Z `CSI 122;6u`,
+  Alt-Shift-Backspace `CSI 127;4u` through `TIOCSTI`, paste `ESC[200~`), 51 checks: Ctrl-Z / Ctrl-U / Alt-Backspace,
+  `Nothing to undo.` / `Nothing to redo.`, ☼ cleared at the starting text, cursor after redo; steps of typing,
+  deleting, Enter, paste, Ctrl-Y, Ctrl-Backspace; Replace all (`Undone:` / `Redone:` messages), a prompted Replace, F3
+  Replace all, each one step; save, undo to the saved text (☼ off, Ctrl-W asks nothing); `undo-limit-steps = 3`, then
+  reloaded with 100 and `undo-limit-memory = 0` on the open editor; invalid values → `Settings: 2 problem(s)` (the
+  Event Viewer cuts the lines; the text checked by the settings test); Settings editor; Ctrl-Z in a terminal still stops
+  the shell's job; a mixed CRLF / LF file: select all, Del, undo, save → the same bytes; click ends a step; overwrite
+  mode; typing over a selection.
 
 ## 6. Known limitations
 
@@ -1499,6 +1544,7 @@ examples/profiles/example.ini
   `isWordChar` without tab / LF / CR (fixed locally, E48); `TFileList::getText` appends `\` after copying up to 255 characters into a 256-byte buffer
   → one byte too many for a directory name of exactly 255 bytes; `hotKeyStr` (tinputli.cpp) receives a null pointer from menu separators;
   `fmtstr.cpp` `vFormatStr`: GCC 15 + fortify-headers (Alpine) warn about `vsprintf` → proposal `vsnprintf(buf, n + 1, …)`.
+  `TEditor::insertBuffer` computes the converted length from `p` instead of `p + offset` (E51 passes offset 0).
 
 ---
 
@@ -1573,3 +1619,4 @@ examples/profiles/example.ini
 | Editor Find / Replace (`far2l-extended`) | E48 | F7 / Ctrl-F Find, Ctrl-F7 / Ctrl-H Replace, F3 / Shift-F7 / Ctrl-L again (Case sensitive, Whole words only, Prompt on replace, Replace all); selection as the first text; "Not found" and the Replace all count in the status line; tvision fix for whole words at line ends |
 | Selection color, undo of Replace all (`far2l-extended`) | E49 | `[general] editor-selection` (color of the selection and of the found text, applied at reload); Ctrl-U / Alt-Backspace right after Replace all bring back the whole text; Alt-Backspace = Undo |
 | File dialog row (`far2l-extended`) | E50 | `[ ] Hidden  Filter  Folder` above the list in Open, View file, Save file as, Load Profile (in Editor), Save Profile As: hidden names, several patterns, folder list (Home, Profiles, Settings, `file-dirs`); directories with `/`; `file-filters` default `*.txt *.ini *.log *` |
+| Multi-level undo (`far2l-extended`) | E51 | Ctrl-Z / Ctrl-U / Alt-Backspace undo, Ctrl-Shift-Z / Alt-Shift-Backspace redo, in every editor; steps per typing / deleting run, Enter, paste, cut, Ctrl-Y, Replace, Replace all; undo back to the saved text clears the modified mark; `undo-limit-steps` (500), `undo-limit-memory` (20M) |

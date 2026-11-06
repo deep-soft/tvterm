@@ -4,6 +4,8 @@
 #define Uses_TEditWindow
 #include <tvision/tv.h>
 
+#include "editundo.h"
+
 #include <string>
 
 // A simple text editor window, meant for notes and as an intermediate
@@ -18,6 +20,7 @@ class TVTermEditWindow : public TEditWindow
 public:
 
     TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept;
+    ~TVTermEditWindow();
 
     // Ctrl-W closes the window (asks to save the changes). Find / Replace
     // keys: F7 and Ctrl-F (Find), Ctrl-F7 and Ctrl-H (Replace), F3,
@@ -32,20 +35,27 @@ public:
     // editor (Save As, Find, Replace, 'file modified', errors...).
     static void initEditorDialogs();
 
-    // Undo of the last Replace all (Ctrl-U / Alt-Backspace right after it):
-    // the text before it, the text after it and the cursor.
-    struct ReplaceUndo
-    {
-        bool valid {false};
-        std::string before, after;
-        uint cursor {0};
-        int count {0};
-    };
-    ReplaceUndo replaceUndo;
+    // Multi-level undo / redo (editundo.h). Undo: Ctrl-Z, Ctrl-U,
+    // Alt-Backspace; Redo: Ctrl-Shift-Z, Alt-Shift-Backspace.
+    EditUndo undoList;
+
+    // [general] undo-limit-steps / undo-limit-memory of tvterm.ini (also
+    // called when the settings are reloaded).
+    void applyUndoLimits();
+
+    // Replacements made by the Replace all of the current event (set by
+    // the editor dialogs, editwnd.cc).
+    int replaceAllCount {0};
 
 private:
 
-    bool undoReplaceAll();
+    // handleEvent calls running (a modal box opened inside one lets
+    // broadcasts reach the window again).
+    int eventDepth {0};
+    // Set when the window is destroyed inside its handleEvent.
+    bool *destroyedFlag {nullptr};
+
+    bool undoKeys(TEvent &ev);
 };
 
 #endif // TVTERM_EDITWND_H

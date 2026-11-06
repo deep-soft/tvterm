@@ -478,7 +478,8 @@ is wider than 100 columns. **F2** saves (an untitled editor asks for a name);
 not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
 
 **More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
-**F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)).
+**F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and
+**Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)).
 
 ### Find and Replace
 
@@ -487,7 +488,6 @@ not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Clos
 | **F7**, **Ctrl-F**, Ctrl-Q F | Find |
 | **Ctrl-F7**, **Ctrl-H**, Ctrl-Q A | Replace |
 | **F3**, **Shift-F7**, Ctrl-L | Search again: the last Find or Replace, from the cursor |
-| **Ctrl-U**, **Alt-Backspace** | Undo; right after Replace all: the whole Replace all |
 
 The items `F7 Find`, `Ctrl-F7 Replace` and `F3 Next` of the status line can be clicked too. The keys work in every
 editor, also in the Settings editor (Edit settings).
@@ -505,11 +505,8 @@ editor, also in the Settings editor (Edit settings).
   otherwise with the last text searched. An empty text does nothing.
 - **Not found**: `Not found: "alpha".` in the status line (no box); the cursor stays where it was.
 - F3 before any search opens Find. After a Replace, F3 repeats the replace (with Replace all: all of them again).
-- **Undo**: tvision's editor has one level of undo (Ctrl-U; Alt-Backspace too, as in far2l; Ctrl-Backspace still
-  deletes the word on the left). Right after a **Replace all** (no change in the text since), Ctrl-U or Alt-Backspace
-  bring back the whole text from before it and the cursor: `Undone: Replace all (3 replacement(s)).` It cannot be
-  redone. After any change in the text, they are the usual Undo (the last change only). A single Replace is undone
-  by the usual Undo.
+- **Undo**: a whole Replace all (or a Replace with its prompts) is one step of undo: `Undone: Replace all (3
+  replacement(s)).`, and it can be redone ([Undo and Redo](#undo-and-redo)).
 - The found text is shown as the **selection**: its color is `editor-selection` in `tvterm.ini` (e.g. `black on
   bright-green`; default: tvision's), for every selection in the editors.
 - The texts and the options are the same for all the editors and are kept while tvterm runs (not saved).
@@ -518,6 +515,36 @@ editor, also in the Settings editor (Edit settings).
 - **Ctrl-F** and **Ctrl-H** were Word right and Backspace in tvision's editor: Ctrl-Right and Backspace still do that.
   Ctrl-H arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or terminals that
   send keys with their modifiers; in a plain terminal Ctrl-H is the Backspace character, and it deletes as before.
+
+### Undo and Redo
+
+| Key | Action |
+|---|---|
+| **Ctrl-Z**, **Ctrl-U**, **Alt-Backspace** | Undo one step |
+| **Ctrl-Shift-Z**, **Alt-Shift-Backspace** | Redo one step |
+
+Every tvterm editor has its own list of steps: Ctrl-B E and Ctrl-B O editors, the editors that get lines from Log
+View, the Settings editor (Edit settings). Ctrl-Y still deletes the line; Ctrl-Backspace still deletes the word on
+the left.
+
+- **Steps.** Typed text is one step until the cursor is moved (with the keys or a click); deleting with Backspace,
+  Del, Ctrl-Backspace or Ctrl-T is one step in the same way. Switching between typing and deleting starts a new step.
+  These are steps of their own: **Enter** (each new line), a paste, a cut, Ctrl-Y, a Replace (with its prompts), a
+  whole Replace all, and lines sent by Log View. Typing over a selection starts a new step (its undo brings the
+  selected text back). After a save, typing starts a new step.
+- **Redo** brings back the steps undone, until something is changed: a new change clears them.
+- **Saved state.** Undoing (or redoing) back to the text that was saved (or opened) clears the modified mark (☼ at the
+  bottom left), and closing the editor then asks nothing. Saving keeps the steps.
+- **Status line:** `Nothing to undo.` / `Nothing to redo.` at the ends of the list; `Undone: Replace all (N
+  replacement(s)).` / `Redone: Replace all (N replacement(s)).` for a Replace all.
+- **Limits** (`tvterm.ini`, `[general]`): `undo-limit-steps` (default `500`) and `undo-limit-memory` (default `20M`,
+  `0`: no limit). Over a limit, the oldest steps are dropped. A step keeps only the part of the text that changed;
+  besides the steps, each editor keeps one copy of its text (to see what an event changed). New limits apply to the
+  open editors when the settings are reloaded.
+- **Ctrl-Shift-Z** arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or
+  terminals that send keys with their modifiers; in a plain terminal it arrives as Ctrl-Z (Undo). Alt-Shift-Backspace
+  the same.
+- Ctrl-Z in a terminal window still goes to the program in it (e.g. the shell's job control); only editors use it.
 
 ### Opening and viewing files
 
@@ -589,6 +616,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `file-dialog-size` | (none) | size of the file dialogs when they open, columns x rows, e.g. `120x40` (at least `49x19`); smaller if the screen is smaller; empty or `none`: tvision's size ([File dialogs](#file-dialogs)) |
 | | `file-list-columns` | `2` | columns of the list of files in the file dialogs: `1` (long names whole) or `2` ([File dialogs](#file-dialogs)) |
 | | `editor-selection` | `default` | color of the selected text in the editors (also the text found by Find): `<color>` or `<color> on <color>`, the names of the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-green`; `default`: tvision's color; applies at once to the open editors ([Find and Replace](#find-and-replace)) |
+| | `undo-limit-steps` | `500` | undo steps kept per editor, 1–100000; over it the oldest steps are dropped ([Undo and Redo](#undo-and-redo)) |
+| | `undo-limit-memory` | `20M` | memory the undo steps of an editor may use: bytes, or a number with K, M or G; `0`: no limit; over it the oldest steps are dropped ([Undo and Redo](#undo-and-redo)) |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
@@ -635,8 +664,8 @@ fewer keys ([Global keys](#global-keys)).
   instances the Settings editor then has a **cyan background** and the title
   `Settings — being edited in another tvterm (pid N)`. A marker older than 10 seconds (e.g. after a crash), or of a
   process that is gone, is ignored and overwritten.
-- When the text is again the text of the file (Ctrl-U, or the changes deleted by hand), the editor has no changes: no
-  marker, no question when it is closed.
+- When the text is again the text of the file (undone with Ctrl-Z, or the changes deleted by hand), the editor has
+  no changes: no marker, no question when it is closed.
 
 ```ini
 [general]

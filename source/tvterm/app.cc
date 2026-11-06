@@ -279,13 +279,17 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     // [general] window-shadow: the desktop windows already open.
     applyWindowShadowToAll();
     // [general] editor-selection: the editors already open (the color is
-    // read when they are drawn, TVTermEditWindow::mapColor).
+    // read when they are drawn, TVTermEditWindow::mapColor); undo-limit-*:
+    // their undo steps.
     if (TProgram::deskTop)
         TProgram::deskTop->forEach([] (TView *v, void *) {
-            // The editor itself: the window keeps a buffer of its last drawing.
             if (auto *w = dynamic_cast<TVTermEditWindow *>(v))
+            {
+                w->applyUndoLimits();
+                // The editor itself: the window keeps a buffer of its last drawing.
                 if ((w->state & sfVisible) && w->editor)
                     w->editor->drawView();
+            }
         }, nullptr);
     // The 'file-filters' patterns, in the lists of the file dialogs.
     fileopen::addFileFilters(currentSettings.fileFilters);
