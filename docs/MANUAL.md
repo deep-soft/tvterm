@@ -128,8 +128,11 @@ The screen has two bars, with the desktop (the windows) between them:
   `D2: 3 windows: mail, logs, bash`); a message comes first. The hints need the mouse moves without a pressed button:
   they come through far2l's extensions; a plain xterm reports moves only while a button is pressed.
 
-Windows are moved with the mouse by their title, resized by their lower right corner and closed with the `[■]` button,
-as in any Turbo Vision program.
+Windows are moved with the mouse by their title, resized by any of their four corners and closed with the `[■]` button,
+as in any Turbo Vision program; with the keyboard: Ctrl-B R (Resize/Move; Ctrl-F5 in dialogs)
+(arrows move, Shift+arrows resize, Ctrl+arrows in larger steps, Enter ends, Esc goes back). The bottom edge of a window
+stops at the status line: a window moved down stops there, one made taller stops growing there (its top row stays). A
+window can still be moved partly off the screen to the left or right.
 
 ### The Ctrl-B menu
 

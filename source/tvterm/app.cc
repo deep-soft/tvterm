@@ -25,6 +25,7 @@
 #include "evntview.h"
 #include "profile.h"
 #include "winlist.h"
+#include "windrag.h"
 #include "procinfo.h"
 #include "quitdlg.h"
 #include "settings.h"
@@ -917,7 +918,27 @@ void TVTermApp::newLogView()
 
 void TVTermApp::getEvent(TEvent &event)
 {
+    // A window being moved or resized stays above the status line (see
+    // windrag.h).
+    windrag::keepAboveStatusLine(*deskTop);
     TApplication::getEvent(event);
+    // The top corners of the focused window resize it. Not while a menu or
+    // another modal view (other than a dialog on the desktop) has the
+    // events.
+    if ( event.what == evMouseDown &&
+         (TopView() == this || TopView() == deskTop->current) &&
+         windrag::handleTopCorner(*deskTop, event) )
+    {
+        clearEvent(event);
+        return;
+    }
+    // Resize/Move with the keyboard (see windrag.h).
+    if ( event.what == evCommand && event.message.command == cmResize &&
+         TopView() == this && windrag::keyboardDrag(*deskTop) )
+    {
+        clearEvent(event);
+        return;
+    }
     // The hints of the top bar follow the mouse.
     if ((event.what & evMouse) && TopBar::instance)
         TopBar::instance->hover(event.mouse.where);

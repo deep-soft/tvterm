@@ -120,6 +120,8 @@ E52. Editor keys: Ctrl-Down / Ctrl-Up (next / previous line with text in the cur
      Alt-F8 Go to line, Alt-D Duplicate line, Alt-W Select word
 E53. Version 0.2.0 (signed tag `v0.2.0`, GitHub Release); `tvterm.ini` format line (`## format 1, created by …`) and a
      note for older files; `DeskList` in the top bar
+E54. Moving / resizing windows: the bottom edge stops at the status line (mouse and Ctrl-F5 / Resize/Move), the top
+     corners resize too
 
 ---
 
@@ -958,6 +960,26 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   open (Enter = Go as before), Alt-F / Tab reach the field; there Up / Down / PgUp / PgDn go to the list and Enter is
   the default button (Go); with no row, Go / Rename / Close are ignored; the text is kept by `execWindowList` while the
   list reopens (Rename, Close).
+- **Moving and resizing windows** (E54): tvision only keeps the title row of a window on the desktop, so a window
+  moved down, or made taller from a bottom corner, could end with its lower part under the status line (and stay so
+  after the button was released). Now, for every window and dialog on the desktop: a window being moved stops when its
+  bottom edge reaches the status line (it stays below the top bar if it is taller than the desktop); one being resized
+  keeps its top row and stops growing there (not below its minimum height). Left and right edges unchanged (a window
+  can still be moved partly off the screen sideways). The two top corners (the two columns at each end of the title
+  row, like the bottom corners in tvision) of the focused window resize it: the top edge with the left or the right
+  edge; the top not above the top bar; the minimum and maximum sizes of the window apply. A double click there still
+  zooms; the `[■]` / zoom buttons and the rest of the title row unchanged; on a window that is not focused the first
+  click only selects it (as for the bottom corners). Maximized terminals (no frame) cannot be dragged, as before.
+  Code (`windrag.cc`): `keepAboveStatusLine` runs at the start of every `TVTermApp::getEvent`; tvision's mouse drag loop
+  (`TView::dragView`) reads its events through it, so the window is corrected after each step, before the screen is
+  updated (a change of height = resize, otherwise a move; the size of the focused view is remembered while nothing is
+  dragged). The keyboard loop of `dragView` keeps the position read before each key, so it cannot be corrected from
+  outside: `cmResize` (Ctrl-B R) for the focused window is handled by `keyboardDrag`, a copy
+  of that loop with the same keys (arrows, Shift+arrows, Ctrl+arrows by 8 / 4, Home / End / PgUp / PgDn, Enter, Esc
+  restores) and the bottom rule. Dialogs that turn Ctrl-F5 into `cmResize` themselves (Window List, Quit, file dialogs)
+  keep tvision's loop; they use `dmLimitAll` and stay on the desktop. `handleTopCorner`: a left press (not a double
+  click) on a top corner of the focused window (not while a menu or another modal view has the events) runs its own
+  drag loop. tvision is not changed. Generic: candidate for the PR to magiblot.
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
 - **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
   the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
@@ -1049,6 +1071,8 @@ source/tvterm/             the application
   editundo.cc/.h           multi-level undo / redo of the editors (E51): steps found by comparing the text with a copy
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
+  windrag.cc/.h            moving / resizing windows (E54): bottom edge at the status line, keyboard Resize/Move, top
+                           corners; called from TVTermApp::getEvent
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
   dircompl.cc/.h           directory completion in the Name field of file dialogs (TVTermFileDialog, dircompl::Completion)
   wnd.h                    TerminalWindow (+ launchCommand/launchDir/launchKeepOpen)
@@ -1596,6 +1620,15 @@ examples/profiles/example.ini
   open); widths 37 / 36 / 27 / 26 / 18 / 17 (items dropped from the end); with an alert (keyword after the first 3 s)
   `… DeskList  Alerts: 1 (Ctrl-B G)`, one column less drops Alerts, its hint and click; with `desktop-name-1 = mail`:
   widths 41 / 40 / 31 / 30 (DeskList dropped before the name).
+- Moving and resizing (E54), in tmux (100×30; mouse as SGR through `TIOCSTI`, press / moves / release; the frame of the
+  focused window found by its `╔` corner; keyboard Resize/Move with Ctrl-B R), 22 checks: a terminal moved by its title
+  past the status line (bottom on the last desktop row, size kept), onto the status line row, back up; bottom right and
+  bottom left corners dragged past it (top kept, bottom on the last row); Ctrl-B R + Down ×25 (stops, size kept), Up,
+  Shift-Down ×30 (top kept), Esc restores; top left corner (up 3, left 5; past the top bar → row 2; down past the bottom →
+  minimum height), top right corner (down 2, right 10; far left → minimum width); title drag, zoom button and back, a
+  double click on the top corner zooms; the top corner of a window that is not focused only selects it; a Log View moved
+  down and resized from its top corner; the Window List grown with Ctrl-F5 (stays above the status line). The same
+  tests on the build of E53: 12 of the checks fail (3 + 9) (window under the status line, top corners move the window).
 
 ## 6. Known limitations
 
@@ -1691,3 +1724,4 @@ examples/profiles/example.ini
 | Multi-level undo (`far2l-extended`) | E51 | Ctrl-Z / Ctrl-U / Alt-Backspace undo, Ctrl-Shift-Z / Alt-Shift-Backspace redo, in every editor; steps per typing / deleting run, Enter, paste, cut, Ctrl-Y, Replace, Replace all; undo back to the saved text clears the modified mark; `undo-limit-steps` (500), `undo-limit-memory` (20M) |
 | Editor keys (`far2l-extended`) | E52 | Ctrl-Down / Ctrl-Up (with Shift: selection) to the next / previous line with text in the cursor's column, `No other line.`; Alt-F8 Go to line (`120`, `120:15`, history, centered); Alt-D Duplicate line (or the selection's lines, one undo step); Alt-W Select word |
 | Version 0.2.0 (`far2l-extended`) | E53 | version 0.2.0, signed tag `v0.2.0` and GitHub Release; `tvterm.ini` format line `## format 1, created by tvterm …` (Edit settings, `--print-settings`), one note in the Event Viewer for a file without it or of another format; `DeskList` in the top bar (Desktop..., Ctrl-B D) |
+| Moving and resizing (`far2l-extended`) | E54 | every window and dialog: moved or resized (mouse, Ctrl-F5 / Resize/Move), the bottom edge stops at the status line; the two top corners of the focused window resize it |
