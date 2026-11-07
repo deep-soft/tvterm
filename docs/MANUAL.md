@@ -207,10 +207,13 @@ terminals); menus and dialogs always have one.
 
 ### Window List
 
-**Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in three columns:
+**Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in four columns, with
+their names on the row above the list:
 
-- **Desktop**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
-- **Title**, with the alert mark if any.
+- **Alert**: `A5` for a window with an alert ([Alerts](#9-alerts)), empty otherwise. Every alert is level 5 for now;
+  levels 1–5 will come later.
+- **Desk**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
+- **Name**: the title, with the alert mark if any.
 - **Command**: for a terminal, its command from the profile, otherwise the program started in it (your shell); for a
   Log View `log: ` and its command; `editor`, `event viewer`.
 
@@ -223,8 +226,10 @@ Up / Down / PgUp / PgDn move in the list and Enter is Go. With nothing listed, G
 stays while the list opens again after Rename or Close; a new Ctrl-B W starts empty.
 
 The dialog can be resized with the mouse (bottom right corner) or **Ctrl-F5** (arrows move it, Shift+arrows change its
-size, Enter or Esc end); **F5** or the zoom button: whole screen, again: back. The columns follow its width; a cut text
-ends with `…`. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,
+size, Enter or Esc end); **F5** or the zoom button: whole screen, again: back. Alert and Desk are as wide as their
+longest text (at least their name), Name as wide as the longest name of the rows shown but at most 40% of the line,
+and Command gets the rest; a cut text ends with `…`. A short name leaves the room to the command. Fixed widths:
+`window-list-columns` in profiles ([Profiles](#format)). **Alt-W** moves to the list. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,
 [Profiles](#format)); without it the list opens at 90×20 (smaller on a small screen).
 
 ### Desktops
@@ -760,6 +765,7 @@ in Editor...) opens a profile file of the same directory in a tvterm editor, to 
 | `desktop` | `1` | desktop shown after loading (1–9) |
 | `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
 | `window-list-size` | `90x20` | size of the Window List, columns x rows (at least `50x10`) |
+| `window-list-columns` | `auto auto auto *` | widths of the Window List columns Alert, Desk and Name: a number of columns (0–200; `0` hides the column) or `auto`; Command always gets the rest (the final `*` may be left out), e.g. `window-list-columns = auto auto 30 *`; kept until tvterm exits and saved by Save Profile As |
 
 All the window sections accept `pos = x y width height`, in **percent** of the desktop (decimals allowed). A position
 partly outside the desktop is moved inside (and shrunk if larger), with a note in the Event Viewer.

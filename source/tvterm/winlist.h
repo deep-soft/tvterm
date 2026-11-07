@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-// Shows the list of windows of every desktop (columns: desktop, title,
-// command) and lets the user go to one of them, rename a terminal or close
+// Shows the list of windows of every desktop (columns: Alert, Desk, Name,
+// Command, with their names above the list) and lets the user go to one of them, rename a terminal or close
 // a window. The dialog can be resized; its size is kept (see
 // getWindowListSize).
 class TDeskTop;
@@ -35,5 +35,11 @@ std::string desktopColumn(TWindow *w);
 // profiles). Returns false if none was chosen (the default is used).
 bool getWindowListSize(TPoint &size);
 void setWindowListSize(TPoint size);
+
+// The widths of the columns Alert, Desk and Name (window-list-columns in
+// profiles): a number of columns (0: hidden) or -1 (automatic); Command
+// gets the rest. Returns false if none were set (all automatic).
+bool getWindowListColumns(int (&widths)[3]);
+void setWindowListColumns(const int (&widths)[3]);
 
 #endif // TVTERM_WINLIST_H

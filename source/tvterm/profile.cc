@@ -275,6 +275,19 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else
                     warn("invalid window-list-size '" + value + "' (columns x rows, e.g. 90x20; at least 50x10)");
             }
+            else if (key == "window-list-columns")
+            {
+                int widths[3];
+                if (parseWindowListColumns(value, widths))
+                {
+                    profile.hasWindowListColumns = true;
+                    for (int i = 0; i < 3; ++i)
+                        profile.windowListColumns[i] = widths[i];
+                }
+                else
+                    warn( "invalid window-list-columns '" + value + "' (widths of Alert, Desk, Name: "
+                          "0-200 or auto, then optionally *; e.g. auto auto 30 *)" );
+            }
             else
                 warn("unknown key '" + key + "' in [profile]");
         }
@@ -457,6 +470,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
             file << "desktop-name-" << dn.first << " = " << dn.second << "\n";
     if (profile.hasWindowListSize)
         file << "window-list-size = " << profile.windowListWidth << "x" << profile.windowListHeight << "\n";
+    if (profile.hasWindowListColumns)
+        file << "window-list-columns = " << formatWindowListColumns(profile.windowListColumns) << "\n";
     for (const auto &win : profile.windows)
     {
         switch (win.kind)
@@ -551,4 +566,50 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
         return false;
     }
     return true;
+}
+
+bool parseWindowListColumns(const std::string &value, int (&widths)[3])
+// Three widths (Alert, Desk, Name), each 0-200 or 'auto', then an optional
+// '*' (Command: the rest, which it always is).
+{
+    std::vector<std::string> words;
+    std::string word;
+    for (char c : value + " ")
+    {
+        if (c == ' ' || c == '\t')
+        {
+            if (!word.empty())
+                words.push_back(word);
+            word.clear();
+        }
+        else
+            word += c;
+    }
+    if (words.size() == 4 && words[3] == "*")
+        words.pop_back();
+    if (words.size() != 3)
+        return false;
+    for (int i = 0; i < 3; ++i)
+    {
+        std::string w = profileini::lower(words[i]);
+        if (w == "auto")
+        {
+            widths[i] = -1;
+            continue;
+        }
+        char *end;
+        long n = strtol(w.c_str(), &end, 10);
+        if (w.empty() || *end || w[0] == '-' || w[0] == '+' || n < 0 || n > 200)
+            return false;
+        widths[i] = (int) n;
+    }
+    return true;
+}
+
+std::string formatWindowListColumns(const int (&widths)[3])
+{
+    std::string out;
+    for (int i = 0; i < 3; ++i)
+        out += (widths[i] < 0 ? std::string("auto") : std::to_string(widths[i])) + " ";
+    return out + "*";
 }

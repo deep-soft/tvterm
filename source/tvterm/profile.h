@@ -75,11 +75,20 @@ struct Profile
     // window-list-size = WxH (the Window List, see winlist.h).
     bool hasWindowListSize {false};
     int windowListWidth {0}, windowListHeight {0};
+    // window-list-columns = A D N [*]: widths of the Window List columns
+    // Alert, Desk, Name (a number, 0 = hidden, or 'auto' = -1); Command
+    // gets the rest.
+    bool hasWindowListColumns {false};
+    int windowListColumns[3] {-1, -1, -1};
     std::vector<WindowProfile> windows;
     // Things changed while loading that are not errors (e.g. a position
     // moved inside the desktop), one per line.
     std::string notes;
 };
+
+// window-list-columns: parses / writes the value ("auto auto 30 *").
+bool parseWindowListColumns(const std::string &value, int (&widths)[3]);
+std::string formatWindowListColumns(const int (&widths)[3]);
 
 // Directory where profiles are looked up by name:
 // $XDG_CONFIG_HOME/tvterm/profiles, or ~/.config/tvterm/profiles.

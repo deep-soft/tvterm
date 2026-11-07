@@ -1131,6 +1131,8 @@ void TVTermApp::openProfile(const Profile &profile)
                  desktops::name(dn.first) + "'");
     if (profile.hasWindowListSize)
         setWindowListSize(TPoint {profile.windowListWidth, profile.windowListHeight});
+    if (profile.hasWindowListColumns)
+        setWindowListColumns(profile.windowListColumns);
 
     for (const auto &win : profile.windows)
     {
@@ -1503,6 +1505,13 @@ void TVTermApp::saveProfile()
             profile.hasWindowListSize = true;
             profile.windowListWidth = size.x;
             profile.windowListHeight = size.y;
+        }
+        int widths[3];
+        if (getWindowListColumns(widths))
+        {
+            profile.hasWindowListColumns = true;
+            for (int i = 0; i < 3; ++i)
+                profile.windowListColumns[i] = widths[i];
         }
     }
     TRect ext = deskTop->getExtent();

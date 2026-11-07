@@ -11,6 +11,9 @@
 #define Uses_TEditWindow
 #define Uses_TText
 #define Uses_TKeys
+#define Uses_TView
+#define Uses_TDrawBuffer
+#define Uses_TPalette
 #include <tvision/tv.h>
 
 #include "winlist.h"
@@ -19,6 +22,7 @@
 #include "logview.h"
 #include "desktops.h"
 #include "procinfo.h"
+#include "alerts.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 
@@ -33,13 +37,23 @@ enum : ushort
 {
     cmWinListRename = 3100,
     cmWinListClose,
+    cmWinListColumns,  // Broadcast: the rows of the list changed.
 };
 
-// One line of the list: three columns.
+// One line of the list: four columns.
 struct Row
 {
-    std::string desktop, title, command;
+    std::string alert, desktop, title, command;
 };
+
+// Column widths chosen in the profile (window-list-columns): Alert, Desk,
+// Name; -1: automatic; 0: column hidden. Command gets the rest.
+static bool columnsSet = false;
+static int columnSpec[3] = {-1, -1, -1};
+
+const char *const columnNames[4] = {"Alert", "Desk", "Name", "Command"};
+const int columnGap = 2;   // Spaces between two columns.
+const int nameShare = 40;  // Automatic Name: at most this % of the line.
 
 // Cuts 'text' to at most 'width' columns ('…' at the end if it was cut)
 // and pads it with spaces to 'width' columns.
@@ -54,12 +68,31 @@ static std::string fitColumn(const std::string &text, int width)
     return w < width ? s + std::string(width - w, ' ') : s;
 }
 
+// The four columns of a row (or of the header), cut and padded to
+// 'widths'; hidden columns (width 0) are left out with their gap.
+static std::string joinColumns(const std::string (&cells)[4], const int (&widths)[4])
+{
+    std::string text;
+    bool first = true;
+    for (int i = 0; i < 4; ++i)
+    {
+        if (widths[i] <= 0)
+            continue;
+        if (!first)
+            text += std::string(columnGap, ' ');
+        text += fitColumn(cells[i], widths[i]);
+        first = false;
+    }
+    return text;
+}
+
 class WindowListViewer : public TListViewer
 {
 public:
 
     std::vector<Row> rows;
-    int desktopWidth {3};
+    // The longest text of each column, at least its name (for 'auto').
+    int longest[4] {0, 0, 0, 0};
 
     WindowListViewer(const TRect &bounds, TScrollBar *vScrollBar) noexcept :
         TListViewer(bounds, 1, nullptr, vScrollBar)
@@ -69,32 +102,117 @@ public:
     void setRows(std::vector<Row> aRows)
     {
         rows = std::move(aRows);
-        desktopWidth = 3;
+        for (int i = 0; i < 4; ++i)
+            longest[i] = (int) strlen(columnNames[i]);
         for (const Row &r : rows)
-            desktopWidth = std::max(desktopWidth, (int) TText::width(r.desktop));
+        {
+            longest[0] = std::max(longest[0], (int) TText::width(r.alert));
+            longest[1] = std::max(longest[1], (int) TText::width(r.desktop));
+            longest[2] = std::max(longest[2], (int) TText::width(r.title));
+            longest[3] = std::max(longest[3], (int) TText::width(r.command));
+        }
         setRange((short) rows.size());
         drawView();
+        if (owner)
+            message(owner, evBroadcast, cmWinListColumns, this);
     }
 
-    // The columns follow the width of the list: the desktop as wide as its
-    // longest label, the title about half of the rest, the command the
-    // remainder.
+    // The widths of the columns for the current width of the list (the
+    // text starts one column in): Alert, Desk and Name as chosen in the
+    // profile or automatic (the longest text, at least the column name;
+    // Name at most nameShare % of the line), Command the rest. Columns that
+    // do not fit are cut, from the right.
+    void columnWidths(int (&widths)[4]) const
+    {
+        int total = size.x - 1;
+        int left = total;
+        bool any = false;
+        for (int i = 0; i < 3; ++i)
+        {
+            int w = columnSpec[i];
+            if (w < 0)
+            {
+                w = longest[i];
+                if (i == 2)
+                    w = std::min(w, std::max((int) strlen(columnNames[2]), total * nameShare / 100));
+            }
+            int gap = (any && w > 0) ? columnGap : 0;
+            w = std::max(0, std::min(w, left - gap));
+            widths[i] = w;
+            if (w > 0)
+            {
+                left -= w + gap;
+                any = true;
+            }
+        }
+        widths[3] = std::max(0, left - (any ? columnGap : 0));
+    }
+
     void getText(char *dest, short item, short maxChars) override
     {
         std::string text;
         if (item >= 0 && (size_t) item < rows.size())
         {
             const Row &r = rows[item];
-            // The text starts one column in.
-            int rest = size.x - 1 - desktopWidth - 4;
-            int titleWidth = rest / 2;
-            int commandWidth = rest - titleWidth;
-            text = fitColumn(r.desktop, desktopWidth) + "  " +
-                   fitColumn(r.title, titleWidth) + "  " +
-                   fitColumn(r.command, commandWidth);
+            int widths[4];
+            columnWidths(widths);
+            const std::string cells[4] = {r.alert, r.desktop, r.title, r.command};
+            text = joinColumns(cells, widths);
         }
         strncpy(dest, text.c_str(), maxChars);
         dest[maxChars] = '\0';
+    }
+};
+
+// The names of the columns, above the list and aligned with it (in the
+// color of the dialog's static text).
+class ColumnHeader : public TView
+{
+public:
+
+    WindowListViewer *list {nullptr};
+
+    ColumnHeader(const TRect &bounds) noexcept :
+        TView(bounds)
+    {
+        growMode = gfGrowHiX;
+        eventMask |= evBroadcast;
+    }
+
+    void draw() override
+    {
+        TDrawBuffer b;
+        TColorAttr color = getColor(1);
+        b.moveChar(0, ' ', color, size.x);
+        if (list)
+        {
+            int widths[4];
+            list->columnWidths(widths);
+            const std::string cells[4] = {columnNames[0], columnNames[1], columnNames[2], columnNames[3]};
+            // TListViewer draws its text one column in.
+            b.moveStr(1, joinColumns(cells, widths), color);
+        }
+        writeLine(0, 0, size.x, 1, b);
+    }
+
+    TPalette &getPalette() const override
+    {
+        static TPalette palette("\x06", 1); // Static text of the dialog.
+        return palette;
+    }
+
+    void handleEvent(TEvent &ev) override
+    {
+        TView::handleEvent(ev);
+        if (ev.what == evBroadcast && ev.message.command == cmWinListColumns)
+            drawView();
+    }
+
+    // The widths follow the list, which is resized with the dialog.
+    void changeBounds(const TRect &bounds) override
+    {
+        TView::changeBounds(bounds);
+        drawView();
     }
 };
 
@@ -112,6 +230,7 @@ class WindowListDialog : public TDialog
 public:
 
     WindowListViewer *list;
+    ColumnHeader *header {nullptr};
     TInputLine *filter;
     bool autoFit {false}; // the next changeBounds is not the user's choice
     bool inZoom {false};
@@ -140,8 +259,11 @@ public:
         insert(sb);
         list = new WindowListViewer(r, sb);
         list->growMode = gfGrowHiX | gfGrowHiY;
+        // The column names on the row above the list (Alt-W: the list).
+        header = new ColumnHeader(TRect(r.a.x, r.a.y - 1, r.b.x, r.a.y));
+        header->list = list;
+        insert(header);
         insert(list);
-        insert(new TLabel(TRect(r.a.x - 1, r.a.y - 1, r.a.x + 10, r.a.y), "~W~indows", list));
         int x = size.x - buttonsWidth, y = 2;
         auto addButton = [&] (const char *text, ushort cmd, ushort flags) {
             auto *b = new TButton(TRect(x, y, x + 10, y + 2), text, cmd, flags);
@@ -253,6 +375,9 @@ public:
     {
         TPoint old = size;
         TDialog::changeBounds(bounds);
+        // The column names follow the new width of the list.
+        if (header)
+            header->drawView();
         if (size != old && !autoFit && !inZoom)
         {
             sized = true;
@@ -277,6 +402,13 @@ public:
             ev.what = evCommand;
             ev.message.command = cmd;
             ev.message.infoPtr = nullptr;
+        }
+        // Alt-W: the list (its label was replaced by the column names).
+        if (ev.what == evKeyDown && ev.keyDown.keyCode == kbAltW)
+        {
+            list->select();
+            clearEvent(ev);
+            return;
         }
         // In the filter field, Up / Down / PgUp / PgDn move in the list.
         if ( ev.what == evKeyDown && current == filter &&
@@ -342,6 +474,10 @@ static std::string commandOf(TWindow *w)
 static Row describe(TWindow *w)
 {
     Row row;
+    // Alert levels come later (item 7): an alert is level 5 for now.
+    if (auto *target = dynamic_cast<AlertTarget *>(w))
+        if (target->hasAlert())
+            row.alert = "A5";
     row.desktop = desktopColumn(w);
     const char *title = w->getTitle(100);
     row.title = title && *title ? title : "(no title)";
@@ -418,6 +554,20 @@ bool getWindowListSize(TPoint &size)
     if (winlist::sized)
         size = winlist::rememberedSize;
     return winlist::sized;
+}
+
+bool getWindowListColumns(int (&widths)[3])
+{
+    for (int i = 0; i < 3; ++i)
+        widths[i] = winlist::columnSpec[i];
+    return winlist::columnsSet;
+}
+
+void setWindowListColumns(const int (&widths)[3])
+{
+    winlist::columnsSet = true;
+    for (int i = 0; i < 3; ++i)
+        winlist::columnSpec[i] = widths[i];
 }
 
 void setWindowListSize(TPoint size)

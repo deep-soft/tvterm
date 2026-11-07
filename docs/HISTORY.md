@@ -122,6 +122,8 @@ E53. Version 0.2.0 (signed tag `v0.2.0`, GitHub Release); `tvterm.ini` format li
      note for older files; `DeskList` in the top bar
 E54. Moving / resizing windows: the bottom edge stops at the status line (mouse and Ctrl-F5 / Resize/Move), the top
      corners resize too
+E55. Window List: columns Alert (`A5`) / Desk / Name / Command with their names above the list, Name as wide as the
+     longest name (at most 40%), profile `window-list-columns`
 
 ---
 
@@ -960,6 +962,17 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   open (Enter = Go as before), Alt-F / Tab reach the field; there Up / Down / PgUp / PgDn go to the list and Enter is
   the default button (Go); with no row, Go / Rename / Close are ignored; the text is kept by `execWindowList` while the
   list reopens (Rename, Close).
+  E55: four columns **Alert / Desk / Name / Command**; their names are drawn on the row of the former `~W~indows` label
+  (`ColumnHeader`, color of the dialog's static text, aligned with the rows: `TListViewer` draws one column in); Alt-W
+  still moves to the list (handled by the dialog). Alert: `A5` when the window (`AlertTarget`) has an alert: levels come
+  with item 7 ("no level = 5"). Widths (`WindowListViewer::columnWidths`): Alert, Desk and Name from the profile key
+  `window-list-columns` (number 0–200, 0 hides the column and its gap, or `auto` = the longest text of the rows shown,
+  at least the column name; Name at most 40% of the line), Command the rest; columns that do not fit are cut from the
+  right. Before E55: Desktop as wide as its longest label, title half of the rest, command the other half (a short
+  title left little room for a long command). The header is redrawn when the rows change (filter: broadcast
+  `cmWinListColumns`) and when the dialog is resized. `window-list-columns`: parsed in `profile.cc`
+  (`parseWindowListColumns`: three values, then an optional `*`), kept until tvterm exits (`setWindowListColumns`),
+  written by Save Profile As when set (`auto auto 30 *`).
 - **Moving and resizing windows** (E54): tvision only keeps the title row of a window on the desktop, so a window
   moved down, or made taller from a bottom corner, could end with its lower part under the status line (and stay so
   after the button was released). Now, for every window and dialog on the desktop: a window being moved stops when its
@@ -1048,7 +1061,7 @@ source/tvterm/             the application
   app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help/--version
   about.cc/.h              version text and About dialog; declarations of the generated build information
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
-  winlist.cc/.h            Window List dialog, renameTerminal, getDeskTopWindows (with the windows of other desktops)
+  winlist.cc/.h            Window List dialog (columns and header, E55), renameTerminal, getDeskTopWindows (with the windows of other desktops)
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
                            previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
@@ -1629,6 +1642,13 @@ examples/profiles/example.ini
   double click on the top corner zooms; the top corner of a window that is not focused only selects it; a Log View moved
   down and resized from its top corner; the Window List grown with Ctrl-F5 (stays above the status line). The same
   tests on the build of E53: 12 of the checks fail (3 + 9) (window under the status line, top corners move the window).
+- Window List columns (E55), in tmux (120×30, three terminals from a profile, one with `alert-keywords` and a keyword
+  printed after 4 s), 20 checks: the header row and its order; `A5` only on the window with the alert, under `Alert`;
+  Desk, Name and Command aligned with the header; a long title cut with `…`, Name at most 40% of the line; Filter
+  (`Windows 1/3`), Alt-W + Enter = Go; Name narrows to the rows shown (filter `ma`: `Name` then Command); the dialog
+  made narrower with Ctrl-F5 (header still aligned); `window-list-columns = 0 auto 10 *` (no Alert, Name 10 with `…`);
+  Save Profile As writes the key; `auto auto`, `1 2 3 4`, `x 2 3`, `-1 2 3`, `201 1 1` → `invalid
+  window-list-columns`; `AUTO 3 auto` accepted.
 
 ## 6. Known limitations
 
@@ -1725,3 +1745,4 @@ examples/profiles/example.ini
 | Editor keys (`far2l-extended`) | E52 | Ctrl-Down / Ctrl-Up (with Shift: selection) to the next / previous line with text in the cursor's column, `No other line.`; Alt-F8 Go to line (`120`, `120:15`, history, centered); Alt-D Duplicate line (or the selection's lines, one undo step); Alt-W Select word |
 | Version 0.2.0 (`far2l-extended`) | E53 | version 0.2.0, signed tag `v0.2.0` and GitHub Release; `tvterm.ini` format line `## format 1, created by tvterm …` (Edit settings, `--print-settings`), one note in the Event Viewer for a file without it or of another format; `DeskList` in the top bar (Desktop..., Ctrl-B D) |
 | Moving and resizing (`far2l-extended`) | E54 | every window and dialog: moved or resized (mouse, Ctrl-F5 / Resize/Move), the bottom edge stops at the status line; the two top corners of the focused window resize it |
+| Window List columns (`far2l-extended`) | E55 | Window List: Alert (`A5`) / Desk / Name / Command with their names above the list; Name as wide as the longest name shown (at most 40%), Command the rest; profile `window-list-columns = auto auto 30 *` (0 hides a column) |
