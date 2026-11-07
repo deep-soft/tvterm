@@ -10,7 +10,7 @@ project(tvterm)
 
 # Version shown by 'tvterm --version' and in More... > About. The commit,
 # branch and build date are added automatically (scripts/buildinfo.cmake).
-set(TVTERM_VERSION "0.1.0")
+set(TVTERM_VERSION "0.2.0")
 
 if (TVTERM_STATIC)
     # Make every find_library() call (here and in Turbo Vision) pick static

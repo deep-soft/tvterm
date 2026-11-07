@@ -20,8 +20,18 @@
 const int minFileDialogWidth = 49;
 const int minFileDialogHeight = 19;
 
+// Format of tvterm.ini written by this tvterm: the number in the template's
+// first line ('## format 1, created by tvterm 0.2.0 (...)'). It goes up by
+// one when a version adds, renames or changes the meaning of keys, so that
+// an older file can be recognized (a note in the Event Viewer; the file is
+// never rewritten).
+const int settingsFormat = 1;
+
 struct Settings
 {
+    // The format line of the file read ('## format N, ...' before the first
+    // section); -1: the file has none (written before tvterm 0.2.0).
+    int fileFormat {-1};
     // [general]
     std::string profile;    // Profile opened when tvterm starts without -p.
     bool autoReload {true}; // Reload the file when it changes.
@@ -103,13 +113,19 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
 void applySettings(const Settings &settings);
 
 // Contents of a new settings file: every key, commented out, with its
-// default value. Layout: the header with '##', sections at the margin,
+// default value. The first line is the format line (settingsFormat, the
+// version, commit and build date of this tvterm). Layout: the header with
+// '##', sections at the margin,
 // explanations indented by 2 spaces ('  # ...'), keys by 1 (' #key = ...'),
 // so that a key with its '#' removed is indented by 1 space.
 std::string settingsTemplate();
 
 // Sizes as in 'large-file': bytes, or a number with K, M or G (1024).
 bool parseSize(const std::string &text, long long &bytes);
+
+// The number of a format line ('## format 2, created by ...', spaces allowed
+// before and after the '#'s) in 'format'; false if 'line' is not one.
+bool parseFormatLine(const std::string &line, int &format);
 std::string sizeName(long long bytes);
 
 // Key names, e.g. "Alt-Shift-PgUp". 'parseKey' accepts "none" (TKey()).

@@ -36,10 +36,11 @@ void TerminalWindow::handleEvent(TEvent &ev)
     if ( ev.what == evBroadcast &&
          ev.message.command == cmGetOpenTerms && !isDisconnected() )
         *(size_t *) ev.message.infoPtr += 1;
-    else if ( ev.what == evCommand && ev.message.command == cmWindowList &&
+    else if ( ev.what == evCommand &&
+              (ev.message.command == cmWindowList || ev.message.command == cmDesktopMenu) &&
               (state & sfModal) )
     {
-        // Input grabbed (status line click on Window List): release the
+        // Input grabbed (top bar click on WinList or DeskList): release the
         // input, then the application opens the list.
         endModal(cmCancel);
         putEvent(ev);

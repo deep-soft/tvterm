@@ -1,6 +1,7 @@
 #include "settings.h"
 #include "profile.h"
 #include "highlight.h"
+#include "about.h"
 
 #include <tvterm/termopts.h>
 
@@ -218,6 +219,10 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     {
         ++lineNo;
         line = trim(line);
+        // The format line, in the header (before the first section).
+        int format;
+        if (section == None && settings.fileFormat < 0 && parseFormatLine(line, format))
+            settings.fileFormat = format;
         if (line.empty() || line[0] == '#' || line[0] == ';')
             continue;
         if (line[0] == '[')
@@ -510,10 +515,30 @@ void applySettings(const Settings &s)
     o.keyBottom = s.keyBottom;
 }
 
+bool parseFormatLine(const std::string &line, int &format)
+{
+    size_t i = line.find_first_not_of(" \t");
+    if (i == std::string::npos || line.compare(i, 2, "##") != 0)
+        return false;
+    i = line.find_first_not_of("# \t", i);
+    if (i == std::string::npos || line.compare(i, 7, "format ") != 0)
+        return false;
+    i += 7;
+    size_t end = i;
+    while (end < line.size() && end - i < 6 && line[end] >= '0' && line[end] <= '9')
+        ++end;
+    if (end == i || (end < line.size() && line[end] != ',' && line[end] != ' ' && line[end] != '\t'))
+        return false;
+    format = std::stoi(line.substr(i, end - i));
+    return true;
+}
+
 std::string settingsTemplate()
 {
     Settings d;
     return
+        "## format " + std::to_string(settingsFormat) + ", created by tvterm " + buildinfo::version +
+        " (" + buildinfo::commit + ", built " + buildinfo::date + ")\n"
         "## tvterm settings. Lines starting with '#' are comments (spaces before it\n"
         "## are allowed). To change a value, remove the '#' in front of its key:\n"
         "## ' #lines = 10000' becomes ' lines = 10000'. Changes apply as soon as the\n"

@@ -93,11 +93,11 @@ With `XDG_CONFIG_HOME` set, `$XDG_CONFIG_HOME/tvterm/` is used instead of `~/.co
 
 ### Version
 
-`tvterm --version` prints the version (`0.1.0`), the branch and commit, the build date, type (`static` / `dynamic`),
+`tvterm --version` prints the version (`0.2.0`), the branch and commit, the build date, type (`static` / `dynamic`),
 architecture and C library, and the commits of the bundled tvision and libvterm. For example:
 
 ```
-tvterm 0.1.0 (deep-soft)
+tvterm 0.2.0 (deep-soft)
 commit:   1a2b3c4 (far2l-extended)
 built:    2026-10-30 17:20 EET, static, armv7l, glibc 2.28
 tvision:  6402631
@@ -109,13 +109,16 @@ The architecture uses the names of `uname -m` (`x86_64`, `armv7l`, `aarch64`) an
 on a server is the right one. The same information is in **Ctrl-B More... > About tvterm...**,
 together with the settings file, the last profile loaded, the uptime and the number of terminals.
 
+Versions are tagged on GitHub (`v0.2.0`, signed); the release page of a tag lists what the version contains.
+
 ---
 
 ## 2. The screen and the Ctrl-B menu
 
 The screen has two bars, with the desktop (the windows) between them:
 
-- The **top bar**: `Ctrl-B Menu` (opens the menu), `WinList` (the Window List), `Alerts: N (Ctrl-B G)` (white on red,
+- The **top bar**: `Ctrl-B Menu` (opens the menu), `WinList` (the Window List), `DeskList` (the list of desktops, like
+  Ctrl-B D: [Desktops](#desktops)), `Alerts: N (Ctrl-B G)` (white on red,
   only while windows have alerts; a click goes to the oldest one, like Ctrl-B G) and, on the right, the buttons of the
   desktops ([Desktops](#desktops)). It is not a menu bar: Alt+letters and F10 stay with the programs in the terminals.
   A click works on the item under the mouse when the button is released.
@@ -230,7 +233,7 @@ their windows has an alert. A click on a button shows that desktop; with the mou
 lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
 - **Ctrl-B 1**…**9** shows that desktop. **Ctrl-B 0** shows the previous one (the one shown before; again: back).
-  **Ctrl-B D** (Desktop...) lists the 9 desktops; a digit or Enter chooses. An empty desktop can be shown.
+  **Ctrl-B D** (Desktop...) or a click on `DeskList` (top bar) lists the 9 desktops; a digit or Enter chooses. An empty desktop can be shown.
   The list has a header and four columns: **S** the digit, **C** `+` for the current desktop, **Win** the number of
   windows (the Event Viewer not counted), **Title** `:name`, or `:D2` for a desktop without a name:
 
@@ -251,7 +254,7 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 - **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 8 columns (a longer name is cut, with a
   note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
   `:mail` in Desktop... and Ctrl-B Y. When the buttons with the names do not leave room for `Ctrl-B Menu` and
-  `WinList`, all the buttons are shown short (` D2 `). Names cannot be changed from inside tvterm yet.
+  `WinList`, all the buttons are shown short (` D2 `); `DeskList` is left out before that. Names cannot be changed from inside tvterm yet.
 - Profiles keep the desktop of each window and the names ([Profiles](#format)).
 
 ### Grab Input
@@ -629,6 +632,16 @@ installed everywhere (it depends on the package). far2l can also show the output
 if missing, with every key commented out, and opens it. Keys added in newer versions are added by hand
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
+- **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
+  `## format 1, created by tvterm 0.2.0 (b440528, built 2026-11-07 10:00 EET)`: the format of the file, then the
+  version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
+  changes the meaning of keys. tvterm reads it only from the header (the `##` lines before the first section). A file
+  without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
+  `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
+  --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
+  the format of the file changes); the file is read as usual and never rewritten. To bring an older file up to date,
+  add the new keys by hand (`diff <(tvterm --print-settings) tvterm.ini`) or with the `tvt-ini-merge` script, then
+  put the format line at the top.
 - `#` or `;` at the start of a line: comment. Section and key names ignore case. Spaces at the start of a line are
   ignored, so the file can be indented. The file made by Edit settings (and `--print-settings`) uses this layout:
   the header with `##` and the sections at the margin, the explanations indented by 2 spaces (`  # ...`), the keys by 1
@@ -1381,4 +1394,5 @@ Mind the trailing space: `policyid=37 ` (in quotes) does not match `policyid=370
   `tail -n N` source shows those N lines again.
 - The top bar does nothing while a dialog or a menu is open.
 - Editor: **Ctrl-H** (Replace) works only through far2l's extensions; in a plain terminal it is Backspace. Use Ctrl-F7.
-- On a narrow screen the top bar drops `Alerts: N`, then `WinList`, then `Ctrl-B Menu`, to keep the desktop buttons.
+- On a narrow screen the top bar drops `Alerts: N`, then `DeskList`, then `WinList`, then `Ctrl-B Menu`, to keep the
+  desktop buttons.

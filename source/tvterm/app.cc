@@ -65,6 +65,9 @@ static Settings currentSettings;
 static FileStamp stamp;
 static std::chrono::steady_clock::time_point nextCheck;
 enum { checkIntervalMs = 2000 };
+// The format of tvterm.ini last reported in the Event Viewer (-2: none):
+// a file of another format is reported once, not at every reload.
+static int reportedFormat = -2;
 
 // Messages for the Event Viewer, kept until one is opened, with their time
 // (shown as hh:mm:ss today, with the date on other days).
@@ -302,6 +305,25 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     rebuildHighlightSets(currentSettings.highlight, path, currentSettings.builtinHighlight, warnings);
     // Log View transformation sets (none built in).
     rebuildTransformSets(currentSettings.transform, path, warnings);
+
+    // The format line: an older file (or one without the line) may lack
+    // keys added since; a newer one may have keys this tvterm does not know.
+    // A note only (the file is never rewritten), once per format.
+    int format = existed ? currentSettings.fileFormat : -2;
+    if (existed && format != settingsFormat && format != reportedFormat)
+    {
+        std::string uses = "this tvterm uses format " + std::to_string(settingsFormat);
+        if (format < 0)
+            note( "settings: " + path + " has no format line (written before tvterm 0.2.0); " + uses +
+                  ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings" );
+        else if (format < settingsFormat)
+            note( "settings: " + path + " is format " + std::to_string(format) + ", " + uses +
+                  ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings" );
+        else
+            note( "settings: " + path + " is format " + std::to_string(format) + ", from a newer tvterm (" +
+                  uses + "): keys it does not know are reported as unknown" );
+    }
+    reportedFormat = format;
 
     int problems = 0;
     for (size_t pos = 0; (pos = warnings.find('\n', pos)) != std::string::npos; ++pos)

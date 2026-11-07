@@ -114,7 +114,10 @@ std::vector<TopBar::Item> TopBar::layout() const
         x += width + 2;
         return true;
     };
-    if (add(itMenu, menuText()) && add(itWindowList, "WinList") && state_.alerts > 0)
+    // On a narrow screen they are dropped from the end: Alerts, DeskList,
+    // WinList, the menu.
+    if ( add(itMenu, menuText()) && add(itWindowList, "WinList") &&
+         add(itDesktopList, "DeskList") && state_.alerts > 0 )
         add(itAlerts, alertsText(state_.alerts));
     x = right;
     for (int n : shown)
@@ -143,6 +146,9 @@ void TopBar::draw()
                 break;
             case itWindowList:
                 b.moveStr(item.x, "WinList", normal);
+                break;
+            case itDesktopList:
+                b.moveStr(item.x, "DeskList", normal);
                 break;
             case itAlerts:
                 b.moveStr(item.x, alertsText(state_.alerts), TColorAttr(alertColor));
@@ -177,6 +183,7 @@ void TopBar::run(const Item &item)
     {
         case itMenu: event.message.command = cmMenu; break;
         case itWindowList: event.message.command = cmWindowList; break;
+        case itDesktopList: event.message.command = cmDesktopMenu; break;
         case itAlerts: event.message.command = cmNextAlert; break;
         case itDesktop:
             if (item.desktop == state_.current)
@@ -215,6 +222,8 @@ std::string TopBar::hintFor(const Item &item) const
             return "The menu (" + key + ").";
         case itWindowList:
             return "Window List: the windows of every desktop (" + key + " W).";
+        case itDesktopList:
+            return "Desktop list: the 9 desktops, a digit or Enter shows one (" + key + " D).";
         case itAlerts:
         case itDesktop:
             break;

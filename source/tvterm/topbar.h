@@ -15,10 +15,10 @@
 // one). It is not a menu bar: Alt+letters and F10 stay with the programs in
 // the terminals.
 //
-//   Ctrl-B Menu  WinList  Alerts: 2 (Ctrl-B G)          D1  2:mail  D5
+//   Ctrl-B Menu  WinList  DeskList  Alerts: 2 (Ctrl-B G)     D1  2:mail  D5
 //
-// A click on an item runs it (the menu, the Window List, the oldest alert,
-// that desktop). The desktop buttons are those with windows, plus the
+// A click on an item runs it (the menu, the Window List, the Desktop...
+// list, the oldest alert, that desktop). The desktop buttons are those with windows, plus the
 // current one (the Event Viewer is on every desktop and is not counted):
 // a named desktop shows its name (" 2:mail "), unless the buttons with the
 // names would leave no room for the menu and WinList items (then all are
@@ -50,7 +50,7 @@ public:
 
     // The text of the bar and where each item is, for a given width
     // (also used by the tests through the screen).
-    enum ItemKind { itMenu, itWindowList, itAlerts, itDesktop };
+    enum ItemKind { itMenu, itWindowList, itDesktopList, itAlerts, itDesktop };
     struct Item
     {
         ItemKind kind;

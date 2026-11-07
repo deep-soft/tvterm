@@ -118,6 +118,8 @@ E51. Editor: multi-level undo and redo (Ctrl-Z / Ctrl-U / Alt-Backspace, Ctrl-Sh
      `[general] undo-limit-steps`, `undo-limit-memory`
 E52. Editor keys: Ctrl-Down / Ctrl-Up (next / previous line with text in the cursor's column, with Shift: selection),
      Alt-F8 Go to line, Alt-D Duplicate line, Alt-W Select word
+E53. Version 0.2.0 (signed tag `v0.2.0`, GitHub Release); `tvterm.ini` format line (`## format 1, created by …`) and a
+     note for older files; `DeskList` in the top bar
 
 ---
 
@@ -231,7 +233,9 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   (`F3/Shift-F3 Next/Prev` was split in two); the scrolling keys stay a hint.
 
 ### Version and About — `far2l-extended`
-- Version number `0.1.0`, set in `CMakeLists.txt` (`TVTERM_VERSION`) and changed only by hand. Everything else is added
+- Version number `0.1.0` (E2), **`0.2.0` since E53** (item 47, chat 54), set in `CMakeLists.txt` (`TVTERM_VERSION`) and
+  changed only by hand. E53 also got the first tag, `v0.2.0` (signed with the SSH key, like the commits), and a GitHub
+  Release with notes (no executables). Everything else is added
   automatically at **every build** by `scripts/buildinfo.cmake`: the commit (`git describe --always --dirty`: short hash,
   `-dirty` with uncommitted changes), the branch, the build date as local time of the build machine with its time zone
   (`YYYY-MM-DD hh:mm TZ`, e.g. `2026-10-25 16:40 EET`; a machine without a time zone shows `UTC`), the build type
@@ -245,7 +249,7 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `glibc X.Y` (the version of the headers the build used; for a dynamic build, the oldest glibc it needs is at most that),
   `uClibc`, `bionic`; any other C library on Linux is `musl` (musl has no macro of its own, on purpose); on other systems it is not shown.
 - `tvterm --version` (or `-V`) prints it and exits, without starting the interface.
-- The first two lines in the Event Viewer: `tvterm 0.1.0 (deep-soft), <branch> <commit>` and
+- The first two lines in the Event Viewer: `tvterm 0.2.0 (deep-soft), <branch> <commit>` and
   `built <date>, <type>, <architecture>, <C library>`.
 - **More... > About tvterm...**: version, commit and branch, build date, type, architecture and C library, tvision/libvterm commits, the settings file
   (`(not found)` if it does not exist), the last profile loaded (`(none)`), uptime (`2d 03:14`: days, hours, minutes),
@@ -311,6 +315,19 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   in parsing), apart from the header, which now explains the layout. `## The alignments first…` in
   `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
   `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
+- **Format line** (E53, item 47): `settingsTemplate()` starts with `## format N, created by tvterm <version> (<commit>,
+  built <date>)` (`settingsFormat` in `settings.h`, now 1; `buildinfo::version`, `commit`, `date`), so the file made by
+  Edit settings and `--print-settings` say which tvterm made them. The number goes up when a version adds, renames or
+  changes the meaning of keys. `loadSettings` reads it (`parseFormatLine`: `##`, more `#` or spaces, `format `, 1–6
+  digits, then the end, `,`, space or tab) only before the first section, the first such line; `Settings::fileFormat`,
+  -1 without it. `reloadSettings` adds one note when the file exists and its format is not `settingsFormat`: `has no
+  format line (written before tvterm 0.2.0)`, `is format N, this tvterm uses format M: keys added since may be missing,
+  see tvt-ini-merge or tvterm --print-settings`, or `from a newer tvterm (…): keys it does not know are reported as
+  unknown`. `reportedFormat` (the format last seen, -2: none / no file) keeps it to one note per format while tvterm
+  runs: the auto reload every 2 s of a file being edited adds nothing, a file changed to another format (or removed and
+  created again) is reported again. Not a problem (no status line, not counted); the file is never rewritten (E11).
+  `examples/tvterm.ini` starts with `## format 1 (…)`. The user's `tvt-ini-merge` writes the line in a separate step
+  (after E53). A file starting with a UTF-8 BOM is not recognized (the BOM line was already `expected 'key = value'`).
 - **Default profile**: `profile = NAME` is opened when tvterm starts without `-p`; `-p OTHER` wins; `-p none` starts without it.
   If it is missing or has errors: a normal terminal opens, the reason goes to the Event Viewer and the status line.
 - Reloaded automatically (checked every 2 s, by modification time and size) and with More... > Reload settings;
@@ -691,7 +708,7 @@ line** on its last one (before E33 the status line was on the first line and the
 them, one row shorter (profiles keep their positions in percent of the desktop).
 - Top bar (`TopBar`, `topbar.cc`, a `TView` inserted by the application, not a `TMenuBar`: Alt+letters and F10 stay with the
   programs in the terminals; the menu stays the Ctrl-B popup in the middle): `Ctrl-B Menu` (the first `menu-key`, the key
-  highlighted), `WinList`, `Alerts: N (Ctrl-B G)` (white on red, only while N > 0) and, on the right, the desktop buttons
+  highlighted), `WinList`, `DeskList` (E53), `Alerts: N (Ctrl-B G)` (white on red, only while N > 0) and, on the right, the desktop buttons
   ` D1   D2   D5 `: the desktops with windows plus the current one (the Event Viewer is not counted). Colors: the
   current one black on green, the others black on cyan, white on red when one of their windows has an alert (the current
   one stays green). The bar uses the status line palette.
@@ -711,7 +728,12 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 - The status line lost `Ctrl-B Menu` and `WinList` in every context (terminal: only `Shift-Ins Paste`); `AlertStatusLine`
   was removed (the counter and ` D2 ` are in the top bar); a new `menu-key` updates the top bar (`menuKeyChanged`).
 - Narrow screens: the desktop buttons are kept (the first ones dropped only when they do not fit alone); the left items
-  are dropped from the end (`Alerts`, `WinList`, `Ctrl-B Menu`) when they would reach the buttons.
+  are dropped from the end (`Alerts`, `DeskList`, `WinList`, `Ctrl-B Menu`) when they would reach the buttons.
+- **`DeskList`** (E53, item 47): `itDesktopList` after `WinList`; a click puts `cmDesktopMenu` (the Desktop... list of
+  Ctrl-B D, `chooseDesktop`); hint `Desktop list: the 9 desktops, a digit or Enter shows one (Ctrl-B D).`. In Grab Input
+  the terminal window (modal) ends the grab and passes the command on, as for `cmWindowList` (`TerminalWindow::
+  handleEvent`). The rule for the names of the desktop buttons is unchanged (room for `Ctrl-B Menu` and `WinList`), so
+  `DeskList` is dropped before the names get short. A filter in the list (like the Window List): later, on request.
 
 ### Clipboard (main goal; works in every direction)
 - **tvterm editor** (Ctrl-B E): Ctrl-Ins / Shift-Ins / Shift-Del use the system clipboard (= the Windows clipboard through far2l/putty4far2l). F2 saves.
@@ -1560,6 +1582,20 @@ examples/profiles/example.ini
   editor: Alt-F8, Alt-W, Ctrl-Down. A terminal with `cat -v`: the keys still reach it (`^[[1;5B` …). 15 MB (320000
   lines): Alt-F8 to the end ~0.2 s, Ctrl-Down over the whole file ~0.2 s, Alt-D at the end immediate. In a plain
   terminal Alt-Shift-D arrives as Alt-D (duplicates too).
+- Version 0.2.0, format line and DeskList (E53): `parseFormatLine` in a small C++ test (the function copied from
+  `settings.cc`), 15 cases (`##format`, `#### format 3,`, tab, `# format 1`, `format x`, `1x`, `Format`, 7 digits, empty).
+  In tmux (320×40, the Event Viewer zoomed with K, O, C hidden, N to list the kept notes), 34 checks: `--print-settings`
+  line 1 (regex) and 2, `--version`; no file → no note, Edit settings → the file equals `--print-settings` and starts with
+  the line; a file without it → one note (text checked), no problem in the status line; auto reload, Reload settings →
+  no second note; the line added → none; removed again → a second note; file removed → the usual note; created again →
+  a third; `format 0`, `format 2`, the line after a section, `# format 1`, a BOM → note; `  ##format 1`, another `##`
+  line before it, two format lines → none; `examples/tvterm.ini` as the file → no note, no problem. DeskList (100×30,
+  clicks and moves as SGR through `TIOCSTI`, a pause between press and release), 31 checks: the bar, column 24, the hint
+  (move `ESC[<35;x;yM`), WinList hint unchanged; clicks on the first / last letter open the list, the spaces around do
+  not; a digit / Down + Enter choose; Ctrl-B D / W unchanged; Grab Input + click on DeskList / WinList (grab ended, list
+  open); widths 37 / 36 / 27 / 26 / 18 / 17 (items dropped from the end); with an alert (keyword after the first 3 s)
+  `… DeskList  Alerts: 1 (Ctrl-B G)`, one column less drops Alerts, its hint and click; with `desktop-name-1 = mail`:
+  widths 41 / 40 / 31 / 30 (DeskList dropped before the name).
 
 ## 6. Known limitations
 
@@ -1654,3 +1690,4 @@ examples/profiles/example.ini
 | File dialog row (`far2l-extended`) | E50 | `[ ] Hidden  Filter  Folder` above the list in Open, View file, Save file as, Load Profile (in Editor), Save Profile As: hidden names, several patterns, folder list (Home, Profiles, Settings, `file-dirs`); directories with `/`; `file-filters` default `*.txt *.ini *.log *` |
 | Multi-level undo (`far2l-extended`) | E51 | Ctrl-Z / Ctrl-U / Alt-Backspace undo, Ctrl-Shift-Z / Alt-Shift-Backspace redo, in every editor; steps per typing / deleting run, Enter, paste, cut, Ctrl-Y, Replace, Replace all; undo back to the saved text clears the modified mark; `undo-limit-steps` (500), `undo-limit-memory` (20M) |
 | Editor keys (`far2l-extended`) | E52 | Ctrl-Down / Ctrl-Up (with Shift: selection) to the next / previous line with text in the cursor's column, `No other line.`; Alt-F8 Go to line (`120`, `120:15`, history, centered); Alt-D Duplicate line (or the selection's lines, one undo step); Alt-W Select word |
+| Version 0.2.0 (`far2l-extended`) | E53 | version 0.2.0, signed tag `v0.2.0` and GitHub Release; `tvterm.ini` format line `## format 1, created by tvterm …` (Edit settings, `--print-settings`), one note in the Event Viewer for a file without it or of another format; `DeskList` in the top bar (Desktop..., Ctrl-B D) |
