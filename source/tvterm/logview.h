@@ -319,4 +319,9 @@ private:
 class TDeskTop;
 size_t countRunningLogViews(TDeskTop &deskTop);
 
+// The values used before in a field of the Log View dialog (newest first;
+// saved between runs: histfile.h): "include", "exclude", "highlight",
+// "words", "transform"; null for another name.
+std::vector<std::string> *logFieldHistory(const std::string &name);
+
 #endif // TVTERM_LOGVIEW_H

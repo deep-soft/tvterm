@@ -87,9 +87,25 @@ If the profile cannot be opened, a normal terminal opens and the reason is shown
 |---|---|
 | `~/.config/tvterm/tvterm.ini` | settings ([chapter 6](#6-settings-file-tvtermini)) |
 | `~/.config/tvterm/profiles/*.ini` | profiles ([chapter 7](#7-profiles)) |
+| `~/.config/tvterm/history` | the lists of the input fields, kept between runs ([Field lists](#field-lists-history)); written by tvterm |
 
 With `XDG_CONFIG_HOME` set, `$XDG_CONFIG_HOME/tvterm/` is used instead of `~/.config/tvterm/`.
 `examples/tvterm.ini` and `examples/profiles/example.ini` in the sources describe both formats.
+
+### Field lists (history)
+
+The input fields with an arrow `↓` next to them keep a list of what was used in them; Down in the field (or a click on
+the arrow) opens it, Enter or a double click takes an entry. These lists are kept between runs, in
+`~/.config/tvterm/history` (written by tvterm when a list changes and at exit, mode 600, at most **30 entries per
+list**, the newest): Log View Command, Include, Exclude, Highlight (sets and words) and Transform; the Name field of
+Open file, Save file as, View file, Load Profile and Save Profile As; editor Find, Replace and Go to line; the Filter
+of the Window List and of the file dialogs. Not kept: the Folder list, the names of the highlight / transform sets and
+the `file-filters` patterns offered in the lists (they come from `tvterm.ini`).
+
+**Ctrl-Del** in an open list deletes the focused entry (also from the file); set names and `file-filters` patterns
+stay. Two tvterm instances share the file: each one adds its entries to those the file already has, so neither loses
+the other's; an entry you delete is not taken back from the file by the same instance, but another instance that
+still has it in its list writes it again.
 
 ### Version
 
@@ -222,7 +238,9 @@ window. Buttons: **Go** (Enter; a window of another desktop shows that desktop),
 
 **Filter** (the field above the list; Alt-F or Tab): only the windows whose title or command contains the text are
 listed (case-insensitive for A–Z; empty: all); the dialog title shows how many, e.g. `Windows 2/12`. In the field,
-Up / Down / PgUp / PgDn move in the list and Enter is Go. With nothing listed, Go, Rename and Close do nothing. The text
+Up / Down / PgUp / PgDn move in the list and Enter is Go. Its history (the arrow `↓`, **Alt-Down** or **Ctrl-Down**):
+the filters used when the list was closed with Go, Rename or Close (not with Esc), kept between runs
+([Field lists](#field-lists-history)). With nothing listed, Go, Rename and Close do nothing. The text
 stays while the list opens again after Rename or Close; a new Ctrl-B W starts empty.
 
 The dialog can be resized with the mouse (bottom right corner) or **Ctrl-F5** (arrows move it, Shift+arrows change its

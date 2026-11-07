@@ -13,6 +13,8 @@
 #define Uses_TFileDialog
 #define Uses_TFileList
 #define Uses_TFileEditor
+#define Uses_THistoryWindow
+#define Uses_THistoryViewer
 #include <tvision/tv.h>
 
 #include "app.h"
@@ -26,6 +28,7 @@
 #include "profile.h"
 #include "winlist.h"
 #include "windrag.h"
+#include "histfile.h"
 #include "procinfo.h"
 #include "quitdlg.h"
 #include "settings.h"
@@ -214,8 +217,11 @@ int main(int argc, char **argv)
         useDefaultProfile = false;
     }
 
+    // Room for the history lists saved between runs (histfile.h).
+    histfile::enlargeBuffer();
     TVTermApp app(profileName, useDefaultProfile);
     app.run();
+    histfile::save();
     app.shutDown();
 }
 
@@ -239,6 +245,9 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
     tvterm::terminalOptions.showMessage = appsettings::showStatus;
     tvterm::terminalOptions.openSearch = openHistorySearch;
     tvterm::terminalOptions.openSave = openHistorySave;
+    // The history lists of the input fields, before tvterm.ini adds the
+    // 'file-filters' patterns to some of them.
+    histfile::load();
     // Before any terminal is created (scrollback size).
     reloadSettings(false, true);
 
@@ -691,6 +700,8 @@ void TVTermApp::idle()
         else
             disableCommands(tileCmds);
     }
+    // The history lists: written when one changed.
+    histfile::poll();
     // Log Views take the new lines of their sources during the broadcast.
     LogSource::pollAll();
     message(this, evBroadcast, cmCheckTerminalUpdates, nullptr);
@@ -916,6 +927,47 @@ void TVTermApp::newLogView()
         insertWindow(new LogViewWindow(deskTop->getExtent(), options));
 }
 
+namespace apphist
+{
+
+// THistoryWindow::viewer and THistoryViewer::historyId are protected:
+// reached through pointers to members taken in derived classes.
+struct WindowAccess : THistoryWindow
+{
+    static TListViewer *THistoryWindow::*viewerMember() { return &WindowAccess::viewer; }
+};
+
+struct ViewerAccess : THistoryViewer
+{
+    static ushort THistoryViewer::*idMember() { return &ViewerAccess::historyId; }
+};
+
+} // namespace apphist
+
+bool TVTermApp::deleteHistoryEntry()
+// The modal view is a tvision history list (the arrow of a field): its
+// focused entry is deleted (histfile::remove) and the list shown again.
+{
+    auto *win = dynamic_cast<THistoryWindow *>(TopView());
+    if (!win)
+        return false;
+    auto *viewer = dynamic_cast<THistoryViewer *>(win->*apphist::WindowAccess::viewerMember());
+    if (!viewer)
+        return false;
+    ushort id = viewer->*apphist::ViewerAccess::idMember();
+    if (id > 255 || viewer->focused < 0 || viewer->focused >= historyCount((uchar) id))
+        return false;
+    const char *text = historyStr((uchar) id, viewer->focused);
+    if (!text || !histfile::remove((uchar) id, text))
+        return false;
+    short focused = viewer->focused;
+    viewer->setRange(historyCount((uchar) id));
+    if (viewer->range > 0)
+        viewer->focusItem(std::min<short>(focused, viewer->range - 1));
+    viewer->drawView();
+    return true;
+}
+
 void TVTermApp::getEvent(TEvent &event)
 {
     // A window being moved or resized stays above the status line (see
@@ -928,6 +980,13 @@ void TVTermApp::getEvent(TEvent &event)
     if ( event.what == evMouseDown &&
          (TopView() == this || TopView() == deskTop->current) &&
          windrag::handleTopCorner(*deskTop, event) )
+    {
+        clearEvent(event);
+        return;
+    }
+    // Ctrl-Del in an open history list deletes the focused entry (the
+    // lists kept by tvterm itself handle it in their windows).
+    if (event.what == evKeyDown && event.keyDown.keyCode == kbCtrlDel && deleteHistoryEntry())
     {
         clearEvent(event);
         return;

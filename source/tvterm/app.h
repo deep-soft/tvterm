@@ -38,6 +38,8 @@ struct TVTermApp : public TApplication
     // Global keys (tvterm.ini, [keys]): turns 'event' into a command or
     // handles it.
     void handleGlobalKey(TEvent &event);
+    // Ctrl-Del in an open history list (see histfile.h).
+    bool deleteHistoryEntry();
 
     size_t getOpenTermCount();
 

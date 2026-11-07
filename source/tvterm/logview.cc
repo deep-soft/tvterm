@@ -28,6 +28,7 @@
 #include <tvision/tv.h>
 
 #include "logview.h"
+#include "histfile.h"
 #include "globalkeys.h"
 #include "app.h"
 #include "cmds.h"
@@ -541,7 +542,7 @@ enum : ushort { cmLogApply = 3390 };
 // OK and Apply (not when the list is opened, unlike THistory).
 struct FieldHistory
 {
-    enum { maxValues = 20 };
+    enum { maxValues = histfile::maxEntries };
     std::vector<std::string> values;
 
     void add(const std::string &value)
@@ -558,6 +559,16 @@ struct FieldHistory
 };
 
 static FieldHistory includeHistory, excludeHistory, highlightHistory, wordsHistory, transformHistory;
+
+std::vector<std::string> *fieldHistoryValues(const std::string &name)
+{
+    if (name == "include") return &includeHistory.values;
+    if (name == "exclude") return &excludeHistory.values;
+    if (name == "highlight") return &highlightHistory.values;
+    if (name == "words") return &wordsHistory.values;
+    if (name == "transform") return &transformHistory.values;
+    return nullptr;
+}
 
 // The whole buffer of the field is copied by setData.
 static void setInputText(TInputLine *field, const std::string &text)
@@ -608,6 +619,30 @@ public:
         return focused >= 0 && (size_t) focused < items.size() ? &items[focused] : nullptr;
     }
 
+    // Ctrl-Del: a value used before (not a set name or a note) leaves the
+    // list and 'values'.
+    void removeFocused(std::vector<std::string> *values)
+    {
+        if (!values || focused < 0 || (size_t) focused >= items.size() ||
+            items[focused].kind != FieldListItem::Value)
+            return;
+        std::string text = items[focused].text;
+        auto it = std::find(values->begin(), values->end(), text);
+        if (it == values->end())
+            return;
+        values->erase(it);
+        histfile::removed(*values, text);
+        items.erase(items.begin() + focused);
+        // The last value gone: no "used before" separator after the sets.
+        if (values->empty() && !items.empty() && items.back().kind == FieldListItem::Note)
+            items.pop_back();
+        if (items.empty())
+            items.push_back({"(nothing used yet)", FieldListItem::Note});
+        setRange((short) items.size());
+        focusItem(std::min<short>(focused, range - 1));
+        drawView();
+    }
+
 private:
 
     std::vector<FieldListItem> items;
@@ -628,6 +663,20 @@ public:
     const FieldListItem *focusedItem() const
     {
         return viewer ? static_cast<FieldListViewer *>(viewer)->focusedItem() : nullptr;
+    }
+
+    std::vector<std::string> *values {nullptr};
+
+    void handleEvent(TEvent &ev) override
+    {
+        if (ev.what == evKeyDown && ev.keyDown.keyCode == kbCtrlDel)
+        {
+            if (viewer)
+                static_cast<FieldListViewer *>(viewer)->removeFocused(values);
+            clearEvent(ev);
+            return;
+        }
+        THistoryWindow::handleEvent(ev);
     }
 
 private:
@@ -744,6 +793,7 @@ void FieldHistoryButton::handleEvent(TEvent &ev)
             r.move(0, ext.b.y - 1 - r.b.y);
         r.intersect(ext);
         auto *win = new FieldListWindow(r, std::move(items));
+        win->values = &history->values;
         if (owner->execView(win) == cmOK)
             if (const FieldListItem *item = win->focusedItem())
                 choose(*item);
@@ -2964,4 +3014,9 @@ size_t countRunningLogViews(TDeskTop &deskTop)
         if (auto *log = dynamic_cast<LogViewWindow *>(w))
             n += log->isSourceRunning();
     return n;
+}
+
+std::vector<std::string> *logFieldHistory(const std::string &name)
+{
+    return logview::fieldHistoryValues(name);
 }

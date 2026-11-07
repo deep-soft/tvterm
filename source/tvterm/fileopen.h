@@ -47,6 +47,10 @@ enum : unsigned char
 // the most recent entry (at the bottom of the list).
 void addFileFilters(const std::vector<std::string> &filters);
 
+// The filters used before in the file dialogs' Filter field, newest first
+// (saved between runs: histfile.h).
+std::vector<std::string> &usedFileFilters();
+
 // The initial filter of Ctrl-B O and View file: the first 'file-filters'.
 std::string firstFileFilter();
 

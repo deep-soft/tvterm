@@ -4,6 +4,7 @@
 #define Uses_TButton
 #define Uses_TLabel
 #define Uses_TInputLine
+#define Uses_THistory
 #define Uses_TDeskTop
 #define Uses_TProgram
 #define Uses_TEvent
@@ -23,6 +24,7 @@
 #include "desktops.h"
 #include "procinfo.h"
 #include "alerts.h"
+#include "histfile.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 
@@ -225,6 +227,17 @@ const TPoint defaultSize {90, 20};
 const TPoint minSize {50, 10};
 const int buttonsWidth = 12; // Buttons on the right, with their margin.
 
+// The arrow of the Filter field: the history is added to only when the
+// list closes with Go, Rename or Close (execWindowList), not when the
+// field loses the focus or after Esc.
+class FilterHistory : public THistory
+{
+public:
+
+    using THistory::THistory;
+    void recordHistory(const char *) override {}
+};
+
 class WindowListDialog : public TDialog
 {
 public:
@@ -232,6 +245,7 @@ public:
     WindowListViewer *list;
     ColumnHeader *header {nullptr};
     TInputLine *filter;
+    THistory *filterHistory {nullptr};
     bool autoFit {false}; // the next changeBounds is not the user's choice
     bool inZoom {false};
     // All the rows and, after the filter, the indexes of those shown.
@@ -248,10 +262,15 @@ public:
         dragMode = dmLimitAll;
         TRect r = getExtent().grow(-2, -2);
         r.b.x -= buttonsWidth + 1;
-        // The filter field on the first row, the list below it.
-        filter = new TInputLine(TRect(r.a.x + 8, r.a.y, r.b.x + 1, r.a.y + 1), 128);
+        // The filter field on the first row (with its history: the arrow,
+        // Alt-Down or Ctrl-Down), the list below it.
+        filter = new TInputLine(TRect(r.a.x + 8, r.a.y, r.b.x - 2, r.a.y + 1), 128);
         filter->growMode = gfGrowHiX;
         insert(filter);
+        filterHistory = new FilterHistory(TRect(r.b.x - 2, r.a.y, r.b.x + 1, r.a.y + 1), filter,
+                                     histfile::hiWindowListFilter);
+        filterHistory->growMode = gfGrowLoX | gfGrowHiX;
+        insert(filterHistory);
         insert(new TLabel(TRect(r.a.x - 1, r.a.y, r.a.x + 8, r.a.y + 1), "~F~ilter", filter));
         r.a.y += 2;
         auto *sb = new TScrollBar(TRect(r.b.x, r.a.y, r.b.x + 1, r.b.y));
@@ -407,6 +426,18 @@ public:
         if (ev.what == evKeyDown && ev.keyDown.keyCode == kbAltW)
         {
             list->select();
+            clearEvent(ev);
+            return;
+        }
+        // In the filter field, Alt-Down / Ctrl-Down open its history (Down
+        // moves in the list).
+        if ( ev.what == evKeyDown && current == filter &&
+             (ev.keyDown.keyCode == kbAltDown || ev.keyDown.keyCode == kbCtrlDown) )
+        {
+            TEvent down = ev;
+            down.keyDown.keyCode = kbDown;
+            down.keyDown.controlKeyState = 0;
+            filterHistory->handleEvent(down);
             clearEvent(ev);
             return;
         }
@@ -614,6 +645,9 @@ void execWindowList(TDeskTop &deskTop)
         ushort result = deskTop.execView(p);
         long index = d->focusedRow();
         filterText = d->lastFilter;
+        // The filter goes to its history (not after Cancel / Esc).
+        if (result != cmCancel)
+            historyAdd(histfile::hiWindowListFilter, filterText);
         TObject::destroy(p);
 
         if (index < 0 || (size_t) index >= windows.size())

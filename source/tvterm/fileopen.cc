@@ -20,6 +20,7 @@
 #include <tvision/tv.h>
 
 #include "fileopen.h"
+#include "histfile.h"
 #include "dircompl.h"
 #include "app.h"
 #include "editwnd.h"
@@ -216,9 +217,11 @@ static RememberedSize rememberedSize;
 
 // Kept while tvterm runs, shared by all file dialogs.
 static bool showHidden = false;
-static std::vector<std::string> usedFilters;    // Newest first.
+static std::vector<std::string> usedFilters;    // Newest first (saved: histfile.h).
 
-enum : unsigned char { hiFieldList = 105 };     // Never added to.
+// Never added to: the lists of the row are kept by tvterm. Not an id of a
+// real history (Ctrl-Del must not delete from one; see histfile.h).
+enum : unsigned char { hiFieldList = 250 };
 
 // File attributes of TSearchRec (FA_* in tvision's compat/borland/dos.h).
 enum : unsigned char { attrReadOnly = 0x01, attrDirectory = 0x10, attrArchive = 0x20 };
@@ -429,6 +432,21 @@ public:
         return focused >= 0 && (size_t) focused < items.size() ? &items[focused] : nullptr;
     }
 
+    // Ctrl-Del: the focused item, if 'remover' accepts it.
+    void removeFocused(const std::function<bool(const std::string &)> &remover)
+    {
+        if (!remover || focused < 0 || (size_t) focused >= items.size() || items[focused].value.empty())
+            return;
+        if (!remover(items[focused].value))
+            return;
+        items.erase(items.begin() + focused);
+        if (items.empty())
+            items.push_back({"(empty)", ""});
+        setRange((short) items.size());
+        focusItem(std::min<short>(focused, range - 1));
+        drawView();
+    }
+
 private:
     std::vector<ListItem> items;
 };
@@ -447,6 +465,20 @@ public:
     const ListItem *focusedItem() const
     {
         return viewer ? static_cast<ItemListViewer *>(viewer)->focusedItem() : nullptr;
+    }
+
+    std::function<bool(const std::string &)> remover;
+
+    void handleEvent(TEvent &ev) override
+    {
+        if (ev.what == evKeyDown && ev.keyDown.keyCode == kbCtrlDel)
+        {
+            if (viewer)
+                static_cast<ItemListViewer *>(viewer)->removeFocused(remover);
+            clearEvent(ev);
+            return;
+        }
+        THistoryWindow::handleEvent(ev);
     }
 
 private:
@@ -469,12 +501,16 @@ std::vector<ListItem> ItemListWindow::pending;
 class ItemListButton : public THistory
 {
 public:
+    // 'aRemove' (optional): Ctrl-Del on an item of the list; true if it
+    // was deleted.
     ItemListButton( const TRect &bounds, TInputLine *aLink,
                     std::function<std::vector<ListItem>()> aItems,
-                    std::function<void(const std::string &)> aChosen ) noexcept :
+                    std::function<void(const std::string &)> aChosen,
+                    std::function<bool(const std::string &)> aRemove = nullptr ) noexcept :
         THistory(bounds, aLink, hiFieldList),
         items(std::move(aItems)),
-        chosen(std::move(aChosen))
+        chosen(std::move(aChosen)),
+        remove(std::move(aRemove))
     {
     }
 
@@ -510,6 +546,7 @@ public:
                 r.move(ext.b.x - 1 - r.b.x, 0);
             r.intersect(ext);
             auto *win = new ItemListWindow(r, std::move(list));
+            win->remover = remove;
             std::string value;
             if (owner->execView(win) == cmOK)
                 if (const ListItem *item = win->focusedItem())
@@ -523,6 +560,7 @@ public:
 private:
     std::function<std::vector<ListItem>()> items;
     std::function<void(const std::string &)> chosen;
+    std::function<bool(const std::string &)> remove;
 };
 
 // [ ] Hidden: tells the dialog when it changes.
@@ -689,6 +727,15 @@ void SizedFileDialog::addControlRow()
             filterInput->setText(v);
             if (applyFilter(v))
                 fileList->select();
+        },
+        [](const std::string &v) {
+            // Only a filter used before; the 'file-filters' patterns stay.
+            auto it = std::find(usedFilters.begin(), usedFilters.end(), v);
+            if (it == usedFilters.end())
+                return false;
+            usedFilters.erase(it);
+            histfile::removed(usedFilters, v);
+            return true;
         });
     folderInput = new FolderInputLine(TRect(0, y, 1, y + 1), MAXPATH);
     folderLabel = new TLabel(TRect(0, y, 1, y + 1), "Fol~d~er:", folderInput);
@@ -888,8 +935,8 @@ bool SizedFileDialog::applyFilter(const std::string &text)
     if (it != usedFilters.end())
         usedFilters.erase(it);
     usedFilters.insert(usedFilters.begin(), joined);
-    if (usedFilters.size() > 20)
-        usedFilters.resize(20);
+    if (usedFilters.size() > (size_t) histfile::maxEntries)
+        usedFilters.resize(histfile::maxEntries);
     filterInput->setText(joined);
     readList(true);
     return true;
@@ -1179,6 +1226,11 @@ void setDialogDirectory(TFileDialog *d, const std::string &dir)
 {
     if (auto *sd = dynamic_cast<fileopenimpl::SizedFileDialog *>(d))
         sd->setDirectory(dir);
+}
+
+std::vector<std::string> &usedFileFilters()
+{
+    return fileopenimpl::usedFilters;
 }
 
 } // namespace fileopen

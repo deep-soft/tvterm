@@ -124,6 +124,8 @@ E54. Moving / resizing windows: the bottom edge stops at the status line (mouse 
      corners resize too
 E55. Window List: columns Alert (`A5`) / Desk / Name / Command with their names above the list, Name as wide as the
      longest name (at most 40%), profile `window-list-columns`
+E56. Field lists (histories) kept between runs in `~/.config/tvterm/history` (30 per list), Ctrl-Del deletes an entry,
+     Window List Filter history (Alt-Down / Ctrl-Down)
 
 ---
 
@@ -993,6 +995,35 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   keep tvision's loop; they use `dmLimitAll` and stay on the desktop. `handleTopCorner`: a left press (not a double
   click) on a top corner of the focused window (not while a menu or another modal view has the events) runs its own
   drag loop. tvision is not changed. Generic: candidate for the PR to magiblot.
+- **Field lists kept between runs** (E56): the lists of the input fields were lost at exit. Now `histfile.cc` keeps
+  them in `$XDG_CONFIG_HOME/tvterm/history` (or `~/.config/tvterm/history`, next to `tvterm.ini`): a text file, `##`
+  header, one section per list (`[editor-find]`, `[log-include]`, `[window-list-filter]`, `[file-filter]`, …), one
+  `- entry` per line, oldest first (`\\`, `\n`, `\r` escaped), mode 600, written to `history.tmp-<pid>` and renamed.
+  Lists: tvision histories (Log View Command 76, the Name field of the file dialogs 100–104, editor Find 105, Replace
+  106, Go to line 107, Window List Filter 108) and tvterm's own lists (Filter of the file dialogs, `usedFileFilters`;
+  Log View Include / Exclude / Highlight sets / words / Transform, `logFieldHistory`; their limit went from 20 to 30).
+  At most 30 entries per list (`histfile::maxEntries`): when the file is read and when it is written; the lists in
+  memory may grow longer while tvterm runs. Not saved: the `file-filters` patterns in the Name lists of Open / Save
+  file as / View file (added from `tvterm.ini` at every start: a pattern removed there goes away), the set names and
+  the Folder list. Read at startup before `tvterm.ini` (`histfile::load`); written by `histfile::poll` (from `idle`, at
+  most once a second, when a signature of the lists changed) and at exit. Unknown sections of the file are kept.
+  **Two instances**: each write reads the file first and keeps, before its own entries (as older ones), the file's
+  entries it does not have; an entry deleted with Ctrl-Del in this instance is not taken back (`deleted`); another
+  instance that still has it writes it again (accepted). tvision's history buffer was 1024 bytes for all the lists
+  together (the oldest entries of any list were dropped when it was full): `historySize` = 60000 before the
+  application is created (`histfile::enlargeBuffer`; still shared: when full, tvision drops the oldest entries). An
+  entry is at most 250 bytes (tvision's record has a one-byte length).
+  **Ctrl-Del** in an open list: tvision lists (`THistoryWindow` as the modal view) in `TVTermApp::deleteHistoryEntry`,
+  called from `getEvent` (the protected `viewer` / `historyId` reached through pointers to members taken in derived
+  classes); tvision cannot delete one entry, so `histfile::remove` reads every list, clears the buffer
+  (`clearHistory`) and adds them again without it. tvterm's own list windows handle it themselves (`ItemListWindow` in
+  `fileopen.cc` with a remover: only filters used before, not the `file-filters` patterns, nothing in the Folder list;
+  `FieldListWindow` in `logview.cc`: only values, not set names; the "used before" separator goes with the last value).
+  The id of the file dialogs' row lists (`hiFieldList`, never added to) was 105, the id of editor Find: it is 250 now,
+  so that Ctrl-Del there cannot touch the Find list. **Window List Filter history**: a `THistory` (id 108) at the end
+  of the field (the field 3 columns shorter); Down in the field still moves in the list, so Alt-Down / Ctrl-Down open
+  the history; entries are added by `execWindowList` when the list closes with Go, Rename or Close
+  (`FilterHistory::recordHistory` does nothing: no entry on Esc or when the field loses the focus).
 - **Event Viewer** (Ctrl-B V): shows Turbo Vision events (key diagnostics); pressing it again pauses it. Filters: see above.
 - **Quitting** (Ctrl-B Q): the confirmation lists every open terminal and what runs in it, terminals running a program first:
   the foreground command (e.g. `tail -f /var/log/mail.log`, pipelines as `a | b`, `bash script.sh`), `bash, idle` for an idle shell,
@@ -1084,6 +1115,7 @@ source/tvterm/             the application
   editundo.cc/.h           multi-level undo / redo of the editors (E51): steps found by comparing the text with a copy
   setedit.cc/.h            the Settings editor (Edit settings): changes on disk, editing marker (E34)
   evntview.cc/.h           Event Viewer (filters, N/X keys; EventTerminal: TTerminal with a larger buffer)
+  histfile.cc/.h           the field lists kept between runs (E56): ~/.config/tvterm/history, Ctrl-Del
   windrag.cc/.h            moving / resizing windows (E54): bottom edge at the status line, keyboard Resize/Move, top
                            corners; called from TVTermApp::getEvent
   dlgclip.cc/.h            clipboard in dialog text fields (focused TInputLine; called from TVTermApp::getEvent)
@@ -1649,6 +1681,17 @@ examples/profiles/example.ini
   made narrower with Ctrl-F5 (header still aligned); `window-list-columns = 0 auto 10 *` (no Alert, Name 10 with `…`);
   Save Profile As writes the key; `auto auto`, `1 2 3 4`, `x 2 3`, `-1 2 3`, `201 1 1` → `invalid
   window-list-columns`; `AUTO 3 auto` accepted.
+- Field lists (E56), in tmux (100×30, `HOME=/tmp/th`, the file read with Python), 28 checks: a Window List filter
+  closed with Go is saved (section, mode 600, `##` header), with Esc not; after a restart Alt-Down shows it and Enter
+  fills the field; Ctrl-Del removes it from the file; a file with 35 + 1 Find entries → 30 loaded (`f06` first),
+  after a new search 30 written (`f07` … `back\\slash`, `abc`), a backslash shown once in the list and written
+  escaped, an unknown section kept; another instance's entries added to the file meanwhile stay before ours and are
+  not loaded into the list; Ctrl-Del of ours keeps theirs; an entry deleted here and written again by "another
+  instance" is not taken back; file dialog Filter `*.md` saved, the `file-filters` patterns not saved in `[open-file]`,
+  after a restart in the Filter list, Ctrl-Del removes it, Ctrl-Del on `*.txt` (a pattern) keeps it, Ctrl-Del in the
+  Folder list does nothing and the Find list is untouched (the old shared id 105); Log View Command and Include saved,
+  Include after a restart, Ctrl-Del there (`(nothing used yet)`); Go to line saved; the file still there after quitting.
+  Ctrl-Del in a terminal still reaches the program (`cat -v`: `^[[3;5~`). The tests of E54 and E55 again: 55/55.
 
 ## 6. Known limitations
 
@@ -1746,3 +1789,4 @@ examples/profiles/example.ini
 | Version 0.2.0 (`far2l-extended`) | E53 | version 0.2.0, signed tag `v0.2.0` and GitHub Release; `tvterm.ini` format line `## format 1, created by tvterm …` (Edit settings, `--print-settings`), one note in the Event Viewer for a file without it or of another format; `DeskList` in the top bar (Desktop..., Ctrl-B D) |
 | Moving and resizing (`far2l-extended`) | E54 | every window and dialog: moved or resized (mouse, Ctrl-F5 / Resize/Move), the bottom edge stops at the status line; the two top corners of the focused window resize it |
 | Window List columns (`far2l-extended`) | E55 | Window List: Alert (`A5`) / Desk / Name / Command with their names above the list; Name as wide as the longest name shown (at most 40%), Command the rest; profile `window-list-columns = auto auto 30 *` (0 hides a column) |
+| Field lists kept (`far2l-extended`) | E56 | the lists of the input fields (Log View fields, file dialogs, editor Find / Replace / Go to line, Window List Filter) kept between runs in `~/.config/tvterm/history` (30 per list, two instances merged); Ctrl-Del deletes an entry; Window List Filter history (Alt-Down / Ctrl-Down) |
