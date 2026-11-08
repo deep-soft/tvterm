@@ -519,6 +519,8 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~N~ Notes", kbNoKey, keyCmd('n', 0, 'n')) +
             *new TStatusItem("~A~ Alerts", kbNoKey, keyCmd('a', 0, 'a')) +
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
+            *new TStatusItem("~Space~ Pause", kbNoKey, keyCmd(' ', 0, ' ')) +
+            *new TStatusItem("~Ctrl-A~ Next Alert", kbNoKey, keyCmd(kbCtrlA, kbCtrlShift)) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             // The keys are handled by the editor window (editwnd.cc).

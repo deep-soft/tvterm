@@ -108,16 +108,23 @@ static bool shown(const EventFilter &filter, const TEvent &ev)
     return filter.other;
 }
 
+// Ctrl-A (Go to Next Alert), as returned by ownKey.
+enum : char { keyNextAlert = 1 };
+
 static char ownKey(const TEvent &ev)
-// The letter of a filter key (lowercase), or 0.
+// The letter of a filter key (lowercase), ' ' (Space: pause / resume),
+// keyNextAlert (Ctrl-A), or 0.
 {
-    if ( ev.what != evKeyDown ||
-         (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift)) )
+    if (ev.what != evKeyDown)
+        return 0;
+    if (TKey(ev.keyDown) == TKey(kbCtrlA))
+        return keyNextAlert;
+    if (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift))
         return 0;
     char c = ev.keyDown.charScan.charCode;
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
-    return strchr("mckotnax", c) && c ? c : 0;
+    return strchr("mckotnax ", c) && c ? c : 0;
 }
 
 } // namespace evntview
@@ -196,6 +203,11 @@ void TEventViewer::handleEvent(TEvent &ev)
                 // The application keeps the messages (see TVTermApp::note).
                 clear();
                 message(TProgram::application, evCommand, cmShowNotes, this);
+                break;
+            case ' ': toggle(); break; // Like Ctrl-B V.
+            case evntview::keyNextAlert:
+                // Like Ctrl-B G (see TVTermApp::nextAlert).
+                message(TProgram::application, evCommand, cmNextAlert, this);
                 break;
         }
         updateTitle();

@@ -882,6 +882,8 @@ Keys, while it is focused (each one is also a status line item):
 | `N` | clears the window and shows the kept messages again |
 | `A` | lists the active alerts ([chapter 9](#9-alerts)) |
 | `X` | clears the window |
+| Space | pauses / resumes it (like Ctrl-B V) |
+| Ctrl-A | goes to the next alert (like Ctrl-B G) |
 | Ctrl-W | closes the window |
 
 The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
@@ -1020,12 +1022,17 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Shift + those keys, Shift+click, drag | select lines |
 | Ctrl-C or Ctrl-Ins | copy the selection, or else the cursor line |
 | Ctrl-E | send the selection (or the cursor line) to a new editor |
-| Ctrl-A | add it at the end of an open editor (chosen from a list) |
+| Ctrl-Shift-E | add it at the end of an open editor (chosen from a list; F9 > To open editor) |
+| Ctrl-A | go to the next alert (like Ctrl-B G) |
 | F2 or `s` | save the lines shown, or the selection |
 | Esc | clears the selection, then the search match |
 | double click | copies a word |
 | Ctrl-B A | alerts |
 | Ctrl-W | closes the window |
+
+**Ctrl-Shift-E** arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or
+terminals that send keys with their modifiers; in a plain terminal it arrives as Ctrl-E (new editor): use F9 > To open
+editor there. Until E58 this key was Ctrl-A, which now goes to the next alert, as in the Event Viewer.
 
 **Cursor line** (black on cyan): with the cursor on the last line, new lines are followed; anywhere higher, the view
 stays put and `[+N]` counts the new lines; **End** follows again. The mouse wheel and the scroll bar move only the view;
@@ -1146,7 +1153,7 @@ and on (`[T-]` in the title while off).
 
 | Uses the original line | Uses the text shown |
 |---|---|
-| the filters (Include / Exclude), X, the alerts | the screen, W and Left / Right, the colors (sets and words), Ctrl-Down / Ctrl-Up, the search (`/`, F3, New window), copy, Ctrl-E / Ctrl-A, save, double click |
+| the filters (Include / Exclude), X, the alerts | the screen, W and Left / Right, the colors (sets and words), Ctrl-Down / Ctrl-Up, the search (`/`, F3, New window), copy, Ctrl-E / Ctrl-Shift-E, save, double click |
 
 To copy the original line: **T**, copy, **T**. Search > New window copies the matching **original** lines and keeps the
 transformation, so the new window shows them the same way.

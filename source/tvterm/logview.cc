@@ -2218,7 +2218,7 @@ void LogViewWindow::openMenu(TPoint where)
         newLine() +
         *new TMenuItem("~C~opy (selection or line)", cmLogCopy, kbNoKey, hcNoContext, "Ctrl-C") +
         *new TMenuItem("To new edi~t~or", cmLogToNewEditor, kbNoKey, hcNoContext, "Ctrl-E") +
-        *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-A") +
+        *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-Shift-E") +
         *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
         newLine() +
         *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, globalkeys::menuKeyName() + " A");
@@ -2965,8 +2965,12 @@ void LogViewWindow::handleEvent(TEvent &ev)
         else if (key == TKey(kbCtrlDown)) findHighlighted(true);
         else if (key == TKey(kbCtrlUp)) findHighlighted(false);
         else if (key == TKey(kbCtrlC) || key == TKey(kbCtrlIns)) copySelection();
+        // Ctrl-Shift-E arrives as a key of its own only through far2l's
+        // extensions; without them it is Ctrl-E (F9 > To open editor).
+        else if (key == TKey(kbCtrlE, kbShift)) sendToEditor(false);
         else if (key == TKey(kbCtrlE)) sendToEditor(true);
-        else if (key == TKey(kbCtrlA)) sendToEditor(false);
+        // Like Ctrl-B G (see TVTermApp::nextAlert).
+        else if (key == TKey(kbCtrlA)) message(TProgram::application, evCommand, cmNextAlert, this);
         else if (key == TKey(kbUp) || key == TKey(kbUp, kbShift))
             moveCursorTo((long) cursorIndex() - 1, mods & kbShift);
         else if (key == TKey(kbDown) || key == TKey(kbDown, kbShift))

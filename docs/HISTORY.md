@@ -128,6 +128,8 @@ E56. Field lists (histories) kept between runs in `~/.config/tvterm/history` (30
      Window List Filter history (Alt-Down / Ctrl-Down)
 E57. Log View: after F (filters on/off) or new filters from F4, a cursor line that is no longer on the screen goes to
      the third row
+E58. Event Viewer: Space pauses / resumes, Ctrl-A goes to the next alert; Log View: Ctrl-A goes to the next alert,
+     Ctrl-Shift-E adds to an open editor (was Ctrl-A)
 
 ---
 
@@ -270,6 +272,9 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   that kind; **N** clears the window and shows again the messages kept by tvterm (the last 200, the two version lines
   first), even if T is off; **X** clears the window. The status line shows them, one item per key (`M Moves`, `C Clicks`,
   `K Keys`, `O Other`, `T Messages`, `N Notes`, `X Clear`); a click on an item works like its key (E6).
+- **Space** (E58) pauses / resumes it (`toggle()`, like Ctrl-B V) and **Ctrl-A** goes to the next alert (`cmNextAlert`,
+  like Ctrl-B G); both are own keys (not shown as events; `ownKey` returns `' '` / `keyNextAlert`) and status line items
+  (`Space Pause`, `Ctrl-A Next Alert`).
 - The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
   Default: mouse movements hidden, everything else shown. Only new events are affected.
 - Hidden events are still counted: gaps in `Received event #N` show them.
@@ -443,7 +448,8 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   Space pause/continue, W wrapped lines / horizontal scrolling (←→, 8 columns), X clear this window (not the source),
   `/` search (plain text or regular expression; the match is black on yellow), F3 or n older, Shift-F3 or N newer, F2 or s save,
   Ctrl-C (or Ctrl-Ins) copy, Ctrl-E to a new editor, Ctrl-A added at the end of an open editor (chosen from a list; the Log View
-  keeps the focus) — the three use the selection or, without one, the cursor line —, mouse wheel, Esc clears the selection,
+  keeps the focus; **E58: Ctrl-Shift-E**, and Ctrl-A goes to the next alert like Ctrl-B G, `cmNextAlert` sent to the
+  application; Ctrl-Shift-E is tested before Ctrl-E, as it arrives only through far2l's extensions or `CSI 101;6u`) — the three use the selection or, without one, the cursor line —, mouse wheel, Esc clears the selection,
   then the match.
 - **Cursor line** (black on cyan, only in the focused window): Up/Down/PgUp/PgDn/Home/End move it, the view scrolls only to
   keep it on the screen; a click puts it on a line; a search puts it on the match; with new filters it stays on the same line
@@ -1702,6 +1708,11 @@ examples/profiles/example.ini
   (base build: the last row, 27); F on again → it stays on row 14 (still on the screen, nothing moves); F off again →
   row 4; cursor on `foo 200` near the end → the view stops at the end (cursor on the second-last row); a window of 5
   rows → the first row; with W and lines of 150 characters every third line → two rows of context (one wrapped line).
+- Keys (E58), in tmux (120×40, profile: Log View L1 focused, Log View L2 with `alert-keywords = error` and a line
+  `boom error` after 5 s, an editor, the Event Viewer): Ctrl-A in L1 → L2 focused, its `[!error]` gone; Ctrl-Shift-E
+  (`CSI 101;6u` through `TIOCSTI`) → the `Add to editor` list; Ctrl-E → a new `Untitled` editor, `Added 1 line(s)`;
+  Event Viewer focused with a click (SGR): status line `… X Clear  Space Pause  Ctrl-A Next Alert`, Space → `Event
+  Viewer (Stopped)`, Space → running (the Space keys not printed as events), Ctrl-A → L2 focused.
 
 ## 6. Known limitations
 
@@ -1801,3 +1812,4 @@ examples/profiles/example.ini
 | Window List columns (`far2l-extended`) | E55 | Window List: Alert (`A5`) / Desk / Name / Command with their names above the list; Name as wide as the longest name shown (at most 40%), Command the rest; profile `window-list-columns = auto auto 30 *` (0 hides a column) |
 | Field lists kept (`far2l-extended`) | E56 | the lists of the input fields (Log View fields, file dialogs, editor Find / Replace / Go to line, Window List Filter) kept between runs in `~/.config/tvterm/history` (30 per list, two instances merged); Ctrl-Del deletes an entry; Window List Filter history (Alt-Down / Ctrl-Down) |
 | Cursor line after F (`far2l-extended`) | E57 | Log View: after F or new filters (F4), a cursor line that is no longer on the screen goes to the third row (two rows above it; the first row in a window of 5 rows or less) instead of the last |
+| Event Viewer / Log View keys (`far2l-extended`) | E58 | Event Viewer: Space pause / resume, Ctrl-A next alert (status line items); Log View: Ctrl-A next alert, Ctrl-Shift-E adds to an open editor (was Ctrl-A; F9 > To open editor) |
