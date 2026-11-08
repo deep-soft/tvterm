@@ -139,6 +139,8 @@ E61. Log View: a double click keeps the word (shown selected); `+` (F9 > Duplica
      profile key `include-and`, `[I+]` in the title
 E62. Profiles: `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, the
      focus on the `focus` window if it is on N, else on the front window of N
+E63. Editor: F9 menu (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]` in the title, editing
+     keys → `Read only.`, F2 → Save As (then no longer read only), Log View adds nothing; `read-only = yes` in profiles
 
 ---
 
@@ -1014,6 +1016,20 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   all, Alt-D, also changes made from outside before the event), after undo / redo, after Log View adds lines
   (`appendToEditor`) and after the Settings editor reloads the file. Cost: one pass over the text per change, like the
   undo comparison already did.
+- **Read only** (E63, item 16, chat 59; `editwnd.cc`): `TVTermEditWindow::readOnly`, `setReadOnly` (redraws the
+  frame), `getTitle` adds ` [RO]` (also seen by the Settings editor's title, the Window List and the Log View editor
+  list). Toggled only from the new **F9 menu** of every editor (`openMenu`, `popupMenu` at the editor's top left:
+  `~R~ead only` with `on` / `off`, Save F2, Save ~a~s, ~F~ind F7, R~e~place Ctrl-F7, ~G~o to line Alt-F8; Ctrl-Shift-R
+  was taken); `F9 Menu` first in the editor's status line (`keyCmd(kbF9)`). While read only, `handleEvent` (before the
+  undo tracking) turns `cmSave` into `cmSaveAs` and drops the events that would change the text (`isEditingEvent`):
+  the editing commands (`cmCut`, `cmPaste`, `cmUndo`, `cmClear`, `cmNewLine`, `cmBackSpace`, `cmDel*`, `cmReplace`,
+  `cmSearchAgain` when it repeats a Replace), tvterm's undo / redo keys and Alt-D, and keys that tvision's editor would
+  turn into text or an editing command: `convertEvent` on a copy (the Ctrl-K / Ctrl-Q prefix state saved and restored),
+  then text (`textLength`, tab, 32–254, bracketed paste) or an editing command; status `Read only.` Moves, selection,
+  copy, Find stay. `edSaveAs` confirmed → `ofFileNameBuffer(fileName)` (the open editor windows are listed, the dialog
+  only gets the editor's file name buffer) → `setReadOnly(false)`. Log View `sendToEditor` refuses a read only target
+  (`<title>: read only, nothing added.`). Profiles: `[editor] read-only = yes / no`, written only for read only
+  editors with a file.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1795,6 +1811,13 @@ examples/profiles/example.ini
   L2 focused; `focus = 3` → the editor; without `desktop-main` → desktop 1, T1 focused (as before). Save Profile As
   after a load with `desktop-main = 2` → `desktop-main = 2` written (with `desktop = 2`); a profile without the key →
   none written.
+- Read only (E63), in tmux (120×30, a profile with an editor on a 2-line file and `read-only = yes`): title
+  `/tmp/t/ro.txt [RO]`, status line starts with `F9 Menu`; `x`, Enter, Backspace, Ctrl-Y, Ctrl-Z, Alt-D, Ctrl-F7 and a
+  bracketed paste → `Read only.`, the text and the indicator unchanged (no modified mark); F9 → the menu (`Read only
+  on`), `r` → `Read only off.`, `x` typed; F9 `r` again → `[RO]`; F2 → Save file as; `/tmp/t/ro2.txt` → title without
+  `[RO]`, `ro2.txt` written, `ro.txt` untouched; a Log View's F9 > To open editor on the read only editor →
+  `/tmp/t/ro.txt [RO]: read only, nothing added.`, the file unchanged; Save Profile As → `read-only = yes` after
+  `file =`.
 
 ## 6. Known limitations
 
@@ -1899,3 +1922,4 @@ examples/profiles/example.ini
 | Editor width (`far2l-extended`) | E60 | every editor scrolls right as far as the longest line (at least 256 columns, tvision's fixed range); taken again after every change, undo, Log View lines, Settings reload |
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
+| Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |

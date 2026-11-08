@@ -51,6 +51,7 @@ struct WindowProfile
     int alertSilence {0};      // Seconds; 0: disabled.
     // Editor: file name (empty: untitled).
     std::string file;
+    bool readOnly {false};      // [editor] read-only (E63).
     // Event Viewer.
     EventFilter filter;
     // All windows: position and size in percent of the desktop, if 'hasPos'.

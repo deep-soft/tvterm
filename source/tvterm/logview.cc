@@ -2944,6 +2944,13 @@ void LogViewWindow::sendToEditor(bool newEditor)
             return;
         target = editors[focused];
     }
+    if (auto *rw = dynamic_cast<TVTermEditWindow *>(target))
+        if (rw->isReadOnly())
+        {
+            const char *t = target->getTitle(100);
+            showStatus(std::string(t && *t ? t : "The editor") + ": read only, nothing added.");
+            return;
+        }
     if (target && target->editor)
     {
         appendToEditor(*target->editor, text);

@@ -202,8 +202,9 @@ bool SettingsEditWindow::hasChanges()
 
 void SettingsEditWindow::handleEvent(TEvent &ev)
 {
+    // Read only: F2 is Save As (TVTermEditWindow::handleEvent).
     if ( ev.what == evCommand && ev.message.command == cmSave &&
-         editsSettings() && (state & sfFocused) )
+         editsSettings() && (state & sfFocused) && !isReadOnly() )
     {
         saveChecked();
         clearEvent(ev);

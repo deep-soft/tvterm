@@ -412,6 +412,11 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (isEditor && key == "file")
                 win.file = expandHome(value);
+            else if (isEditor && key == "read-only")
+            {
+                if (!parseBool(value, win.readOnly))
+                    warn("invalid read-only '" + value + "' (use yes or no)");
+            }
             else if (win.kind == WindowProfile::EventViewer && isFilterKey(key))
             {
                 if (!parseBool(value, filterField(win.filter, key)))
@@ -512,7 +517,11 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
             case WindowProfile::Editor:
                 file << "\n[editor]\n";
                 if (!win.file.empty())
+                {
                     file << "file = " << win.file << "\n";
+                    if (win.readOnly)
+                        file << "read-only = yes\n";
+                }
                 break;
             case WindowProfile::LogView:
                 file << "\n[logview]\n";

@@ -15,6 +15,9 @@
 #define Uses_TKeys
 #define Uses_TFindDialogRec
 #define Uses_TReplaceDialogRec
+#define Uses_TMenuItem
+#define Uses_TSubMenu
+#define Uses_TMenu
 #include <tvision/tv.h>
 
 #include "editwnd.h"
@@ -31,6 +34,7 @@
 #include <string>
 #include <algorithm>
 #include <limits.h>
+#include <vector>
 
 namespace editwnd
 {
@@ -639,6 +643,28 @@ static int widestLine(const TEditor &e)
     return (int) std::min<long long>(widest, INT_MAX / 2);
 }
 
+// The open editor windows (to find the window of a file name buffer).
+static std::vector<TVTermEditWindow *> openWindows;
+
+// Commands of the window's menu (F9).
+enum : ushort { cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine };
+
+// The commands of tvision's editor that change the text.
+static bool isEditingCommand(ushort cmd)
+{
+    switch (cmd)
+    {
+        case cmCut: case cmPaste: case cmUndo: case cmClear: case cmNewLine:
+        case cmBackSpace: case cmDelChar: case cmDelWord: case cmDelWordLeft:
+        case cmDelStart: case cmDelEnd: case cmDelLine: case cmReplace:
+            return true;
+        case cmSearchAgain:
+            // Search again repeats a Replace.
+            return (TEditor::editorFlags & efDoReplace) != 0;
+    }
+    return false;
+}
+
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord };
 
 // The keys of 45 (not while the editor waits for the second key of
@@ -680,14 +706,107 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
         undoList.reset(*editor);
     applyUndoLimits();
     updateWidthLimit();
+    editwnd::openWindows.push_back(this);
 }
 
 TVTermEditWindow::~TVTermEditWindow()
 {
+    auto &v = editwnd::openWindows;
+    v.erase(std::remove(v.begin(), v.end(), this), v.end());
     // Destroyed inside its own handleEvent (e.g. closed): the rest of
     // handleEvent must not use it.
     if (destroyedFlag)
         *destroyedFlag = true;
+}
+
+TVTermEditWindow *TVTermEditWindow::ofFileNameBuffer(const char *fileName)
+{
+    for (TVTermEditWindow *w : editwnd::openWindows)
+        if (w->editor && w->editor->fileName == fileName)
+            return w;
+    return nullptr;
+}
+
+const char *TVTermEditWindow::getTitle(short maxSize)
+{
+    const char *t = TEditWindow::getTitle(maxSize);
+    if (!readOnly)
+        return t;
+    titleBuf = std::string(t ? t : "") + " [RO]";
+    return titleBuf.c_str();
+}
+
+void TVTermEditWindow::setReadOnly(bool on)
+{
+    if (readOnly == on)
+        return;
+    readOnly = on;
+    if (frame)
+        frame->drawView();
+}
+
+bool TVTermEditWindow::isEditingEvent(const TEvent &ev)
+{
+    if (!editor)
+        return false;
+    if (ev.what == evCommand)
+        return editwnd::isEditingCommand(ev.message.command);
+    if (ev.what != evKeyDown)
+        return false;
+    bool extend;
+    editwnd::EditorKey ek = editwnd::editorKey(editor, ev, extend);
+    if (ek != editwnd::ekNone)
+        return ek == editwnd::ekDuplicate;
+    if (editwnd::undoRedoKey(editor, ev) != editwnd::noUndoKey)
+        return true;
+    if (ushort cmd = editwnd::searchKeyCommand(editor, ev.keyDown.keyCode))
+        return editwnd::isEditingCommand(cmd);
+    // As tvision's editor sees the key: converted (Ctrl-K / Ctrl-Q pairs
+    // too) on a copy, its pending prefix kept.
+    TEvent copy = ev;
+    int keyState = editor->keyState;
+    editor->convertEvent(copy);
+    editor->keyState = keyState;
+    if (copy.what == evCommand)
+        return editwnd::isEditingCommand(copy.message.command);
+    if (copy.what == evKeyDown)
+    {
+        uchar ch = copy.keyDown.charScan.charCode;
+        return copy.keyDown.textLength > 0 || ch == 9 || (ch >= 32 && ch < 255);
+    }
+    return false;
+}
+
+void TVTermEditWindow::openMenu()
+{
+    using namespace editwnd;
+    TMenuItem &items =
+        *new TMenuItem("~R~ead only", cmEditReadOnly, kbNoKey, hcNoContext, readOnly ? "on" : "off") +
+        newLine() +
+        *new TMenuItem("~S~ave", cmEditSave, kbNoKey, hcNoContext, "F2") +
+        *new TMenuItem("Save ~a~s...", cmEditSaveAs, kbNoKey, hcNoContext) +
+        newLine() +
+        *new TMenuItem("~F~ind...", cmEditFind, kbNoKey, hcNoContext, "F7") +
+        *new TMenuItem("R~e~place...", cmEditReplace, kbNoKey, hcNoContext, "Ctrl-F7") +
+        *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8");
+    TPoint where = editor ? editor->makeGlobal(TPoint {0, 0}) : origin;
+    ushort cmd = popupMenu(where, items, nullptr);
+    switch (cmd)
+    {
+        case cmEditReadOnly:
+            setReadOnly(!readOnly);
+            showStatus(readOnly ? "Read only: the text cannot be changed; F2 saves as another file."
+                                : "Read only off.");
+            break;
+        case cmEditSave: message(this, evCommand, cmSave, nullptr); break;
+        case cmEditSaveAs: message(this, evCommand, cmSaveAs, nullptr); break;
+        case cmEditFind: message(this, evCommand, cmFind, nullptr); break;
+        case cmEditReplace: message(this, evCommand, cmReplace, nullptr); break;
+        case cmEditGoToLine:
+            if (editor)
+                goToLine(*editor);
+            break;
+    }
 }
 
 void TVTermEditWindow::updateWidthLimit()
@@ -781,6 +900,25 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
 void TVTermEditWindow::handleEvent(TEvent &ev)
 {
     closeKeyToCommand(*this, ev);
+    if ( ev.what == evKeyDown && editor && editor->keyState == 0 &&
+         TKey(ev.keyDown) == TKey(kbF9) && (state & sfFocused) )
+    {
+        clearEvent(ev);
+        openMenu();
+        return;
+    }
+    if (readOnly && (state & sfFocused))
+    {
+        // F2: Save As (another file; then the editor is no longer read only).
+        if (ev.what == evCommand && ev.message.command == cmSave)
+            ev.message.command = cmSaveAs;
+        else if (isEditingEvent(ev))
+        {
+            clearEvent(ev);
+            editwnd::showStatus("Read only.");
+            return;
+        }
+    }
     // The undo steps: only for the events that can change the text, not
     // inside a modal box opened by this window (eventDepth > 0), not for
     // Close (the window is gone after it).
@@ -894,6 +1032,9 @@ static ushort editorDialog(int dialog, ...)
                     p->getData(fileName);
                 TObject::destroy(p);
             }
+            if (result != cmCancel)
+                if (TVTermEditWindow *w = TVTermEditWindow::ofFileNameBuffer(fileName))
+                    w->setReadOnly(false);
             break;
         }
         case edSearchFailed:

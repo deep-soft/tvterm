@@ -522,6 +522,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~Space~ Pause", kbNoKey, keyCmd(' ', 0, ' ')) +
             *new TStatusItem("~Ctrl-A~ Next Alert", kbNoKey, keyCmd(kbCtrlA, kbCtrlShift)) +
         *new TStatusDef(hcEditor, hcEditor) +
+            *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
             // The keys are handled by the editor window (editwnd.cc).
             *new TStatusItem("~F7~ Find", kbNoKey, cmFind) +
@@ -1236,7 +1237,10 @@ void TVTermApp::openProfile(const Profile &profile)
             case WindowProfile::Editor:
             {
                 TRect r = win.hasPos ? profileBounds(win, ext) : editorBounds(ext);
-                window = new TVTermEditWindow(r, win.file);
+                auto *edit = new TVTermEditWindow(r, win.file);
+                if (win.readOnly)
+                    edit->setReadOnly(true);
+                window = edit;
                 break;
             }
             case WindowProfile::EventViewer:
@@ -1623,6 +1627,8 @@ void TVTermApp::saveProfile()
             if (edit->editor)
             {
                 win.file = edit->editor->fileName;
+                if (auto *rw = dynamic_cast<TVTermEditWindow *>(edit))
+                    win.readOnly = rw->isReadOnly() && !win.file.empty();
                 if (win.file.empty() && edit->editor->bufLen > 0)
                     ++untitledWithText;
                 else if (!win.file.empty() && edit->editor->modified)

@@ -511,6 +511,16 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 **F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and
 **Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
+**F9** opens the editor's menu: Read only, Save, Save as, Find, Replace, Go to line ([Read only](#read-only)).
+
+### Read only
+
+**F9 > Read only** (`r`) turns read only on or off for the editor (the menu shows `on` / `off`); there is no key for it.
+While it is on, the title ends with ` [RO]`, and the keys and commands that change the text (typing, Enter, Tab,
+Backspace, Del, Ctrl-Y, paste, cut, undo / redo, Alt-D, Replace) do nothing: the status line shows `Read only.` Moving,
+selecting, copying and Find work as usual. **F2** opens **Save As** (a copy under another name); after Save As the
+editor edits the new file and is no longer read only. Log View does not add lines to a read only editor
+(`…: read only, nothing added.`). Save Profile As writes `read-only = yes` for read only editors that have a file.
 
 ### Find and Replace
 
@@ -826,7 +836,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

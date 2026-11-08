@@ -30,6 +30,21 @@ public:
     // Alt-D (Duplicate line) and Alt-W (Select word).
     void handleEvent(TEvent &ev) override;
 
+    // The file name, or "Untitled"; " [RO]" added while read only.
+    const char *getTitle(short maxSize) override;
+
+    // Read only (E63): toggled from the window's menu (F9). The keys and
+    // commands that change the text do nothing ("Read only." in the status
+    // line); F2 opens Save As, and after Save As the editor is no longer
+    // read only. Lines from Log View are not added to it. Profiles keep it
+    // ('read-only = yes', editors with a file).
+    bool isReadOnly() const noexcept { return readOnly; }
+    void setReadOnly(bool on);
+
+    // The editor window whose editor has the file name buffer 'fileName'
+    // (the dialogs of tvision's editor get only that buffer), or null.
+    static TVTermEditWindow *ofFileNameBuffer(const char *fileName);
+
     // The selected text of the editor in the color of 'editor-selection'
     // (tvterm.ini), when it is set.
     TColorAttr mapColor(uchar index) override;
@@ -59,6 +74,14 @@ public:
     void updateWidthLimit();
 
 private:
+
+    bool readOnly {false};
+    std::string titleBuf;
+
+    // F9: the window's menu.
+    void openMenu();
+    // Whether 'ev' would change the text (for read only).
+    bool isEditingEvent(const TEvent &ev);
 
     // handleEvent calls running (a modal box opened inside one lets
     // broadcasts reach the window again).
