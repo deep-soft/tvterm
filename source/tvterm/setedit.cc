@@ -265,6 +265,8 @@ bool SettingsEditWindow::saveChecked()
                      "~O~verwrite", "~C~ancel" ))
             return false;
     }
+    if (!backupBeforeSave(editor->fileName))
+        return false;
     if (!editor->save())
         return false;
     afterSave();

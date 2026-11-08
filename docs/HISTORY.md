@@ -141,6 +141,9 @@ E62. Profiles: `[profile] desktop-main = N` (by hand, kept by Save Profile As): 
      focus on the `focus` window if it is on N, else on the front window of N
 E63. Editor: F9 menu (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]` in the title, editing
      keys → `Read only.`, F2 → Save As (then no longer read only), Log View adds nothing; `read-only = yes` in profiles
+E64. Editor backups: at the first save of a window the file is copied to `name-YYYY-MM-DD-hhmmss` (local time; the file
+     keeps inode, mode, owner), the oldest over `file-backups-number` (5) deleted; Save As over an existing file the
+     same; `file-backups = no`: none; `tvterm.ini` format 2; no more `name.bak`
 
 ---
 
@@ -340,7 +343,7 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
   `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
 - **Format line** (E53, item 47): `settingsTemplate()` starts with `## format N, created by tvterm <version> (<commit>,
-  built <date>)` (`settingsFormat` in `settings.h`, now 1; `buildinfo::version`, `commit`, `date`), so the file made by
+  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; `buildinfo::version`, `commit`, `date`), so the file made by
   Edit settings and `--print-settings` say which tvterm made them. The number goes up when a version adds, renames or
   changes the meaning of keys. `loadSettings` reads it (`parseFormatLine`: `##`, more `#` or spaces, `format `, 1–6
   digits, then the end, `,`, space or tab) only before the first section, the first such line; `Settings::fileFormat`,
@@ -932,7 +935,7 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `doSearchReplace`, Ctrl-Q F / Ctrl-Q A / Ctrl-L), but asks the program for the dialogs through `editorDialog`;
   `edFind`, `edReplace` and `edReplacePrompt` were not handled (the keys did nothing). Find: Text to find (history id
   105), Case sensitive, Whole words only. Replace: also New text (id 106), Prompt on replace, Replace all. The other bits
-  of `TEditor::editorFlags` are kept (`efBackupFiles`: Save still makes `name.bak`); Find clears `efReplaceAll`
+  of `TEditor::editorFlags` are kept (`efBackupFiles`: Save still made `name.bak`, until E64); Find clears `efReplaceAll`
   (otherwise `TEditor::find` would run to the last occurrence). An empty text = Cancel. The field starts with the
   selection when it is on one line and shorter than `maxFindStrLen` (80); otherwise with `TEditor::findStr` (static:
   shared by all the editors). The texts are added to the histories by the dialog (`historyAdd`): `THistory` records only
@@ -1030,6 +1033,30 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   only gets the editor's file name buffer) → `setReadOnly(false)`. Log View `sendToEditor` refuses a read only target
   (`<title>: read only, nothing added.`). Profiles: `[editor] read-only = yes / no`, written only for read only
   editors with a file.
+- **Backups** (E64, item 16, chat 59; v2 chat 60 / 61; `editwnd.cc`): tvision's `saveFile` with `efBackupFiles`
+  renamed the file to `name.bak` and wrote a new file (new inode, default mode, links broken). `initEditorDialogs`
+  clears `efBackupFiles`, so tvision writes over the file in place (`ofstream` truncation: inode, mode, owner kept).
+  `TVTermEditWindow::backupBeforeSave(path, always)`: once per window and file (`backedUpFile`, set only when the save
+  goes on, so after No the next save asks again; `always` for Save As) → `backupOrAsk` → `makeBackup`: nothing with
+  `file-backups = no` or when the path is not a regular file (`stat`); otherwise `copyToNewFile(name,
+  name-YYYY-MM-DD-hhmmss)` (`localtime_r` + `strftime`, `O_CREAT | O_EXCL`: never overwrites; on `EEXIST` the same name
+  + `-2` … `-99`; read / write loop, `fchmod` to the file's mode, close checked, a partial copy removed), then
+  `pruneBackups(name, file-backups-number)`: `opendir` of the file's directory, names `isBackupName` = the file's
+  name + `-DDDD-DD-DD-DDDDDD`, optionally `-N` (2–99, no leading zero), regular files only (`lstat`), sorted by the date
+  part then N, the oldest deleted until `file-backups-number` remain; a name that cannot be deleted (or a directory
+  that cannot be read) → Event Viewer note. Other names (`-01` … `-05` of v1, `.bak`, other digits) are never counted
+  or deleted. On a copy error: `messageBox` `Could not make the backup <name>: <e> Save anyway?` (Yes / No; No =
+  nothing saved). Called from every save path, since `TFileEditor::save / saveFile` are not virtual: `cmSave` in
+  `handleEvent` (after the read only check; cleared when No), `edSaveModify` answered Yes (Ctrl-W, quit, Load
+  Profile; the window found with `ofFileNameBuffer`; No → `cmCancel`), `edSaveAs` (the dialog's name is read into a
+  copy, `fexpand`ed like tvision does, the existing file backed up with `always`, also without a window; the editor's
+  name is changed only when saving goes on; `backedUpFile` = the new name, so Save As to a new file and later F2 make
+  none) and the Settings editor's `saveChecked`. The Settings editor with read only on no longer catches F2
+  (`saveChecked` would have written): F2 → Save As as in every editor (fixed in E63's commit).
+  `[general] file-backups` (yes / no; invalid: previous value) and `file-backups-number` (1–99; invalid: a note and
+  the default 5), read at each save (`TVTermApp::settings()`), so Reload settings applies at once. New keys →
+  `settingsFormat` = 2 (`examples/tvterm.ini` `## format 2`): a format 1 file gets the one note (`is format 1, this
+  tvterm uses format 2 …`). v1 (not pushed) rotated `name-01` … `name-05`; replaced before the push.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1818,6 +1845,18 @@ examples/profiles/example.ini
   `[RO]`, `ro2.txt` written, `ro.txt` untouched; a Log View's F9 > To open editor on the read only editor →
   `/tmp/t/ro.txt [RO]: read only, nothing added.`, the file unchanged; Save Profile As → `read-only = yes` after
   `file =`.
+- Backups (E64 v2), in tmux (a profile with an editor on `f.txt`, `v0`, mode 640): `a`, F2, `b`, F2 → only
+  `f.txt-<date>` (= `v0`, mode 640), `f.txt` = `abv0` with the same inode; six more sessions → five backups = the five
+  previous versions; `f.txt-01`, `f.txt.bak`, `-00000` (5 digits), `-0000000` (7), `-000000x`, `-000000-0`,
+  `-000000-100`, `x-f.txt-…` and a directory `f.txt-2019-…` untouched; the 13 next seconds' names and their `-2`
+  created beforehand, `file-backups-number = 20` → the backup is `…-3`, the 7 oldest deleted in order (second, then
+  N); `file-backups = no` → none; `= 2`, three sessions → 2; `0` / `maybe` → the two notes (`using 5`, `keeping the
+  previous value`); a `## format 1` file → the format note; the file changed to `file-backups-number = 1` while
+  running, F2 → one backup, the two older deleted; Ctrl-B S over an existing `g.txt` (mode 604) → `g.txt-<date>` =
+  its old text, mode 604, a later F2 none; Save As to a new `n.txt` and F2 → none; Ctrl-W > `y` → a backup; Edit
+  settings, a space, F2 → `tvterm.ini-<date>`; as a user without write right in the directory: `Could not make the
+  backup … Permission denied … Save anyway?`, `n` → not saved, F2 asks again, `y` → saved, a third F2 no box;
+  `TZ=Europe/Bucharest` → the name has the local time (UTC + 2).
 
 ## 6. Known limitations
 
@@ -1923,3 +1962,4 @@ examples/profiles/example.ini
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
+| Editor backups (`far2l-extended`) | E64 | first save of an editor window (F2, Ctrl-W Yes, Settings editor): the file copied to `name-YYYY-MM-DD-hhmmss` (local time, `-2` in the same second; file keeps inode / mode / owner), the oldest over `file-backups-number` (5) deleted; `file-backups = no`: none; Save As over an existing file the same; failure → `Save anyway?`; `tvterm.ini` format 2; no more `name.bak` |

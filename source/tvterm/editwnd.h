@@ -41,6 +41,16 @@ public:
     bool isReadOnly() const noexcept { return readOnly; }
     void setReadOnly(bool on);
 
+    // Backups (E64): before the first save of this window to 'path' (or,
+    // with 'always', before Save As over an existing file), the file on disk
+    // is copied to name-YYYY-MM-DD-hhmmss (local time; -2, -3, ... in the
+    // same second) and the oldest backups over file-backups-number are
+    // deleted (the file itself keeps its inode, mode and owner: tvision then
+    // writes over it). No backup when the file does not exist or with
+    // file-backups = no. If the backup cannot be made, asks whether to save
+    // anyway: false = do not save.
+    bool backupBeforeSave(const std::string &path, bool always = false);
+
     // The editor window whose editor has the file name buffer 'fileName'
     // (the dialogs of tvision's editor get only that buffer), or null.
     static TVTermEditWindow *ofFileNameBuffer(const char *fileName);
@@ -77,6 +87,9 @@ private:
 
     bool readOnly {false};
     std::string titleBuf;
+    // The file whose backups this window made (or that it wrote first by
+    // Save As): no more backups for it from this window.
+    std::string backedUpFile;
 
     // F9: the window's menu.
     void openMenu();

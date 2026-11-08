@@ -21,11 +21,12 @@ const int minFileDialogWidth = 49;
 const int minFileDialogHeight = 19;
 
 // Format of tvterm.ini written by this tvterm: the number in the template's
-// first line ('## format 1, created by tvterm 0.2.0 (...)'). It goes up by
+// first line ('## format 2, created by tvterm 0.2.0 (...)'). It goes up by
 // one when a version adds, renames or changes the meaning of keys, so that
 // an older file can be recognized (a note in the Event Viewer; the file is
-// never rewritten).
-const int settingsFormat = 1;
+// never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
+// file-backups-number (E64).
+const int settingsFormat = 2;
 
 struct Settings
 {
@@ -66,6 +67,11 @@ struct Settings
     // (the oldest are dropped over a limit); memory in bytes, 0: no limit.
     int undoLimitSteps {500};
     long long undoLimitMemory {20LL * 1024 * 1024};
+    // file-backups: a copy name-YYYY-MM-DD-hhmmss at the first save of an
+    // editor window (no: none); file-backups-number: the backups kept per
+    // file (1 to 99), the oldest deleted over it.
+    bool fileBackups {true};
+    int fileBackupsNumber {5};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

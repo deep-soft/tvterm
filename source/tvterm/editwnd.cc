@@ -35,6 +35,12 @@
 #include <algorithm>
 #include <limits.h>
 #include <vector>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <time.h>
 
 namespace editwnd
 {
@@ -643,6 +649,205 @@ static int widestLine(const TEditor &e)
     return (int) std::min<long long>(widest, INT_MAX / 2);
 }
 
+// Backups of a file (E64): name-YYYY-MM-DD-hhmmss (local time), plus -2,
+// -3, ... when a backup of that second already exists.
+
+// "-YYYY-MM-DD-hhmmss" of the current local time.
+static std::string backupStamp()
+{
+    time_t now = time(nullptr);
+    struct tm tm {};
+    localtime_r(&now, &tm);
+    char buf[32];
+    strftime(buf, sizeof(buf), "-%Y-%m-%d-%H%M%S", &tm);
+    return buf;
+}
+
+// Whether 'name' (a name in the file's directory) is a backup of the file
+// named 'base': base-DDDD-DD-DD-DDDDDD, optionally followed by -N (N = 2 to
+// 99, a second backup in the same second). 'stamp' gets the date part,
+// 'extra' N (1 without it), for the order (oldest first).
+static bool isBackupName(const std::string &base, const std::string &name, std::string &stamp, int &extra)
+{
+    static const char form[] = "-dddd-dd-dd-dddddd";
+    const size_t formLen = sizeof(form) - 1;
+    if (name.size() < base.size() + formLen || name.compare(0, base.size(), base) != 0)
+        return false;
+    size_t i = base.size();
+    for (size_t k = 0; k < formLen; ++k)
+    {
+        char c = name[i + k];
+        if (form[k] == 'd' ? !(c >= '0' && c <= '9') : c != form[k])
+            return false;
+    }
+    stamp = name.substr(i, formLen);
+    i += formLen;
+    extra = 1;
+    if (i == name.size())
+        return true;
+    // "-N": 1 or 2 digits, no leading zero, 2 to 99.
+    if (name[i] != '-' || name.size() - i < 2 || name.size() - i > 3 || name[i + 1] == '0')
+        return false;
+    int n = 0;
+    for (size_t k = i + 1; k < name.size(); ++k)
+    {
+        if (!(name[k] >= '0' && name[k] <= '9'))
+            return false;
+        n = n * 10 + (name[k] - '0');
+    }
+    if (n < 2)
+        return false;
+    extra = n;
+    return true;
+}
+
+// Copies 'from' to the new file 'to' (it must not exist) with 'mode'.
+// False, with 'error', when a step fails; EEXIST in 'exists' (nothing
+// written then). A partly written 'to' is removed.
+static bool copyToNewFile(const std::string &from, const std::string &to, mode_t mode, std::string &error, bool &exists)
+{
+    exists = false;
+    int in = open(from.c_str(), O_RDONLY | O_CLOEXEC);
+    if (in < 0)
+    {
+        error = from + ": " + strerror(errno);
+        return false;
+    }
+    int out = open(to.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (out < 0)
+    {
+        exists = errno == EEXIST;
+        error = to + ": " + strerror(errno);
+        close(in);
+        return false;
+    }
+    bool ok = true;
+    char buf[65536];
+    while (ok)
+    {
+        ssize_t n = read(in, buf, sizeof(buf));
+        if (n == 0)
+            break;
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            error = from + ": " + strerror(errno);
+            ok = false;
+            break;
+        }
+        for (ssize_t done = 0; done < n;)
+        {
+            ssize_t w = write(out, buf + done, (size_t) (n - done));
+            if (w < 0)
+            {
+                if (errno == EINTR)
+                    continue;
+                error = to + ": " + strerror(errno);
+                ok = false;
+                break;
+            }
+            done += w;
+        }
+    }
+    if (ok && fchmod(out, mode) != 0)
+    {
+        error = to + ": " + strerror(errno);
+        ok = false;
+    }
+    if (close(out) != 0 && ok)
+    {
+        error = to + ": " + strerror(errno);
+        ok = false;
+    }
+    close(in);
+    if (!ok)
+        unlink(to.c_str());
+    return ok;
+}
+
+// Deletes the oldest backups of 'path' (names of exactly the backup form,
+// regular files) so that at most 'keep' remain. Names that cannot be
+// deleted go to the Event Viewer.
+static void pruneBackups(const std::string &path, int keep)
+{
+    size_t slash = path.rfind('/');
+    std::string dir = slash == std::string::npos ? "." : slash == 0 ? "/" : path.substr(0, slash);
+    std::string base = slash == std::string::npos ? path : path.substr(slash + 1);
+    DIR *d = opendir(dir.c_str());
+    if (!d)
+    {
+        TVTermApp::note("backups: " + dir + ": " + strerror(errno) + " (old backups not deleted)");
+        return;
+    }
+    struct Found { std::string stamp; int extra; std::string name; };
+    std::vector<Found> found;
+    while (struct dirent *e = readdir(d))
+    {
+        Found f;
+        f.name = e->d_name;
+        if (!isBackupName(base, f.name, f.stamp, f.extra))
+            continue;
+        struct stat st;
+        std::string full = dir + "/" + f.name;
+        if (lstat(full.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+            found.push_back(std::move(f));
+    }
+    closedir(d);
+    if ((int) found.size() <= keep)
+        return;
+    std::sort(found.begin(), found.end(), [] (const Found &a, const Found &b) {
+        return a.stamp != b.stamp ? a.stamp < b.stamp : a.extra < b.extra;
+    });
+    size_t remove = found.size() - (size_t) keep;
+    for (size_t i = 0; i < remove; ++i)
+    {
+        std::string full = dir + "/" + found[i].name;
+        if (unlink(full.c_str()) != 0 && errno != ENOENT)
+            TVTermApp::note("backups: " + full + ": " + strerror(errno) + " (old backup not deleted)");
+    }
+}
+
+// The backup of 'path' before it is saved: a copy name-YYYY-MM-DD-hhmmss
+// (same mode; -2, -3, ... in the same second), then the oldest backups over
+// file-backups-number deleted. The file itself is not touched. Nothing when
+// file-backups = no or 'path' is not a regular file. 'made' gets the name
+// of the backup; false, with 'error', when it could not be made.
+static bool makeBackup(const std::string &path, std::string &made, std::string &error)
+{
+    const Settings &s = TVTermApp::settings();
+    if (!s.fileBackups)
+        return true;
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+        return true;
+    std::string name = path + backupStamp();
+    for (int n = 1; n <= 99; ++n)
+    {
+        made = n == 1 ? name : name + "-" + std::to_string(n);
+        bool exists;
+        if (copyToNewFile(path, made, st.st_mode & 07777, error, exists))
+        {
+            pruneBackups(path, s.fileBackupsNumber);
+            return true;
+        }
+        if (!exists)
+            return false;
+    }
+    return false;
+}
+
+// makeBackup, and when it fails a box: "Save anyway?". False: do not save.
+static bool backupOrAsk(const std::string &path)
+{
+    std::string made, error;
+    if (makeBackup(path, made, error))
+        return true;
+    return messageBox( mfError | mfYesButton | mfNoButton,
+                       "Could not make the backup %s:\n%s\nSave anyway?",
+                       made.c_str(), error.c_str() ) == cmYes;
+}
+
 // The open editor windows (to find the window of a file name buffer).
 static std::vector<TVTermEditWindow *> openWindows;
 
@@ -717,6 +922,17 @@ TVTermEditWindow::~TVTermEditWindow()
     // handleEvent must not use it.
     if (destroyedFlag)
         *destroyedFlag = true;
+}
+
+bool TVTermEditWindow::backupBeforeSave(const std::string &path, bool always)
+{
+    if (path.empty() || (!always && backedUpFile == path))
+        return true;
+    // Not saved (No in the box): the next save asks again.
+    if (!editwnd::backupOrAsk(path))
+        return false;
+    backedUpFile = path;
+    return true;
 }
 
 TVTermEditWindow *TVTermEditWindow::ofFileNameBuffer(const char *fileName)
@@ -919,6 +1135,13 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
             return;
         }
     }
+    // F2 on a file: its backups, at the first save of this window.
+    if ( ev.what == evCommand && ev.message.command == cmSave && editor &&
+         *editor->fileName && !backupBeforeSave(editor->fileName) )
+    {
+        clearEvent(ev);
+        return;
+    }
     // The undo steps: only for the events that can change the text, not
     // inside a modal box opened by this window (eventDepth > 0), not for
     // Close (the window is gone after it).
@@ -1010,9 +1233,17 @@ static ushort editorDialog(int dialog, ...)
                                 "Error creating file %s.", va_arg(args, char *));
             break;
         case edSaveModify:
+        {
+            char *fileName = va_arg(args, char *);
             result = messageBox(mfInformation | mfYesNoCancel,
-                                "%s has been modified. Save?", va_arg(args, char *));
+                                "%s has been modified. Save?", fileName);
+            // Saved next by tvision: the backups first (E64).
+            if (result == cmYes)
+                if (TVTermEditWindow *w = TVTermEditWindow::ofFileNameBuffer(fileName))
+                    if (!w->backupBeforeSave(fileName))
+                        result = cmCancel;
             break;
+        }
         case edSaveUntitled:
             result = messageBox("Save untitled file?",
                                 mfInformation | mfYesNoCancel);
@@ -1024,17 +1255,34 @@ static ushort editorDialog(int dialog, ...)
             TFileDialog *d = fileopen::newFileDialog("*", "Save file as",
                                                      fdOKButton, fileopen::hiSaveFileAs);
             TView *p = TProgram::application->validView(d);
+            char chosen[MAXPATH] = {};
             if (p)
             {
                 p->setData(fileName);
                 result = TProgram::deskTop->execView(p);
                 if (result != cmCancel)
-                    p->getData(fileName);
+                    p->getData(chosen);
                 TObject::destroy(p);
             }
             if (result != cmCancel)
-                if (TVTermEditWindow *w = TVTermEditWindow::ofFileNameBuffer(fileName))
-                    w->setReadOnly(false);
+            {
+                // Over an existing file: its backups first (E64), with the
+                // name as tvision will expand it. The editor's name changes
+                // only when it is saved.
+                char path[MAXPATH];
+                strnzcpy(path, chosen, sizeof(path));
+                fexpand(path);
+                TVTermEditWindow *w = TVTermEditWindow::ofFileNameBuffer(fileName);
+                bool save = w ? w->backupBeforeSave(path, true) : editwnd::backupOrAsk(path);
+                if (!save)
+                    result = cmCancel;
+                else
+                {
+                    strnzcpy(fileName, chosen, MAXPATH);
+                    if (w)
+                        w->setReadOnly(false);
+                }
+            }
             break;
         }
         case edSearchFailed:
@@ -1066,4 +1314,7 @@ static ushort editorDialog(int dialog, ...)
 void TVTermEditWindow::initEditorDialogs()
 {
     TEditor::editorDialog = &editorDialog;
+    // No name.bak: the backups are name-YYYY-MM-DD-hhmmss (E64), made by
+    // the editor window.
+    TEditor::editorFlags &= ~efBackupFiles;
 }

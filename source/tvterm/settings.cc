@@ -382,6 +382,21 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseSize(value, settings.undoLimitMemory))
                     invalid("e.g. 20M, 500K, 1G or 0"), settings.undoLimitMemory = previous.undoLimitMemory;
             }
+            else if (key == "file-backups")
+            {
+                if (!parseBool(value, settings.fileBackups))
+                    invalid("use yes or no"), settings.fileBackups = previous.fileBackups;
+            }
+            else if (key == "file-backups-number")
+            {
+                // Invalid: the default (not the previous value).
+                if (!parseInt(value, 1, 99, settings.fileBackupsNumber))
+                {
+                    settings.fileBackupsNumber = Settings().fileBackupsNumber;
+                    warn( "invalid " + key + " '" + value + "' (1 to 99); using " +
+                          std::to_string(settings.fileBackupsNumber) );
+                }
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -594,6 +609,13 @@ std::string settingsTemplate()
         "  # steps are dropped.\n"
         " #undo-limit-steps = " + std::to_string(d.undoLimitSteps) + "\n"
         " #undo-limit-memory = " + sizeName(d.undoLimitMemory) + "\n"
+        "  # Backups of a file saved from an editor: at the first save of each editor\n"
+        "  # window (and Save As over an existing file), the file is copied to\n"
+        "  # name-YYYY-MM-DD-hhmmss (local time); no: no backups. The newest\n"
+        "  # file-backups-number (1 to 99) backups of each file are kept, older ones\n"
+        "  # are deleted.\n"
+        " #file-backups = " + std::string(d.fileBackups ? "yes" : "no") + "\n"
+        " #file-backups-number = " + std::to_string(d.fileBackupsNumber) + "\n"
         "\n"
         "[scrollback]\n"
         "  # Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"

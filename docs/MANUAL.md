@@ -512,6 +512,27 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 **Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
 **F9** opens the editor's menu: Read only, Save, Save as, Find, Replace, Go to line ([Read only](#read-only)).
+Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
+
+### Backups
+
+At the **first save** of an editor window to its file (F2, Ctrl-W > Yes, quitting with Save, the Settings editor
+too), before writing, the file on disk is **copied** to `name-YYYY-MM-DD-hhmmss`, the date and time of the save in the
+machine's local time, added after the whole name: `tvterm.ini-2026-11-09-012729`, `maillog.txt-2026-11-09-012729`. A
+backup is never overwritten: a second one in the same second (two windows on one file) gets `-2` at the end. The file
+itself is then written over in place, so it keeps its inode, mode and owner (links and permissions stay); the backup
+gets the same mode. Later saves from the same window make no backup; another window on the same file makes one at its
+own first save. So the newest backup is the file as it was before this editing session.
+
+After each new backup, the oldest backups of that file over **`file-backups-number`** (default 5, `tvterm.ini`
+`[general]`) are deleted. Only names of exactly this form (the file's name, `-`, 4-2-2-6 digits, optionally `-N`) are
+counted and deleted: other files (`name-01`, `name.bak`, copies you made) are left alone. **`file-backups = no`**:
+no backups at all. Both apply at once after Reload settings.
+
+**Save As** over an existing file makes a backup of that file the same way (then later F2 in that window none); Save
+As to a new file makes none. No backup when the file does not exist yet. If a backup cannot be made (e.g. no right to
+write in the directory), a box shows the reason and asks **Save anyway?** (No: nothing is saved, the next save asks
+again). `name.bak` files are no longer made (old ones are left alone).
 
 ### Read only
 
@@ -670,9 +691,9 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 1, created by tvterm 0.2.0 (b440528, built 2026-11-07 10:00 EET)`: the format of the file, then the
+  `## format 2, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
-  changes the meaning of keys. tvterm reads it only from the header (the `##` lines before the first section). A file
+  changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -705,6 +726,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `editor-selection` | `default` | color of the selected text in the editors (also the text found by Find): `<color>` or `<color> on <color>`, the names of the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-green`; `default`: tvision's color; applies at once to the open editors ([Find and Replace](#find-and-replace)) |
 | | `undo-limit-steps` | `500` | undo steps kept per editor, 1–100000; over it the oldest steps are dropped ([Undo and Redo](#undo-and-redo)) |
 | | `undo-limit-memory` | `20M` | memory the undo steps of an editor may use: bytes, or a number with K, M or G; `0`: no limit; over it the oldest steps are dropped ([Undo and Redo](#undo-and-redo)) |
+| | `file-backups` | `yes` | at the first save of each editor window (and Save As over an existing file) the file is copied to `name-YYYY-MM-DD-hhmmss` (local time); `no`: no backups ([Backups](#backups)) |
+| | `file-backups-number` | `5` | backups kept per file, 1–99; the oldest are deleted after each new one; invalid: a note in the Event Viewer and `5` ([Backups](#backups)) |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
