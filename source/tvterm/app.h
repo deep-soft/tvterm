@@ -109,6 +109,9 @@ private:
     std::string loadedProfile;
     // Last N of Tile in N Columns / Rows (kept while tvterm runs).
     int tileCount {2};
+    // [profile] desktop-main of the profiles loaded (E62; 0: none), written
+    // again by Save Profile As.
+    int keptDesktopMain {0};
 
     void checkSettingsFile();
 

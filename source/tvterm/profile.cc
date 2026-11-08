@@ -258,6 +258,16 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (key == "desktop")
                 parseCount(1, 9, profile.desktop, "1-9");
+            else if (key == "desktop-main")
+            {
+                int n = -1;
+                parseCount(0, 9, n, "0-9, 0: off");
+                if (n >= 0)
+                {
+                    profile.hasDesktopMain = true;
+                    profile.desktopMain = n;
+                }
+            }
             else if ( key.size() == 14 && key.compare(0, 13, "desktop-name-") == 0 &&
                       key[13] >= '1' && key[13] <= '9' )
                 profile.desktopNames[key[13] - '0'] = unquote(value);
@@ -467,6 +477,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
         file << "focus = " << profile.focus << "\n";
     if (profile.desktop != 1)
         file << "desktop = " << profile.desktop << "\n";
+    if (profile.hasDesktopMain && profile.desktopMain > 0)
+        file << "desktop-main = " << profile.desktopMain << "\n";
     for (const auto &dn : profile.desktopNames)
         if (!dn.second.empty())
             file << "desktop-name-" << dn.first << " = " << dn.second << "\n";

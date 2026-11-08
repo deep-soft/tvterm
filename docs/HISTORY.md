@@ -137,6 +137,8 @@ E60. Editor: scrolls right as far as the longest line (tvision stopped at column
 E61. Log View: a double click keeps the word (shown selected); `+` (F9 > Duplicate with word) opens a new window
      like D whose And include (words joined by ` && `, plain text, all required) gets the word; F4 field And include,
      profile key `include-and`, `[I+]` in the title
+E62. Profiles: `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, the
+     focus on the `focus` window if it is on N, else on the front window of N
 
 ---
 
@@ -828,6 +830,13 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   load), then all windows close and the profile opens; No = the profile's windows are added to the open ones (as before);
   Cancel = nothing is loaded. `confirmQuit(deskTop, closing)` in `quitdlg.cc`, `TVTermApp::closeWindowsBeforeLoad` in `app.cc`.
 - Full documentation: `examples/profiles/example.ini`.
+- **`desktop-main`** (E62, item 16, chat 59): `desktop` is rewritten by every Save Profile As (the desktop shown then),
+  so a profile could not always open on the same desktop. `[profile] desktop-main = N` (0–9; `Profile::hasDesktopMain` /
+  `desktopMain`) is written by hand and never set by tvterm. `openProfile`: the target desktop (layouts applied last to
+  it) = `desktopMain` when > 0, else `desktop`; then the `focus` window is selected only when it is on that desktop
+  (or is the Event Viewer), else the frontmost visible selectable window of that desktop (`deskTop->first()` onward);
+  none: the desktop shown as it is. `TVTermApp::keptDesktopMain`: set by each profile that has the key (like
+  `window-list-size`), written by `saveProfile` when > 0; invalid values → the usual warning.
 
 ### Manual — `far2l-extended`
 - `docs/MANUAL.md` (English) and `docs/MANUAL-ro.md` (Romanian), kept in sync (E12): how to use tvterm as it is now —
@@ -1781,6 +1790,11 @@ examples/profiles/example.ini
   with Ignore case → 3/6 (`ALICE` too); F → `[F-] 6/6`; Save Profile As → `include-and = to=alice` / `alice` with
   `ignore-case = yes`; the profile loaded again → the same titles and counts; Log Views as table: column `And include`
   after Include; as list: 16 names; `+` with no word → the status message; F9 shows `Duplicate with word (+)`.
+- `desktop-main` (E62), in tmux (160×30, a profile: terminal T1 on desktop 1, Log View L2 and an editor on desktop 2,
+  `desktop = 1`): `focus = 1` + `desktop-main = 2` → desktop 2 shown, the editor (front of 2) focused; `focus = 2` →
+  L2 focused; `focus = 3` → the editor; without `desktop-main` → desktop 1, T1 focused (as before). Save Profile As
+  after a load with `desktop-main = 2` → `desktop-main = 2` written (with `desktop = 2`); a profile without the key →
+  none written.
 
 ## 6. Known limitations
 
@@ -1884,3 +1898,4 @@ examples/profiles/example.ini
 | Log Views as table / list (`far2l-extended`) | E59 | More... > Log Views as table (aligned markdown columns) / as list (15 names, then 15 values per Log View, an empty line before each): every Log View (all desktops, Window List order) in a new editor: name, alert, desk, command, filters, check boxes, highlight, transform, max lines, restart |
 | Editor width (`far2l-extended`) | E60 | every editor scrolls right as far as the longest line (at least 256 columns, tvision's fixed range); taken again after every change, undo, Log View lines, Settings reload |
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
+| `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |

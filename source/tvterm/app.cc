@@ -1196,6 +1196,9 @@ void TVTermApp::openProfile(const Profile &profile)
                  desktops::name(dn.first) + "'");
     if (profile.hasWindowListSize)
         setWindowListSize(TPoint {profile.windowListWidth, profile.windowListHeight});
+    // desktop-main: kept for Save Profile As, like window-list-size.
+    if (profile.hasDesktopMain)
+        keptDesktopMain = profile.desktopMain;
     if (profile.hasWindowListColumns)
         setWindowListColumns(profile.windowListColumns);
 
@@ -1301,7 +1304,7 @@ void TVTermApp::openProfile(const Profile &profile)
     // Each window on its desktop (the Event Viewer: on all of them). The
     // layout is applied to each desktop that got windows, the one to show
     // last.
-    int target = profile.desktop;
+    int target = profile.desktopMain > 0 ? profile.desktopMain : profile.desktop;
     std::vector<int> used;
     for (size_t i = 0; i < windows.size(); ++i)
     {
@@ -1336,8 +1339,32 @@ void TVTermApp::openProfile(const Profile &profile)
         }
     }
 
-    if (profile.focus > 0 && (size_t) profile.focus <= windows.size())
-        desktops::selectWindow(*deskTop, windows[profile.focus - 1]);
+    TWindow *focusWin = profile.focus > 0 && (size_t) profile.focus <= windows.size() ?
+                        windows[profile.focus - 1] : nullptr;
+    if (profile.desktopMain > 0)
+    {
+        // desktop-main: that desktop stays shown; the 'focus' window only if
+        // it is there, else the front window of that desktop.
+        if (focusWin && (desktops::of(focusWin) == target || desktops::isGlobal(focusWin)))
+            desktops::selectWindow(*deskTop, focusWin);
+        else if (TView *first = deskTop->first())
+        {
+            TView *v = first;
+            do
+            {
+                auto *w = dynamic_cast<TWindow *>(v);
+                if ( w && (w->state & sfVisible) && (w->options & ofSelectable) &&
+                     !desktops::isGlobal(w) && desktops::of(w) == target )
+                {
+                    desktops::selectWindow(*deskTop, w);
+                    break;
+                }
+                v = v->next;
+            } while (v != first);
+        }
+    }
+    else if (focusWin)
+        desktops::selectWindow(*deskTop, focusWin);
     desktops::setPrevious(desktops::current() != shownBefore ? shownBefore : previousBefore);
 }
 
@@ -1561,6 +1588,8 @@ void TVTermApp::saveProfile()
     std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
     Profile profile;
     profile.desktop = desktops::current();
+    profile.hasDesktopMain = keptDesktopMain > 0;
+    profile.desktopMain = keptDesktopMain;
     for (int n = 1; n <= desktops::count; ++n)
         if (!desktops::name(n).empty())
             profile.desktopNames[n] = desktops::name(n);

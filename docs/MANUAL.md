@@ -782,6 +782,7 @@ in Editor...) opens a profile file of the same directory in a tvterm editor, to 
 | `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade`, `columns N`, `rows N` (N = 1–20, as Tile in N Columns / Rows, [Tile and Cascade](#tile-and-cascade)) |
 | `focus` | last window | window focused at start, 1 = the first window section |
 | `desktop` | `1` | desktop shown after loading (1–9) |
+| `desktop-main` | (none) | written by hand: the desktop always shown after loading (1–9), instead of `desktop` (which Save Profile As sets to the desktop shown at that moment); the focus goes to the `focus` window if it is on that desktop, otherwise to that desktop's front window; `0` or missing: `desktop` and `focus` as saved. Never set by tvterm; kept by Save Profile As (like `window-list-size`, a profile without it keeps the value of the profile loaded before) |
 | `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
 | `window-list-size` | `90x20` | size of the Window List, columns x rows (at least `50x10`) |
 | `window-list-columns` | `auto auto auto *` | widths of the Window List columns Alert, Desk and Name: a number of columns (0–200; `0` hides the column) or `auto`; Command always gets the rest (the final `*` may be left out), e.g. `window-list-columns = auto auto 30 *`; kept until tvterm exits and saved by Save Profile As |

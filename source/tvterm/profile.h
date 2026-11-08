@@ -71,6 +71,12 @@ struct Profile
     int layoutCount {0}; // N of Columns / Rows (1-20).
     int focus {0}; // 1-based index of the window to focus; 0: the last one.
     int desktop {1}; // The desktop shown after loading (1-9).
+    // desktop-main (E62): written by hand, never set from the program;
+    // 1-9: the desktop shown after loading, instead of 'desktop' (the focus:
+    // the 'focus' window if it is there, else that desktop's front window).
+    // 0: as without it. Kept by Save Profile As.
+    bool hasDesktopMain {false};
+    int desktopMain {0};
     // desktop-name-N: names of desktops (1-9); only those in the file.
     std::map<int, std::string> desktopNames;
     // window-list-size = WxH (the Window List, see winlist.h).
