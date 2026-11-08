@@ -318,6 +318,8 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 win.command = value;
             else if (isLog && key == "include")
                 win.logInclude = unquote(value);
+            else if (isLog && key == "include-and")
+                win.logIncludeAnd = unquote(value);
             else if (isLog && key == "exclude")
                 win.logExclude = unquote(value);
             else if (isLog && key == "ignore-case")
@@ -507,6 +509,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 file << "command = " << win.command << "\n";
                 if (!win.logInclude.empty())
                     file << "include = " << quoteIfNeeded(win.logInclude) << "\n";
+                if (!win.logIncludeAnd.empty())
+                    file << "include-and = " << quoteIfNeeded(win.logIncludeAnd) << "\n";
                 if (!win.logExclude.empty())
                     file << "exclude = " << quoteIfNeeded(win.logExclude) << "\n";
                 file << "ignore-case = " << (win.logIgnoreCase ? "yes" : "no") << "\n"

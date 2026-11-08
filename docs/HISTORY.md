@@ -134,6 +134,9 @@ E59. More... > Log Views as table / as list: the settings of every Log View in a
      the 15 names then 15 values per Log View)
 E60. Editor: scrolls right as far as the longest line (tvision stopped at column 256, so on a screen of 256
      columns or more the view stayed at column 1)
+E61. Log View: a double click keeps the word (shown selected); `+` (F9 > Duplicate with word) opens a new window
+     like D whose And include (words joined by ` && `, plain text, all required) gets the word; F4 field And include,
+     profile key `include-and`, `[I+]` in the title
 
 ---
 
@@ -518,6 +521,20 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `format end<<` markers (the markers only showed the format, not written); the first version (real test, chat 59)
   had a table with unpadded cells: the user asked for aligned columns and the list too (the patch was not pushed yet,
   so E59 was redone in the same commit).
+- **And include** (E61, item 16, agreed in chat 59): `LogViewOptions::includeAnd` = words joined by ` && `
+  (`splitIncludeAnd` / `joinIncludeAnd`: split at ` && `, each part trimmed, empty parts dropped; `setOptions` stores the
+  normalized value and `includeAndWords`). `passes()`: after Include, each word must be found in the original line
+  (`containsPlain` = `findPlain`, ASCII case folding with Ignore case), before Exclude; part of the filters (F, so also
+  of the alerts, which use the lines that pass). The double click (`copyWordAt`) also keeps the word: `hasWord`,
+  `wordSeq`, `word`, `wordBegin` / `wordEnd` in columns of the shown text (tabs expanded), drawn in `colWord` (0x1F,
+  white on blue, over the cursor / selection colors and the match); forgotten by a single click in the window, by Esc
+  without a selection (with the match) and by `transformChanged` (other text). `+` (`duplicateWithWord`,
+  `cmLogDuplicateWord`, F9 `Duplicate with word (~+~)` after Duplicate window): like `duplicate()` (same source or fixed
+  lines, options, not the alerts) with `includeAnd` = this window's words + the word, `filters = true`, title = title (or
+  command) + ` [word]`; status `New window: the lines with "word" too.`; without a word: `Double click a word first: + …`.
+  Dialog: `A~n~d include` on the free row 10 (label left of the field, 512 characters, no list); title `[I+]` after
+  `[I]`; profiles `include-and` (quoted when needed); Log Views as table / list: column And include after Include (16
+  fields).
 - **Checked marker** (E43, item 32, rules agreed in chat 44 and 47): Enter (F9 > Mark checked, `cmLogMarkChecked`) adds
   `#YYYY-MM-DD hh:mm:ss ----` (local time, `colChecked` dark gray) at the end = when the user last looked. A line of the
   window, not of the source: it is in `shown` as `markId` (`UINT64_MAX`) with `markEnd` (it stands between the source lines
@@ -1145,7 +1162,7 @@ source/tvterm/             the application
   logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
                            read in idle (LogSource::pollAll), stopped without blocking
   logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts,
-                           Log Views as table / list E59),
+                           Log Views as table / list E59, And include / `+` E61),
                            LogViewInterior (drawing, mouse), the settings dialog (execLogViewDialog); POSIX regex (regcomp)
   highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
                            read), the built-in sets, Highlight Words (wordHighlightRules), highlightLine (colors of
@@ -1757,6 +1774,13 @@ examples/profiles/example.ini
   horizontal bar shown (base build: the view stayed at column 1, `…AAA` only); Ctrl-Y on the long line → the view back
   at column 1 (`short line` from the first column), the bar full; Ctrl-Z → the line back, End shows `END` again; a
   bracketed paste of 500 characters at the start of the first line → End shows its end.
+- And include (E61), in tmux (120×30, a Log View `tail -n +1 -F` on 6 mail lines, `include = postfix`, title `L1`): a
+  double click (SGR through `tmux send-keys -l`) on `to=alice` → status `Copied "to=alice" …`, the word white on blue
+  (`ESC[97m ESC[44m` in `capture-pane -e`); `+` → `L1 [to=alice] [I] [I+] 2/6`; a double click on `status=bounced`, `+`
+  → `… [status=bounced] [I] [I+] 1/6`; F4 shows `And include   to=alice && status=bounced`; the field set to `alice`
+  with Ignore case → 3/6 (`ALICE` too); F → `[F-] 6/6`; Save Profile As → `include-and = to=alice` / `alice` with
+  `ignore-case = yes`; the profile loaded again → the same titles and counts; Log Views as table: column `And include`
+  after Include; as list: 16 names; `+` with no word → the status message; F9 shows `Duplicate with word (+)`.
 
 ## 6. Known limitations
 
@@ -1859,3 +1883,4 @@ examples/profiles/example.ini
 | Event Viewer / Log View keys (`far2l-extended`) | E58 | Event Viewer: Space pause / resume, Ctrl-A next alert (status line items); Log View: Ctrl-A next alert, Ctrl-Shift-E adds to an open editor (was Ctrl-A; F9 > To open editor) |
 | Log Views as table / list (`far2l-extended`) | E59 | More... > Log Views as table (aligned markdown columns) / as list (15 names, then 15 values per Log View, an empty line before each): every Log View (all desktops, Window List order) in a new editor: name, alert, desk, command, filters, check boxes, highlight, transform, max lines, restart |
 | Editor width (`far2l-extended`) | E60 | every editor scrolls right as far as the longest line (at least 256 columns, tvision's fixed range); taken again after every change, undo, Log View lines, Settings reload |
+| And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |

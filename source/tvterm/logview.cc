@@ -130,6 +130,7 @@ enum : ushort
     cmLogPrevHighlighted,
     cmLogTransform,
     cmLogMarkChecked,
+    cmLogDuplicateWord,
     // Button of the search dialog.
     cmLogFindNew,
 };
@@ -144,6 +145,7 @@ static const TColorAttr colSelected = 0x70; // Black on light gray.
 static const TColorAttr colCursor = 0x30;   // Black on cyan (focused window only).
 static const TColorAttr colMatch = 0xE0;    // Black on yellow.
 static const TColorAttr colChecked = 0x08;  // Dark gray on black (the checked marker).
+static const TColorAttr colWord = 0x1F;     // White on blue (the double-clicked word).
 
 static const int tabWidth = 8;
 
@@ -255,6 +257,14 @@ static bool findPlain( const std::string &text, const std::string &needle, bool 
     begin = (int) (it - text.begin());
     end = begin + (int) needle.size();
     return true;
+}
+
+// Whether 'text' contains 'needle' (plain text; without 'caseSensitive',
+// ASCII letters of either case are equal).
+static bool containsPlain(const std::string &text, const std::string &needle, bool caseSensitive)
+{
+    int b, e;
+    return findPlain(text, needle, caseSensitive, 0, b, e);
 }
 
 static int effectiveMaxLines(const LogViewOptions &o)
@@ -396,6 +406,10 @@ void LogViewInterior::draw()
             for (int c = std::max(matchB, startCol); c < matchE; ++c)
                 if (c - startCol < size.x)
                     b.putAttribute(c - startCol, colMatch);
+            if (w.hasWord && w.wordSeq == seq)
+                for (int c = std::max(w.wordBegin, startCol); c < w.wordEnd && c - startCol < rowWidth; ++c)
+                    if (c - startCol < size.x)
+                        b.putAttribute(c - startCol, colWord);
             if (++r >= w.rowsOf(i))
             {
                 ++i;
@@ -445,7 +459,14 @@ void LogViewInterior::copyWordAt(TPoint p)
         ++b;
     std::string word = text.substr(a, b - a);
     TClipboard::setText(word);
-    showStatus("Copied \"" + word + "\" to the clipboard.");
+    // Kept, shown selected: '+' opens a window that also requires it.
+    w.hasWord = true;
+    w.wordSeq = w.shown[index];
+    w.word = word;
+    w.wordBegin = (int) TText::width(TStringView(text.data(), a));
+    w.wordEnd = w.wordBegin + (int) TText::width(TStringView(word));
+    w.redraw();
+    showStatus("Copied \"" + word + "\" to the clipboard (+: a new window with it).");
 }
 
 void LogViewInterior::handleEvent(TEvent &ev)
@@ -482,6 +503,8 @@ void LogViewInterior::handleEvent(TEvent &ev)
             clearEvent(ev);
             return;
         }
+        // Another click: the picked word is forgotten.
+        w.hasWord = false;
         size_t index;
         int row;
         if (!lineAt(p.y, index, row))
@@ -846,7 +869,7 @@ private:
     LogViewOptions &o;
     LogViewApply apply;
     bool fixedLines;
-    TInputLine *titleIn, *cmdIn, *incIn, *excIn, *maxIn, *restartIn, *hlIn, *tfIn;
+    TInputLine *titleIn, *cmdIn, *incIn, *andIn, *excIn, *maxIn, *restartIn, *hlIn, *tfIn;
     TCheckBoxes *checkBoxes;
     HighlightModeButtons *hlMode;
     FieldHistoryButton *hlList;
@@ -889,6 +912,10 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(incIn);
     insert(new FieldHistoryButton(TRect(69, 9, 72, 10), incIn, includeHistory, nullptr));
     insert(new TLabel(TRect(2, 8, 72, 9), "~I~nclude: show only lines matching (empty: all)", incIn));
+    // And include (E61): words joined by " && ", each required, plain text.
+    andIn = new TInputLine(TRect(16, 10, 69, 11), 512);
+    insert(andIn);
+    insert(new TLabel(TRect(2, 10, 16, 11), "A~n~d include", andIn));
     excIn = new TInputLine(TRect(3, 12, 69, 13), 512);
     insert(excIn);
     insert(new FieldHistoryButton(TRect(69, 12, 72, 13), excIn, excludeHistory, nullptr));
@@ -941,6 +968,7 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     setField(titleIn, o.title);
     setField(cmdIn, o.command);
     setField(incIn, o.include);
+    setField(andIn, o.includeAnd);
     setField(excIn, o.exclude);
     ushort checks = (o.ignoreCase ? 1 : 0) | (o.wrap ? 2 : 0) | (o.filters ? 4 : 0);
     checkBoxes->setData(&checks);
@@ -1002,12 +1030,13 @@ void LogViewDialog::fail(TView *field, const std::string &text)
 
 bool LogViewDialog::readFields(LogViewOptions &out)
 {
-    char title[129] {}, command[513] {}, include[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {},
+    char title[129] {}, command[513] {}, include[513] {}, includeAnd[513] {}, exclude[513] {}, maxLines[9] {}, restart[7] {},
          hlField[513] {}, tfField[513] {};
     ushort checks = 0;
     titleIn->getData(title);
     cmdIn->getData(command);
     incIn->getData(include);
+    andIn->getData(includeAnd);
     excIn->getData(exclude);
     checkBoxes->getData(&checks);
     maxIn->getData(maxLines);
@@ -1090,6 +1119,7 @@ bool LogViewDialog::readFields(LogViewOptions &out)
     out.title = trim(title);
     out.command = cmd;
     out.include = include;
+    out.includeAnd = joinIncludeAnd(splitIncludeAnd(includeAnd));
     out.exclude = exclude;
     out.ignoreCase = checks & 1;
     out.wrap = checks & 2;
@@ -1234,6 +1264,8 @@ bool LogViewWindow::setOptions(const LogViewOptions &newOptions, std::string &er
     options = newOptions;
     includeRe = std::move(inc);
     excludeRe = std::move(exc);
+    includeAndWords = splitIncludeAnd(options.includeAnd);
+    options.includeAnd = joinIncludeAnd(includeAndWords);
     resolveHighlight();
     if (resolveTransform())
         transformChanged();
@@ -1387,6 +1419,9 @@ bool LogViewWindow::passes(const LogLine &line) const
         return true;
     if (includeRe && !includeRe->matches(line.text))
         return false;
+    for (auto &word : includeAndWords)
+        if (!containsPlain(line.text, word, !options.ignoreCase))
+            return false;
     if (excludeRe && excludeRe->matches(line.text))
         return false;
     return true;
@@ -1620,6 +1655,7 @@ void LogViewWindow::transformChanged()
     hlCache.clear();
     // The match positions were in the old text.
     hasMatch = false;
+    hasWord = false;
     leftCol = 0;
     topRow = 0;
     if (follow)
@@ -1799,13 +1835,16 @@ const char *LogViewWindow::getTitle(short)
 {
     using namespace logview;
     std::string text = alertMark((int) alert, alertKeyword) + plainTitle();
-    bool anyFilter = !options.include.empty() || !options.exclude.empty();
+    bool anyFilter = !options.include.empty() || !options.exclude.empty() ||
+                     !options.includeAnd.empty();
     if (anyFilter && !options.filters)
         text += " [F-]";
     else
     {
         if (!options.include.empty())
             text += " [I]";
+        if (!options.includeAnd.empty())
+            text += " [I+]";
         if (!options.exclude.empty())
             text += " [E]";
     }
@@ -2204,6 +2243,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("Transfor~m~ on/off", cmLogTransform, kbNoKey, hcNoContext, "T") +
         newLine() +
         *new TMenuItem("~D~uplicate window", cmLogDuplicate, kbNoKey, hcNoContext, "D") +
+        *new TMenuItem("Duplicate with word (~+~)", cmLogDuplicateWord, kbNoKey, hcNoContext, "+") +
         *new TMenuItem("~R~estart source", cmLogRestart, kbNoKey, hcNoContext, "R") +
         newLine() +
         *new TMenuItem("~P~ause/continue", cmLogPause, kbNoKey, hcNoContext, "Space") +
@@ -2240,6 +2280,7 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogHighlight: toggleHighlight(); break;
         case cmLogTransform: toggleTransform(); break;
         case cmLogDuplicate: duplicate(); break;
+        case cmLogDuplicateWord: duplicateWithWord(); break;
         case cmLogRestart:
             if (fixedSource)
                 showStatus("Fixed lines (Search > New window): there is no command to restart.");
@@ -2311,6 +2352,27 @@ void LogViewWindow::duplicate()
     auto *copy = new LogViewWindow(nextWindowBounds(), o, fixedSource);
     copy->fileView = fileView;
     TProgram::application->insertWindow(copy);
+}
+
+void LogViewWindow::duplicateWithWord()
+{
+    using namespace logview;
+    if (!hasWord || word.empty())
+    {
+        showStatus("Double click a word first: + opens a new window that also requires it.");
+        return;
+    }
+    LogViewOptions o = options;
+    std::vector<std::string> words = includeAndWords;
+    words.push_back(word);
+    o.includeAnd = joinIncludeAnd(words);
+    o.title = (options.title.empty() ? options.command : options.title) + " [" + word + "]";
+    // The new word only means something with the filters on.
+    o.filters = true;
+    auto *copy = new LogViewWindow(nextWindowBounds(), o, fixedSource);
+    copy->fileView = fileView;
+    TProgram::application->insertWindow(copy);
+    showStatus("New window: the lines with \"" + word + "\" too.");
 }
 
 void LogViewWindow::togglePause()
@@ -3002,13 +3064,17 @@ void LogViewWindow::handleEvent(TEvent &ev)
             if (hasSel)
                 hasSel = false;
             else
+            {
                 hasMatch = false;
+                hasWord = false;
+            }
             redraw();
         }
         else if (ch == ' ') togglePause();
         else if (ch == '/') openSearch();
         else if (ch == 'n') findNext(true);
         else if (ch == 'N') findNext(false);
+        else if (ch == '+') duplicateWithWord();
         else
         {
             switch (ch >= 'A' && ch <= 'Z' ? ch - 'A' + 'a' : ch)
@@ -3083,9 +3149,9 @@ static std::string alertCell(const AlertSettings &a)
 void showLogViewsTable(TDeskTop &deskTop, bool list)
 {
     using namespace logview;
-    // The table has '#' first; the list has only the 15 fields.
+    // The table has '#' first; the list has only the 16 fields.
     static const char *const names[] = {
-        "#", "Name", "Alert", "Desk", "Command", "Include", "Exclude", "Ignore case", "Wrap",
+        "#", "Name", "Alert", "Desk", "Command", "Include", "And include", "Exclude", "Ignore case", "Wrap",
         "Filters on", "Highlight Type", "Highlight Sets", "Highlight Words", "Transform", "Max lines",
         "Restart after",
     };
@@ -3105,6 +3171,7 @@ void showLogViewsTable(TDeskTop &deskTop, bool list)
             desktops::label(desktops::of(w)),
             log->hasFixedLines() ? "(fixed lines)" : o.command,
             o.include,
+            o.includeAnd,
             o.exclude,
             yesNo(o.ignoreCase),
             yesNo(o.wrap),
@@ -3188,4 +3255,30 @@ void showLogViewsTable(TDeskTop &deskTop, bool list)
 std::vector<std::string> *logFieldHistory(const std::string &name)
 {
     return logview::fieldHistoryValues(name);
+}
+
+std::vector<std::string> splitIncludeAnd(const std::string &value)
+{
+    std::vector<std::string> words;
+    static const std::string sep = " && ";
+    size_t pos = 0;
+    while (true)
+    {
+        size_t next = value.find(sep, pos);
+        std::string part = logview::trim(value.substr(pos, next == std::string::npos ? std::string::npos : next - pos));
+        if (!part.empty())
+            words.push_back(part);
+        if (next == std::string::npos)
+            break;
+        pos = next + sep.size();
+    }
+    return words;
+}
+
+std::string joinIncludeAnd(const std::vector<std::string> &words)
+{
+    std::string out;
+    for (auto &w : words)
+        out += (out.empty() ? "" : " && ") + w;
+    return out;
 }

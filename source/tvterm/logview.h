@@ -10,7 +10,8 @@
 //   F4 settings · I / E edit include / exclude · F filters on/off
 //   H highlight on/off (sets from tvterm.ini, see highlight.h, or words)
 //   T transform on/off (sets from tvterm.ini, see transform.h)
-//   D duplicate · R restart the source · Space pause/continue
+//   D duplicate · + duplicate with the double-clicked word (And include)
+//   R restart the source · Space pause/continue
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
 //   / search (New window: the matching lines in a new window) ·
 //   F3 or n older · Shift-F3 or N newer · F2 or s save
@@ -52,6 +53,10 @@ struct LogViewOptions
     std::string command;
     std::string include;    // Regular expression (POSIX extended, like grep -E); empty: all lines.
     std::string exclude;    // Empty: nothing excluded.
+    // And include (E61): words that must all be in a line, plain text (not
+    // regular expressions), joined by " && "; Ignore case applies. Empty:
+    // none. Set by '+' (Duplicate with word); part of the filters (F).
+    std::string includeAnd;
     bool ignoreCase {false};
     bool wrap {false};
     bool filters {true};    // F: the include / exclude filters are used.
@@ -139,6 +144,17 @@ private:
     std::shared_ptr<LogSource> fixedSource;
     bool fileView {false};
     std::unique_ptr<LogRegex> includeRe, excludeRe;
+    // The words of options.includeAnd (split at " && ").
+    std::vector<std::string> includeAndWords;
+
+    // The word picked by a double click (copied to the clipboard): shown
+    // selected in its line until the next click (or Esc without a
+    // selection); '+' opens a window that also requires it. Columns in the
+    // text shown, tabs expanded.
+    bool hasWord {false};
+    uint64_t wordSeq {0};
+    int wordBegin {0}, wordEnd {0};
+    std::string word;
 
     LogViewInterior *interior {nullptr};
     TScrollBar *vScrollBar {nullptr}, *hScrollBar {nullptr};
@@ -293,6 +309,8 @@ private:
     void runCommand(ushort cmd);
     void editOptions(int focusField);
     void duplicate();
+    // '+': like D, with the picked word added to And include.
+    void duplicateWithWord();
     // Where a new window made from this one goes (D, New window).
     TRect nextWindowBounds() const;
     // Search > New window: the shown lines matching the current search.
@@ -325,10 +343,15 @@ size_t countRunningLogViews(TDeskTop &deskTop);
 
 // More... > Log Views as table / as list: the settings of every Log View
 // (all the desktops, in the order of the Window List) in a new editor:
-// a markdown table with aligned columns, or ('list') the 15 field names,
-// one per line, then for each Log View its 15 values, one per line, each
+// a markdown table with aligned columns, or ('list') the 16 field names,
+// one per line, then for each Log View its 16 values, one per line, each
 // block after an empty line. Shows a status message when there is none.
 void showLogViewsTable(TDeskTop &deskTop, bool list = false);
+
+// Splits an And include value at " && " (each part trimmed, empty parts
+// dropped) / joins words with " && ".
+std::vector<std::string> splitIncludeAnd(const std::string &value);
+std::string joinIncludeAnd(const std::vector<std::string> &words);
 
 // The values used before in a field of the Log View dialog (newest first;
 // saved between runs: histfile.h): "include", "exclude", "highlight",

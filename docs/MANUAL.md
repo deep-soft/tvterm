@@ -808,8 +808,9 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `title` | the command | window title |
 | `command` | (required) | command whose output is shown |
 | `include` | (none) | regular expression: only matching lines are shown |
+| `include-and` | (none) | And include: words joined by ` && `, each required, plain text (`+` key, [And include](#and-include)) |
 | `exclude` | (none) | regular expression: matching lines are hidden |
-| `ignore-case` | `no` | for include / exclude |
+| `ignore-case` | `no` | for include / include-and / exclude |
 | `wrap` | `no` | `yes`: long lines wrapped; `no`: scrolled with Left / Right |
 | `filters` | `yes` | `no`: include / exclude not used (as after the F key) |
 | `max-lines` | `0` | lines kept; 0: `[logview] max-lines` of `tvterm.ini` |
@@ -968,6 +969,7 @@ into it, but it has its own history (up to `max-lines`), search, selection and s
 | Title | empty: the command |
 | Command | e.g. `tail -n 5000 -F /var/log/maillog` (↓ shows earlier commands) |
 | Include | regular expression: only matching lines are shown (empty: all; ↓ shows values used before) |
+| And include | words that must **all** be in a line, joined by ` && `, e.g. `to=alice && bounced`: plain text, not regular expressions; Ignore case applies; part of the filters (F); usually set by `+` ([below](#and-include)) |
 | Exclude | regular expression: matching lines are hidden (empty: none; ↓ shows values used before) |
 | Ignore case, Wrap long lines, Filters on | check boxes |
 | Max lines | 0: `[logview] max-lines` of `tvterm.ini` |
@@ -994,8 +996,8 @@ escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that l
 
 ### Title
 
-`[!keyword] Log: <title> [I] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude are
-set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off,
+`[!keyword] Log: <title> [I] [I+] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude
+are set, `[I+]` when And include is set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off,
 `[T-]` when the [transformation](#transformations) is off, lines shown / lines in the buffer, `(ended)` when the command has ended,
 `[PAUSE +N]` while paused, `[+N]` new lines below the view.
 
@@ -1011,6 +1013,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#words)) |
 | `T` | transformation on/off: the text shown or the original lines ([Transformations](#transformations)) |
 | `D` | duplicate: a new window on the same source, with the same filters, colors, transformation and options (not the alerts), title + ` (2)` |
+| `+` | duplicate with the double-clicked word: like `D`, and the word is added to And include; title + ` [word]` ([below](#and-include)) |
 | `R` | restart the command |
 | Space | pause / continue (new lines are kept, shown on continue) |
 | `W` | long lines: wrapped / scrolled (Left / Right, 8 columns) |
@@ -1026,8 +1029,8 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Ctrl-Shift-E | add it at the end of an open editor (chosen from a list; F9 > To open editor) |
 | Ctrl-A | go to the next alert (like Ctrl-B G) |
 | F2 or `s` | save the lines shown, or the selection |
-| Esc | clears the selection, then the search match |
-| double click | copies a word |
+| Esc | clears the selection, then the search match and the double-clicked word |
+| double click | copies a word and keeps it, shown selected (white on blue), for `+` |
 | Ctrl-B A | alerts |
 | Ctrl-W | closes the window |
 
@@ -1270,6 +1273,26 @@ Profiles save Log Views with all their settings, but not the pause or the select
 
 The addresses and names below are examples (`192.0.2.x`, `example.com`); adapt the paths to your logs.
 The mail log is `/var/log/maillog` on CentOS / RHEL; on Debian / Ubuntu it is `/var/log/mail.log`.
+#### And include
+
+A **double click** on a word copies it to the clipboard and keeps it in the window, shown selected (white on blue),
+until the next click in the window or Esc (without a selection). **`+`** (F9 > Duplicate with word) then opens a new
+window on the same source, like `D` (the same Include, Exclude, colors, transformation and options, not the alerts),
+whose **And include** is the And include of this window plus the word: the new window shows only the lines that also
+contain it. Its title is this window's title (or the command) + ` [word]`, and the filters are on. In the new window a
+double click and `+` again narrow it further, to any depth:
+
+```
+Log: maillog [I] 812/5000
+Log: maillog [to=alice] [I] [I+] 37/5000
+Log: maillog [to=alice] [bounced] [I] [I+] 2/5000      (And include: to=alice && bounced)
+```
+
+The words are plain text (a `.` is a dot), each required, in any order; **Ignore case** applies to them as to Include
+(ASCII letters). F4 shows them in the **And include** field, where they can be changed or removed (` && ` between
+them). `+` without a double-clicked word: `Double click a word first: …` in the status line. Words are what a double
+click takes: letters, digits, non-ASCII characters and the `word-chars` of `tvterm.ini` (e.g. `to=alice`).
+Profiles save the field as `include-and`.
 
 ### Log Views as table / list
 
@@ -1283,7 +1306,7 @@ longest value (or its name):
 | 1   | maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
 ```
 
-The columns: `#`, Name, Alert, Desk, Command, Include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
+The columns: `#`, Name, Alert, Desk, Command, Include, And include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
 Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
 
 - **Name**: the Title field (empty: none); **Command**: `(fixed lines)` for the windows of Search > New window and View file.
@@ -1293,8 +1316,8 @@ Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
   the default / no restart).
 - A `|` in a value is written `\|`, so the table keeps its columns.
 
-**More... > Log Views as list** (key `s`) writes the same values as lines: first the 15 names (Name … Restart after,
-one per line), then, after an empty line, the 15 values of the first Log View in the same order, one per line, and so
+**More... > Log Views as list** (key `s`) writes the same values as lines: first the 16 names (Name … Restart after,
+one per line), then, after an empty line, the 16 values of the first Log View in the same order, one per line, and so
 on, an empty line before each Log View. An empty value is an empty line; `|` stays as it is.
 
 ```

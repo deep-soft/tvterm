@@ -32,6 +32,7 @@ struct WindowProfile
     bool keepOpen {true};
     // Log View (see logview.h).
     std::string logInclude;
+    std::string logIncludeAnd;  // include-and (E61): words joined by " && ".
     std::string logExclude;
     bool logIgnoreCase {false};
     bool logWrap {false};

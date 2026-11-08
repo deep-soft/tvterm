@@ -1257,6 +1257,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 o.title = win.title;
                 o.command = win.command;
                 o.include = win.logInclude;
+                o.includeAnd = win.logIncludeAnd;
                 o.exclude = win.logExclude;
                 o.ignoreCase = win.logIgnoreCase;
                 o.wrap = win.logWrap;
@@ -1612,6 +1613,7 @@ void TVTermApp::saveProfile()
             win.title = o.title;
             win.command = o.command;
             win.logInclude = o.include;
+            win.logIncludeAnd = o.includeAnd;
             win.logExclude = o.exclude;
             win.logIgnoreCase = o.ignoreCase;
             win.logWrap = o.wrap;
