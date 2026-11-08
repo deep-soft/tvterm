@@ -132,6 +132,8 @@ E58. Event Viewer: Space pauses / resumes, Ctrl-A goes to the next alert; Log Vi
      Ctrl-Shift-E adds to an open editor (was Ctrl-A)
 E59. More... > Log Views as table / as list: the settings of every Log View in a new editor (aligned markdown table, or
      the 15 names then 15 values per Log View)
+E60. Editor: scrolls right as far as the longest line (tvision stopped at column 256, so on a screen of 256
+     columns or more the view stayed at column 1)
 
 ---
 
@@ -974,6 +976,18 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `getCharType` = 3 (not space, tab, line end or ASCII punctuation; UTF-8 bytes are word bytes); on a non-word
   character the one on the left is tried; `setCurPtr(start)` + `setCurPtr(end, smExtend)`. tvision's editor uses none of
   these keys; Log View's Ctrl-Down / Ctrl-Up and the terminals are not touched.
+- **Editor width** (E60, item 16, seen in the E59 real test): tvision's `TEditor` sets `limit.x = maxLineLength` (256)
+  in `setBufLen` and never changes it, so the view scrolls right at most `256 - size.x` columns; on a screen of 256
+  columns or more the horizontal bar disappeared and the view stayed at column 1 while the cursor moved on. Fixed in
+  tvterm's editor window, not in tvision (smaller): `TVTermEditWindow::updateWidthLimit()` sets `limit.x` to the widest
+  line + 1 (the cursor after its end), at least 256; the width is counted over both parts of the gap buffer (a tab to
+  the next multiple of 8, a 3- or 4-byte UTF-8 character as 2 columns, the following bytes 0; single-byte encoding: 1
+  per byte), so a few 3-byte characters of width 1 only add room at the right. When the range gets smaller the view is
+  moved back inside it; `update(ufView)` gives the scroll bar the new range. Called when the window opens, after every
+  event that changed the text (`EditUndo::before / after` now return whether the text changed: typing, paste, Replace
+  all, Alt-D, also changes made from outside before the event), after undo / redo, after Log View adds lines
+  (`appendToEditor`) and after the Settings editor reloads the file. Cost: one pass over the text per change, like the
+  undo comparison already did.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1738,6 +1752,11 @@ examples/profiles/example.ini
   `Log Views as table: 3 window(s).`; `s` (120×72) → 15 names, empty line, then 3 blocks of 15 lines (empty values as
   empty lines, `foo|bar` not escaped, `3000` / `10`), 63 lines; the terminal not listed. Profile with only a terminal
   → `No Log View is open.`, no editor.
+- Editor width (E60), in tmux (300×30, a profile with an editor on a file with a line of 393 characters, a short line
+  and a line with tabs): Down, End → the end of the long line (`…AEND`) visible at the right, indicator `2:394`, the
+  horizontal bar shown (base build: the view stayed at column 1, `…AAA` only); Ctrl-Y on the long line → the view back
+  at column 1 (`short line` from the first column), the bar full; Ctrl-Z → the line back, End shows `END` again; a
+  bracketed paste of 500 characters at the start of the first line → End shows its end.
 
 ## 6. Known limitations
 
@@ -1839,3 +1858,4 @@ examples/profiles/example.ini
 | Cursor line after F (`far2l-extended`) | E57 | Log View: after F or new filters (F4), a cursor line that is no longer on the screen goes to the third row (two rows above it; the first row in a window of 5 rows or less) instead of the last |
 | Event Viewer / Log View keys (`far2l-extended`) | E58 | Event Viewer: Space pause / resume, Ctrl-A next alert (status line items); Log View: Ctrl-A next alert, Ctrl-Shift-E adds to an open editor (was Ctrl-A; F9 > To open editor) |
 | Log Views as table / list (`far2l-extended`) | E59 | More... > Log Views as table (aligned markdown columns) / as list (15 names, then 15 values per Log View, an empty line before each): every Log View (all desktops, Window List order) in a new editor: name, alert, desk, command, filters, check boxes, highlight, transform, max lines, restart |
+| Editor width (`far2l-extended`) | E60 | every editor scrolls right as far as the longest line (at least 256 columns, tvision's fixed range); taken again after every change, undo, Log View lines, Settings reload |

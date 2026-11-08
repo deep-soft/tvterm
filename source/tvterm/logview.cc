@@ -2820,6 +2820,9 @@ static void appendToEditor(TEditor &editor, const std::string &text)
             out += c;
     editor.setCurPtr(editor.bufLen, 0);
     editor.insertText(out.data(), (uint) out.size(), False);
+    // Long lines: the editor scrolls as far right as they go.
+    if (auto *w = dynamic_cast<TVTermEditWindow *>(editor.owner))
+        w->updateWidthLimit();
     editor.trackCursor(True);
     editor.drawView();
 }

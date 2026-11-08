@@ -50,6 +50,14 @@ public:
     // the editor dialogs, editwnd.cc).
     int replaceAllCount {0};
 
+    // The horizontal scroll range: the widest line of the text (at least
+    // 256 columns, tvision's maxLineLength). tvision fixes it at 256, so on
+    // a screen of 256 columns or more the editor could not scroll right.
+    // Called when the window opens and after every change of the text made
+    // by an event of the window (typing, paste, Replace all, undo...);
+    // code that changes the text from outside (Log View lines) calls it too.
+    void updateWidthLimit();
+
 private:
 
     // handleEvent calls running (a modal box opened inside one lets

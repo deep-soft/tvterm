@@ -172,16 +172,17 @@ void EditUndo::setLimits(const Limits &aLimits)
     dropOldest();
 }
 
-void EditUndo::before(TEditor &e)
+bool EditUndo::before(TEditor &e)
 {
     if (!initialized)
     {
         reset(e);
-        return;
+        return false;
     }
     size_t at;
     std::string removed, inserted;
-    if (findChange(e, SIZE_MAX, at, removed, inserted))
+    bool changed = findChange(e, SIZE_MAX, at, removed, inserted);
+    if (changed)
     {
         // Changed from outside the window's events: a step of its own.
         Step s;
@@ -197,14 +198,15 @@ void EditUndo::before(TEditor &e)
         steps[pos - 1].open = false;
     shadowCursor = e.curPtr;
     syncSaved(e);
+    return changed;
 }
 
-void EditUndo::after(TEditor &e, Kind kind, bool hadSelection, int replaceCount)
+bool EditUndo::after(TEditor &e, Kind kind, bool hadSelection, int replaceCount)
 {
     if (!initialized)
     {
         reset(e);
-        return;
+        return false;
     }
     size_t cursor = e.curPtr;
     // A typed or deleted character among equal ones: the change is put at
@@ -219,7 +221,7 @@ void EditUndo::after(TEditor &e, Kind kind, bool hadSelection, int replaceCount)
             steps[pos - 1].open = false;
         shadowCursor = cursor;
         syncSaved(e);
-        return;
+        return false;
     }
     shadow.replace(at, removed.size(), inserted);
 
@@ -272,6 +274,7 @@ void EditUndo::after(TEditor &e, Kind kind, bool hadSelection, int replaceCount)
     }
     shadowCursor = cursor;
     syncSaved(e);
+    return true;
 }
 
 void EditUndo::apply(TEditor &e, size_t at, size_t length, const std::string &text, size_t cursor)

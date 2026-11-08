@@ -283,6 +283,8 @@ void SettingsEditWindow::reloadFromDisk()
     uint oldPtr = editor->curPtr;
     if (editor->loadFile())
     {
+        // Loading sets the horizontal range back to 256 columns.
+        updateWidthLimit();
         editor->setCurPtr(std::min(oldPtr, editor->bufLen), 0);
         editor->trackCursor(True);
     }

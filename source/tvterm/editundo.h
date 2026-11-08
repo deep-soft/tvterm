@@ -45,13 +45,15 @@ public:
     void reset(TEditor &e);
 
     // Before an event: changes made from outside become a step; the saved
-    // state follows the editor's 'modified' mark.
-    void before(TEditor &e);
+    // state follows the editor's 'modified' mark. True when the text had
+    // changed.
+    bool before(TEditor &e);
 
     // After an event of kind 'kind' ('hadSelection': the editor had a
     // selection before it). 'replaceCount' > 0: the event was a Replace all
-    // with that many replacements (shown when it is undone).
-    void after(TEditor &e, Kind kind, bool hadSelection, int replaceCount = 0);
+    // with that many replacements (shown when it is undone). True when the
+    // event changed the text.
+    bool after(TEditor &e, Kind kind, bool hadSelection, int replaceCount = 0);
 
     // Undo / redo one step. False when there is nothing to do. 'message':
     // the text for the status line (may be empty).

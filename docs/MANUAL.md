@@ -505,6 +505,7 @@ in the terminal; a relative name is relative to that directory. Directory names 
 is wider than 100 columns. **F2** saves (an untitled editor asks for a name);
 **Ctrl-B S** (Editor Save As...) saves the focused editor under another name (another window: "The focused window is
 not an editor."). Clipboard: Ctrl-Ins copy, Shift-Del cut, Shift-Ins paste. Closing an editor with unsaved changes asks first. Tile and Cascade leave editors in place.
+Long lines: the editor scrolls right as far as the longest line of the text (also on screens of 256 columns or more).
 
 **More... > Edit settings** opens `tvterm.ini` in an editor. **Ctrl-W** closes the editor (as its close button).
 **F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and

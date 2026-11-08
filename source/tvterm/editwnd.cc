@@ -604,6 +604,41 @@ static void goToLine(TEditor &e)
     }
 }
 
+// The widest line of the text, in screen columns: a tab goes to the next
+// multiple of 8; a character of 3 or 4 bytes (UTF-8) counts as 2 columns
+// (one too many for most of the 3-byte ones, which only adds a little
+// room at the right). The buffer has a gap at the cursor.
+static int widestLine(const TEditor &e)
+{
+    bool singleByte = e.encoding == TEditor::encSingleByte;
+    long long widest = 0, col = 0;
+    auto scan = [&] (const char *p, size_t n) {
+        for (size_t i = 0; i < n; ++i)
+        {
+            unsigned char c = (unsigned char) p[i];
+            if (c == '\n' || c == '\r')
+            {
+                widest = std::max(widest, col);
+                col = 0;
+            }
+            else if (c == '\t')
+                col = (col | 7) + 1;
+            else if (singleByte || c < 0x80 || (c >= 0xC0 && c < 0xE0))
+                ++col;
+            else if (c >= 0xE0)
+                col += 2;
+            // 0x80-0xBF: the following bytes of a UTF-8 character.
+        }
+    };
+    if (e.buffer)
+    {
+        scan(e.buffer, e.curPtr);
+        scan(e.buffer + e.curPtr + e.gapLen, e.bufLen - e.curPtr);
+    }
+    widest = std::max(widest, col);
+    return (int) std::min<long long>(widest, INT_MAX / 2);
+}
+
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord };
 
 // The keys of 45 (not while the editor waits for the second key of
@@ -644,6 +679,7 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
     if (editor)
         undoList.reset(*editor);
     applyUndoLimits();
+    updateWidthLimit();
 }
 
 TVTermEditWindow::~TVTermEditWindow()
@@ -652,6 +688,24 @@ TVTermEditWindow::~TVTermEditWindow()
     // handleEvent must not use it.
     if (destroyedFlag)
         *destroyedFlag = true;
+}
+
+void TVTermEditWindow::updateWidthLimit()
+{
+    if (!editor)
+        return;
+    TEditor &e = *editor;
+    // One column more than the widest line: the cursor after its end.
+    int limit = std::max<int>(maxLineLength, editwnd::widestLine(e) + 1);
+    if (limit == e.limit.x)
+        return;
+    e.limit.x = limit;
+    // A shorter text: the view no further right than the new range allows.
+    int maxDelta = std::max(0, limit - e.size.x);
+    if (e.delta.x > maxDelta)
+        e.scrollTo(maxDelta, e.delta.y);
+    // The horizontal scroll bar gets the new range.
+    e.update(ufView);
 }
 
 void TVTermEditWindow::applyUndoLimits()
@@ -679,10 +733,10 @@ bool TVTermEditWindow::undoKeys(TEvent &ev)
     if (key == editwnd::noUndoKey)
         return false;
     std::string message;
-    if (key == editwnd::undoKey)
-        undoList.undo(*editor, message);
-    else
-        undoList.redo(*editor, message);
+    bool changed = key == editwnd::undoKey ? undoList.undo(*editor, message)
+                                           : undoList.redo(*editor, message);
+    if (changed)
+        updateWidthLimit();
     if (!message.empty())
         editwnd::showStatus(message);
     clearEvent(ev);
@@ -737,7 +791,10 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     bool hadSelection = false;
     if (track)
     {
-        undoList.before(*editor);
+        // The text changed (from outside before the event, or by it): the
+        // horizontal scroll range is taken again.
+        if (undoList.before(*editor))
+            updateWidthLimit();
         if (undoKeys(ev))
             return;
         kind = editwnd::eventKind(editor, ev);
@@ -787,7 +844,8 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     --editwnd::handleDepth;
     editwnd::currentEditor = saved;
     if (!destroyed && track && editor)
-        undoList.after(*editor, kind, hadSelection, replaceAllCount);
+        if (undoList.after(*editor, kind, hadSelection, replaceAllCount))
+            updateWidthLimit();
 }
 
 static ushort editorDialog(int dialog, ...)
