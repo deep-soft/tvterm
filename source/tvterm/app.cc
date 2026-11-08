@@ -623,6 +623,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmNewEditor: newEditor(); break;
                 case cmOpenEditor: openEditor(); break;
                 case cmViewFile: viewFile(); break;
+                case cmLogViewsTable: showLogViewsTable(*deskTop); break;
+                case cmLogViewsList: showLogViewsTable(*deskTop, true); break;
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
@@ -807,6 +809,8 @@ void TVTermApp::openMenu()
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             newLine() +
             *new TMenuItem("~V~iew file...", cmViewFile, kbNoKey) +
+            *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
+            *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
             newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
             *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +

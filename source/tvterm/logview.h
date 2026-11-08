@@ -323,6 +323,13 @@ private:
 class TDeskTop;
 size_t countRunningLogViews(TDeskTop &deskTop);
 
+// More... > Log Views as table / as list: the settings of every Log View
+// (all the desktops, in the order of the Window List) in a new editor:
+// a markdown table with aligned columns, or ('list') the 15 field names,
+// one per line, then for each Log View its 15 values, one per line, each
+// block after an empty line. Shows a status message when there is none.
+void showLogViewsTable(TDeskTop &deskTop, bool list = false);
+
 // The values used before in a field of the Log View dialog (newest first;
 // saved between runs: histfile.h): "include", "exclude", "highlight",
 // "words", "transform"; null for another name.

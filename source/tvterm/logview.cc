@@ -38,6 +38,7 @@
 #include "settings.h"
 #include "statline.h"
 #include "winlist.h"
+#include "desktops.h"
 #include <tvterm/termopts.h>
 
 #include <regex.h>
@@ -3039,6 +3040,146 @@ size_t countRunningLogViews(TDeskTop &deskTop)
         if (auto *log = dynamic_cast<LogViewWindow *>(w))
             n += log->isSourceRunning();
     return n;
+}
+
+namespace logview
+{
+
+// A value for a markdown table cell: '|' escaped, line breaks and tabs as
+// spaces.
+static std::string tableCell(const std::string &value)
+{
+    std::string out;
+    for (char c : value)
+        if (c == '|')
+            out += "\\|";
+        else if (c == '\n' || c == '\r' || c == '\t')
+            out += ' ';
+        else
+            out += c;
+    return out;
+}
+
+static std::string alertCell(const AlertSettings &a)
+{
+    std::string out;
+    auto add = [&] (const std::string &part) {
+        out += (out.empty() ? "" : "; ") + part;
+    };
+    if (a.activity)
+        add("activity");
+    if (!a.keywords.empty())
+        add("keywords: " + a.keywords.text);
+    if (a.silenceSeconds > 0)
+        add("silence: " + std::to_string(a.silenceSeconds));
+    return out.empty() ? "none" : out;
+}
+
+} // namespace logview
+
+void showLogViewsTable(TDeskTop &deskTop, bool list)
+{
+    using namespace logview;
+    // The table has '#' first; the list has only the 15 fields.
+    static const char *const names[] = {
+        "#", "Name", "Alert", "Desk", "Command", "Include", "Exclude", "Ignore case", "Wrap",
+        "Filters on", "Highlight Type", "Highlight Sets", "Highlight Words", "Transform", "Max lines",
+        "Restart after",
+    };
+    enum { columns = sizeof(names) / sizeof(names[0]) };
+    std::vector<std::vector<std::string>> rows;
+    for (TWindow *w : getSortedWindows(deskTop))
+    {
+        auto *log = dynamic_cast<LogViewWindow *>(w);
+        if (!log)
+            continue;
+        const LogViewOptions &o = log->getOptions();
+        auto yesNo = [] (bool b) { return std::string(b ? "yes" : "no"); };
+        rows.push_back({
+            std::to_string(rows.size() + 1),
+            o.title,
+            alertCell(log->getAlertSettings()),
+            desktops::label(desktops::of(w)),
+            log->hasFixedLines() ? "(fixed lines)" : o.command,
+            o.include,
+            o.exclude,
+            yesNo(o.ignoreCase),
+            yesNo(o.wrap),
+            yesNo(o.filters),
+            o.highlightWordsMode ? "words" : "sets",
+            o.highlight,
+            o.highlightWords,
+            o.transform,
+            std::to_string(o.maxLines),
+            std::to_string(o.autoRestart),
+        });
+    }
+    if (rows.empty())
+    {
+        showStatus("No Log View is open.");
+        return;
+    }
+    std::string text;
+    if (list)
+    {
+        // Values as they are (no escaping); an empty value is an empty line.
+        auto line = [] (const std::string &v) {
+            std::string out;
+            for (char c : v)
+                out += (c == '\n' || c == '\r') ? ' ' : c;
+            return out + "\n";
+        };
+        for (int c = 1; c < columns; ++c)
+            text += std::string(names[c]) + "\n";
+        for (auto &row : rows)
+        {
+            text += "\n";
+            for (int c = 1; c < columns; ++c)
+                text += line(row[c]);
+        }
+    }
+    else
+    {
+        // Each column as wide as its longest cell (the name included), in
+        // screen columns.
+        std::vector<std::vector<std::string>> cells;
+        cells.push_back(std::vector<std::string>(names, names + columns));
+        for (auto &row : rows)
+        {
+            std::vector<std::string> r;
+            for (auto &v : row)
+                r.push_back(tableCell(v));
+            cells.push_back(std::move(r));
+        }
+        std::vector<size_t> width(columns, 3);
+        for (auto &r : cells)
+            for (int c = 0; c < columns; ++c)
+                width[c] = std::max<size_t>(width[c], strwidth(r[c]));
+        auto line = [&] (const std::vector<std::string> &r) {
+            std::string out = "|";
+            for (int c = 0; c < columns; ++c)
+                out += " " + r[c] + std::string(width[c] - strwidth(r[c]), ' ') + " |";
+            return out + "\n";
+        };
+        text += line(cells[0]);
+        text += "|";
+        for (int c = 0; c < columns; ++c)
+            text += std::string(width[c] + 2, '-') + "|";
+        text += "\n";
+        for (size_t i = 1; i < cells.size(); ++i)
+            text += line(cells[i]);
+    }
+    TRect r = deskTop.getExtent();
+    auto *e = new TVTermEditWindow(r, "");
+    if (!TProgram::application->insertWindow(e) || !e->editor)
+        return;
+    appendToEditor(*e->editor, text);
+    // Read from the start.
+    e->editor->setCurPtr(0, 0);
+    e->editor->trackCursor(True);
+    e->editor->drawView();
+    showStatus( std::string("Log Views as ") + (list ? "list" : "table") + ": " +
+                std::to_string(rows.size()) + " window(s)." );
 }
 
 std::vector<std::string> *logFieldHistory(const std::string &name)

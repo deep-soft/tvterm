@@ -189,7 +189,7 @@ writes Ctrl-B.
 
 **More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
 Cascade · Grab Input ·
-View file ([chapter 5](#opening-and-viewing-files)) · Edit settings (tvterm.ini) · Reload settings · About tvterm.
+View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Edit settings (tvterm.ini) · Reload settings · About tvterm.
 
 **Ctrl-W** closes the focused Editor, Log View or Event Viewer (an editor with unsaved changes asks first). In a
 terminal Ctrl-W is not taken: it goes to the program (in bash it deletes the word before the cursor).
@@ -1269,6 +1269,46 @@ Profiles save Log Views with all their settings, but not the pause or the select
 
 The addresses and names below are examples (`192.0.2.x`, `example.com`); adapt the paths to your logs.
 The mail log is `/var/log/maillog` on CentOS / RHEL; on Debian / Ubuntu it is `/var/log/mail.log`.
+
+### Log Views as table / list
+
+**Ctrl-B More... > Log Views as table** (key `l`) writes the settings of every Log View, on all the desktops and in the
+order of the Window List, as a markdown table into a new editor (untitled; F2 saves it). Each column is as wide as its
+longest value (or its name):
+
+```
+| #   | Name    | Alert                         | Desk | Command                          | Include          | ...
+|-----|---------|-------------------------------|------|----------------------------------|------------------| ...
+| 1   | maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
+```
+
+The columns: `#`, Name, Alert, Desk, Command, Include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
+Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
+
+- **Name**: the Title field (empty: none); **Command**: `(fixed lines)` for the windows of Search > New window and View file.
+- **Alert**: `activity`, `keywords: …`, `silence: N` (seconds), joined with `; `, or `none`.
+- **Desk**: `D1`, or `2:mail` for a named desktop. Yes / no columns: the check boxes (Filters on = the F state).
+- **Highlight Type**: `sets` or `words`; both fields are written. **Max lines** and **Restart after**: as in F4 (`0`:
+  the default / no restart).
+- A `|` in a value is written `\|`, so the table keeps its columns.
+
+**More... > Log Views as list** (key `s`) writes the same values as lines: first the 15 names (Name … Restart after,
+one per line), then, after an empty line, the 15 values of the first Log View in the same order, one per line, and so
+on, an empty line before each Log View. An empty value is an empty line; `|` stays as it is.
+
+```
+Name
+Alert
+...
+Restart after
+
+maillog
+keywords: reject; silence: 60
+...
+0
+```
+
+No Log View open: `No Log View is open.` in the status line.
 
 ### Mail server (Postfix / Dovecot)
 

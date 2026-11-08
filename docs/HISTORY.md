@@ -130,6 +130,8 @@ E57. Log View: after F (filters on/off) or new filters from F4, a cursor line th
      the third row
 E58. Event Viewer: Space pauses / resumes, Ctrl-A goes to the next alert; Log View: Ctrl-A goes to the next alert,
      Ctrl-Shift-E adds to an open editor (was Ctrl-A)
+E59. More... > Log Views as table / as list: the settings of every Log View in a new editor (aligned markdown table, or
+     the 15 names then 15 values per Log View)
 
 ---
 
@@ -499,6 +501,21 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   the cursor line. A resize (screen, Ctrl-F5, Zoom, Tile) updates the view and the bar at once (`changeBounds`): a window
   that follows stays at the end (before, the view kept its first line and the last lines could be hidden until the next
   new line came). The horizontal bar is unchanged.
+- **Log Views as table / list** (E59, chat 59): Ctrl-B More... > `~L~og Views as table` / `Log Views as li~s~t`
+  (`cmLogViewsTable` / `cmLogViewsList`, `showLogViewsTable(deskTop, list)` in `logview.cc`) write into a new untitled
+  editor (whole desktop, cursor at the start; status `Log Views as table: N window(s).` / `… as list: …`, or
+  `No Log View is open.`). Rows: every Log View, on all the desktops, in the Window List order (`getSortedWindows`).
+  Fields: Name (the title as set, empty if none), Alert (`activity`, `keywords: <text>`, `silence: N` joined with `; `,
+  or `none`), Desk (`desktops::label`), Command (`(fixed lines)` for windows with fixed lines), Include, Exclude,
+  Ignore case, Wrap, Filters on (yes / no), Highlight Type (`sets` / `words`), Highlight Sets, Highlight Words,
+  Transform, Max lines, Restart after (the option values, `0` as set).
+  Table: `#` first; each column as wide as its longest cell, its name included (`strwidth`, screen columns; at least
+  3, so the rule line has `---`), cells padded with spaces; `|` in a value → `\|`, line breaks and tabs → spaces.
+  List: the 15 names, one per line; then for each Log View an empty line and its 15 values, one per line (an empty
+  value is an empty line, so the positions stay; `|` not escaped). Asked as a value list with `>>format begin:` /
+  `format end<<` markers (the markers only showed the format, not written); the first version (real test, chat 59)
+  had a table with unpadded cells: the user asked for aligned columns and the list too (the patch was not pushed yet,
+  so E59 was redone in the same commit).
 - **Checked marker** (E43, item 32, rules agreed in chat 44 and 47): Enter (F9 > Mark checked, `cmLogMarkChecked`) adds
   `#YYYY-MM-DD hh:mm:ss ----` (local time, `colChecked` dark gray) at the end = when the user last looked. A line of the
   window, not of the source: it is in `shown` as `markId` (`UINT64_MAX`) with `markEnd` (it stands between the source lines
@@ -1113,7 +1130,8 @@ source/tvterm/             the application
                            white on red (E37), black on yellow after the alert was seen (E40)
   logsrc.cc/.h             LogSource: a command in a pseudo-terminal, lines without escape sequences, shared by command,
                            read in idle (LogSource::pollAll), stopped without blocking
-  logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts),
+  logview.cc/.h            LogViewWindow (filters, scrolling, wrap, search, selection, editor, save, F9 menu, alerts,
+                           Log Views as table / list E59),
                            LogViewInterior (drawing, mouse), the settings dialog (execLogViewDialog); POSIX regex (regcomp)
   highlight.cc/.h          Log View highlight sets: [highlight <name>] rules (parsed and compiled when tvterm.ini is
                            read), the built-in sets, Highlight Words (wordHighlightRules), highlightLine (colors of
@@ -1713,6 +1731,13 @@ examples/profiles/example.ini
   (`CSI 101;6u` through `TIOCSTI`) → the `Add to editor` list; Ctrl-E → a new `Untitled` editor, `Added 1 line(s)`;
   Event Viewer focused with a click (SGR): status line `… X Clear  Space Pause  Ctrl-A Next Alert`, Space → `Event
   Viewer (Stopped)`, Space → running (the Space keys not printed as events), Ctrl-A → L2 focused.
+- Log Views as table / list (E59), in tmux (a profile with three Log Views, one on desktop `2:mail`, one titled
+  `ăîș third`, and a terminal): More... shows `Log Views as table` and `Log Views as list` after View file; `l` (200×45)
+  → an `Untitled` editor with the header, the rule and 3 rows in the Window List order, every column padded to its
+  longest cell (`ăîș third` counted as 9 columns, `foo\|bar` as 8; the rule `|-----|-----------|…`), status
+  `Log Views as table: 3 window(s).`; `s` (120×72) → 15 names, empty line, then 3 blocks of 15 lines (empty values as
+  empty lines, `foo|bar` not escaped, `3000` / `10`), 63 lines; the terminal not listed. Profile with only a terminal
+  → `No Log View is open.`, no editor.
 
 ## 6. Known limitations
 
@@ -1813,3 +1838,4 @@ examples/profiles/example.ini
 | Field lists kept (`far2l-extended`) | E56 | the lists of the input fields (Log View fields, file dialogs, editor Find / Replace / Go to line, Window List Filter) kept between runs in `~/.config/tvterm/history` (30 per list, two instances merged); Ctrl-Del deletes an entry; Window List Filter history (Alt-Down / Ctrl-Down) |
 | Cursor line after F (`far2l-extended`) | E57 | Log View: after F or new filters (F4), a cursor line that is no longer on the screen goes to the third row (two rows above it; the first row in a window of 5 rows or less) instead of the last |
 | Event Viewer / Log View keys (`far2l-extended`) | E58 | Event Viewer: Space pause / resume, Ctrl-A next alert (status line items); Log View: Ctrl-A next alert, Ctrl-Shift-E adds to an open editor (was Ctrl-A; F9 > To open editor) |
+| Log Views as table / list (`far2l-extended`) | E59 | More... > Log Views as table (aligned markdown columns) / as list (15 names, then 15 values per Log View, an empty line before each): every Log View (all desktops, Window List order) in a new editor: name, alert, desk, command, filters, check boxes, highlight, transform, max lines, restart |
