@@ -126,6 +126,8 @@ E55. Window List: columns Alert (`A5`) / Desk / Name / Command with their names 
      longest name (at most 40%), profile `window-list-columns`
 E56. Field lists (histories) kept between runs in `~/.config/tvterm/history` (30 per list), Ctrl-Del deletes an entry,
      Window List Filter history (Alt-Down / Ctrl-Down)
+E57. Log View: after F (filters on/off) or new filters from F4, a cursor line that is no longer on the screen goes to
+     the third row
 
 ---
 
@@ -445,7 +447,10 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   then the match.
 - **Cursor line** (black on cyan, only in the focused window): Up/Down/PgUp/PgDn/Home/End move it, the view scrolls only to
   keep it on the screen; a click puts it on a line; a search puts it on the match; with new filters it stays on the same line
-  (if hidden: the nearest one before it); with W, all the rows of the line. **With the cursor on the last line, new lines are
+  (if hidden: the nearest one before it) and the view keeps its first line; if the cursor line is then not on the screen,
+  it goes to the **third row** (E57, `showCursorLine`; two rows of context above it, by rows with W; the first row in a
+  window of 5 rows or less; near the end the view stops at the end, so it may be lower). Before E57 it went to the last
+  row (`ensureVisible`). Wherever refilter runs: F, F4 OK / Apply, new sets after a reload; with W, all the rows of the line. **With the cursor on the last line, new lines are
   followed**; higher, the view stays (`[+N]` counts the new lines), End follows again. The mouse wheel and the scroll bar move
   only the view: at the end, following starts again and the cursor goes to the last line.
 - Selection: whole lines; click, drag, Shift+click, Shift+Up/Down/PgUp/PgDn/Home/End (from the cursor line); Up/Down without
@@ -1692,6 +1697,11 @@ examples/profiles/example.ini
   Folder list does nothing and the Find list is untouched (the old shared id 105); Log View Command and Include saved,
   Include after a restart, Ctrl-Del there (`(nothing used yet)`); Go to line saved; the file still there after quitting.
   Ctrl-Del in a terminal still reaches the program (`cat -v`: `^[[3;5~`). The tests of E54 and E55 again: 55/55.
+- Cursor line after F (E57), in tmux (100×30, a 200-line log, `include = foo`, 21 lines shown; the cursor line found by
+  its cyan background in `capture-pane -e`): cursor on `foo 130` (row 14), F off → row 4 = the third row of the window
+  (base build: the last row, 27); F on again → it stays on row 14 (still on the screen, nothing moves); F off again →
+  row 4; cursor on `foo 200` near the end → the view stops at the end (cursor on the second-last row); a window of 5
+  rows → the first row; with W and lines of 150 characters every third line → two rows of context (one wrapped line).
 
 ## 6. Known limitations
 
@@ -1790,3 +1800,4 @@ examples/profiles/example.ini
 | Moving and resizing (`far2l-extended`) | E54 | every window and dialog: moved or resized (mouse, Ctrl-F5 / Resize/Move), the bottom edge stops at the status line; the two top corners of the focused window resize it |
 | Window List columns (`far2l-extended`) | E55 | Window List: Alert (`A5`) / Desk / Name / Command with their names above the list; Name as wide as the longest name shown (at most 40%), Command the rest; profile `window-list-columns = auto auto 30 *` (0 hides a column) |
 | Field lists kept (`far2l-extended`) | E56 | the lists of the input fields (Log View fields, file dialogs, editor Find / Replace / Go to line, Window List Filter) kept between runs in `~/.config/tvterm/history` (30 per list, two instances merged); Ctrl-Del deletes an entry; Window List Filter history (Alt-Down / Ctrl-Down) |
+| Cursor line after F (`far2l-extended`) | E57 | Log View: after F or new filters (F4), a cursor line that is no longer on the screen goes to the third row (two rows above it; the first row in a window of 5 rows or less) instead of the last |

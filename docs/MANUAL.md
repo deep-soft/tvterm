@@ -1004,7 +1004,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 |---|---|
 | F4 | settings dialog (OK / **Apply** / Cancel; Apply applies and keeps the dialog open) |
 | `I` / `E` | the dialog, on Include / Exclude |
-| `F` | filters on/off (all the lines shown) |
+| `F` | filters on/off (all the lines shown); a cursor line that leaves the screen goes to the third row |
 | `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#words)) |
 | `T` | transformation on/off: the text shown or the original lines ([Transformations](#transformations)) |
 | `D` | duplicate: a new window on the same source, with the same filters, colors, transformation and options (not the alerts), title + ` (2)` |
@@ -1031,7 +1031,9 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 stays put and `[+N]` counts the new lines; **End** follows again. The mouse wheel and the scroll bar move only the view;
 at the bottom, following starts again.
 
-New filters apply to the whole buffer at once. The clipboard gets the lines without the last line break, so pasting
+New filters apply to the whole buffer at once. The cursor stays on its line (if hidden: the nearest one before it) and
+the view keeps its first line; if the cursor line is then not on the screen, it is shown on the third row, with two rows
+above it (the first row in a window of 5 rows or less). The clipboard gets the lines without the last line break, so pasting
 into a shell runs nothing. Saving uses the same dialog as the history ([chapter 4](#save)); the proposed directory is
 `save-dir`, or else tvterm's current directory.
 

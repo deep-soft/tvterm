@@ -275,6 +275,10 @@ private:
     bool cursorIsLast() const;
     bool isCursor(uint64_t seq) const;
     void ensureVisible(size_t index);
+    // After the filters change (F, F4): line 'index' stays where it is if it
+    // is on the screen; otherwise it is shown on the third row (the first in
+    // a window of 5 rows or less), with two rows of context above it.
+    void showCursorLine(size_t index);
     void moveCursorTo(long index, bool extend);
     // Vertical scroll bar: value, maximum (the view at the end), the value
     // of the end position in lines and the extra steps after it.

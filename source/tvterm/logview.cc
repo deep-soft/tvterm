@@ -1441,7 +1441,7 @@ void LogViewWindow::refilter()
             top = endIndex, topRow = endRow;
         // The cursor keeps its line, if shown (else the one before it).
         if (!shown.empty())
-            ensureVisible(cursorIndex());
+            showCursorLine(cursorIndex());
     }
     redraw();
 }
@@ -2007,6 +2007,27 @@ void LogViewWindow::ensureVisible(size_t index)
         if (top == oldTop && topRow == oldRow)
             break;
     }
+}
+
+void LogViewWindow::showCursorLine(size_t index)
+{
+    using namespace logview;
+    if (!interior || index >= shown.size())
+        return;
+    size_t lastIndex;
+    int lastRow;
+    // No line on the last row: the lines from 'top' on all fit.
+    bool onScreen = (index > top || (index == top && topRow == 0)) &&
+                    ( !interior->lineAt(interior->size.y - 1, lastIndex, lastRow) ||
+                      index < lastIndex ||
+                      (index == lastIndex && lastRow + 1 >= rowsOf(lastIndex)) );
+    if (onScreen)
+        return;
+    top = index;
+    topRow = 0;
+    // Back by two rows (wrapped lines count by rows); scrollRows also keeps
+    // the view from going past the end.
+    scrollRows(interior->size.y > 5 ? -2 : 0);
 }
 
 void LogViewWindow::moveCursorTo(long index, bool extend)
