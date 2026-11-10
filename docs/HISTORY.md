@@ -144,6 +144,8 @@ E63. Editor: F9 menu (Read only, Save, Save as, Find, Replace, Go to line); Read
 E64. Editor backups: at the first save of a window the file is copied to `name-YYYY-MM-DD-hhmmss` (local time; the file
      keeps inode, mode, owner), the oldest over `file-backups-number` (5) deleted; Save As over an existing file the
      same; `file-backups = no`: none; `tvterm.ini` format 2; no more `name.bak`
+E65. Editor: F9 > Open... (Ctrl-F12) loads another file into the same window (a modified text asks Save? first) and
+     F9 > Reload reads the file from disk again (cursor line kept; Discard the changes? when modified); Save as F12
 
 ---
 
@@ -1057,6 +1059,29 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   the default 5), read at each save (`TVTermApp::settings()`), so Reload settings applies at once. New keys →
   `settingsFormat` = 2 (`examples/tvterm.ini` `## format 2`): a format 1 file gets the one note (`is format 1, this
   tvterm uses format 2 …`). v1 (not pushed) rotated `name-01` … `name-05`; replaced before the push.
+- **Open and Reload in the same window** (E65, item 17, chat 61 / 63; `editwnd.cc`): F9 menu `Save ~a~s... F12`,
+  `~O~pen... Ctrl-F12`, `Re~l~oad` (no key; shown disabled for Untitled: commands above 255 cannot be disabled through
+  the command set, so the item's `disabled` flag is set by hand and the cursor skips it). F12 → `cmSaveAs`, Ctrl-F12 →
+  `openFile()`, both in `handleEvent` next to F9 (focused window, no Ctrl-K / Ctrl-Q prefix pending; a global key set
+  to them wins, E21). `openFile`: the dialog of Ctrl-B O (`fileopen::newFileDialog`, `hiOpenFile`, the first
+  `file-filters` pattern), with `fdNoLoadDir` + `setDialogDirectory` on the folder of the window's file (as the
+  profile dialogs do; Untitled or a folder that is gone: the current directory); the name checked with
+  `readableFile` (a regular file or a name that does not exist yet, readable: `Cannot open …`), then
+  `fileopen::acceptInTvterm` (the large file box of `open()`, split out of it: external viewer / editor run and
+  false, tvterm true, Cancel false), then `saveChangesOrDrop`: `… has been modified. Save?` / `Save untitled file?`
+  (Yes / No / Cancel); Yes sends `cmSave` to the window itself (so the E64 backup, read only → Save As and the
+  Settings editor's disk check apply) and goes on only when the editor is no longer modified. `loadIntoWindow`:
+  `fileName` replaced (`fexpand`), `TFileEditor::loadFile` (a missing file = an empty editor with that name, as Ctrl-B
+  O; on a read error `setBufLen(0)`), `undoList.reset`, `updateWidthLimit`, `backedUpFile` cleared (the first save of
+  the new file makes a backup), `setReadOnly(false)`, frame redrawn; status `Opened <path>.` A file open in another
+  window loads anyway. `reloadFromMenu`: Untitled → `Untitled: nothing to reload.`; the file gone or unreadable →
+  `Cannot reload …`; modified → `… has been modified. Discard the changes and reload it?` (Yes / No); then the virtual
+  `reloadFile()`: line index (`lineIndexOf`), column and the cursor's row in the window kept, `loadFile`, undo reset,
+  width limit, the cursor back on that line (or the last one: the empty line after a final newline counts) and
+  column, the view scrolled so the cursor keeps its row; status `Reloaded <path>.` Read only stays as it was.
+  `SettingsEditWindow::reloadFile` override: after the base, `savedText` / `diskStamp` / `seenStamp` taken again and
+  the own marker removed (so Ctrl-W then asks nothing); Open of another file in the Settings editor makes it an
+  ordinary editor (`detach` after `handleEvent`, as after Save As). Save Profile As writes the window's new file.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1857,6 +1882,20 @@ examples/profiles/example.ini
   settings, a space, F2 → `tvterm.ini-<date>`; as a user without write right in the directory: `Could not make the
   backup … Permission denied … Save anyway?`, `n` → not saved, F2 asks again, `y` → saved, a third F2 no box;
   `TZ=Europe/Bucharest` → the name has the local time (UTC + 2).
+- Open / Reload (E65), in tmux (120×30, a profile with an editor on `f.txt`, 5 lines): F9 → `Save as... F12`,
+  `Open... Ctrl-F12`, `Reload`; the file changed on disk, cursor on line 3 column 3, F9 `l` → the new text, status
+  `Reloaded /tmp/t/f.txt.`, cursor 3:3; `xyz` typed, F9 `l` → `… has been modified. Discard the changes and reload
+  it?`, `n` → the text kept; the file cut to 2 lines, `y` → cursor on the last line, Ctrl-Z → `Nothing to undo.`;
+  Untitled: `Reload` grey, `l` does nothing, Down skips it; Ctrl-F12 → `Open file` listing `/tmp/t` (Untitled: `/`),
+  `g.txt` → title `/tmp/t/g.txt`, its text, `Opened …`; `Q` typed, Ctrl-F12 `h.txt` → `… has been modified. Save?`,
+  Esc → nothing; again `y` → `g.txt` saved (`g.txt-<date>` backup) and `h.txt` loaded, Ctrl-Z → `Nothing to undo.`;
+  `W`, Ctrl-F12 `f.txt`, `n` → `h.txt` unchanged, `f.txt` loaded; F12 → `Save file as`; `Z`, F2 → `f.txt-<date>` (the
+  first save after Open makes a backup); `rm f.txt`, F9 `l` → `Cannot reload … No such file or directory`; read only
+  on, Open `g.txt` → title without `[RO]`; Ctrl-B C → `file = /tmp/t/g.txt`; Untitled with `abc`, Ctrl-F12 → `Save
+  untitled file?`, `y` → `Save file as`, Esc → `Untitled` with `abc`; `large-file = 1K`, Open of a 3000-byte file →
+  the `Large file` box, Cancel → nothing; Edit settings, `x`, Ctrl-F12 `h.txt`, `n` → an ordinary editor on `h.txt`,
+  `tvterm.ini.editing` removed; Edit settings again, `Q`, marker present, F9 `l` `y` → the text from disk, marker
+  removed, Ctrl-W → closed without a question.
 
 ## 6. Known limitations
 
@@ -1962,4 +2001,5 @@ examples/profiles/example.ini
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
+| Editor Open / Reload (`far2l-extended`) | E65 | F9 > Open... (Ctrl-F12): another file into the same window (Save? first when modified; large file box; undo emptied, read only off); F9 > Reload: the file from disk again (Discard the changes? when modified; cursor line kept); Save as F12 |
 | Editor backups (`far2l-extended`) | E64 | first save of an editor window (F2, Ctrl-W Yes, Settings editor): the file copied to `name-YYYY-MM-DD-hhmmss` (local time, `-2` in the same second; file keeps inode / mode / owner), the oldest over `file-backups-number` (5) deleted; `file-backups = no`: none; Save As over an existing file the same; failure → `Save anyway?`; `tvterm.ini` format 2; no more `name.bak` |

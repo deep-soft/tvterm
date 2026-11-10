@@ -22,6 +22,11 @@ enum class Target { Editor, Viewer };
 // Opens 'path' in tvterm (Ctrl-B O, Save > Open after saving).
 void open(const std::string &path, Target target);
 
+// The large file check of open() alone (E65, the editor's Open in the same
+// window): true when 'path' is to be opened in tvterm; false when it was
+// given to an external program, or Cancel.
+bool acceptInTvterm(const std::string &path, Target target);
+
 // More... > View file: the external viewer if set (without the size
 // check), otherwise the tvterm viewer.
 void view(const std::string &path);

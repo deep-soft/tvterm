@@ -852,7 +852,46 @@ static bool backupOrAsk(const std::string &path)
 static std::vector<TVTermEditWindow *> openWindows;
 
 // Commands of the window's menu (F9).
-enum : ushort { cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine };
+enum : ushort
+{
+    cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
+    cmEditOpen, cmEditReload,
+};
+
+// The directory of 'path' (as the editor expanded it), "" without one.
+static std::string dirOf(const std::string &path)
+{
+    size_t slash = path.rfind('/');
+    if (slash == std::string::npos)
+        return {};
+    return slash == 0 ? "/" : path.substr(0, slash);
+}
+
+// Whether the editor's file can be read again (Open of a chosen name,
+// Reload): a regular file (or a name that does not exist yet, for Open)
+// that the process may read. False with the reason in 'error'.
+static bool readableFile(const std::string &path, bool mayBeNew, std::string &error)
+{
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0)
+    {
+        if (mayBeNew && errno == ENOENT)
+            return true;
+        error = strerror(errno);
+        return false;
+    }
+    if (!S_ISREG(st.st_mode))
+    {
+        error = "not a regular file";
+        return false;
+    }
+    if (access(path.c_str(), R_OK) != 0)
+    {
+        error = strerror(errno);
+        return false;
+    }
+    return true;
+}
 
 // The commands of tvision's editor that change the text.
 static bool isEditingCommand(ushort cmd)
@@ -1000,11 +1039,19 @@ void TVTermEditWindow::openMenu()
         *new TMenuItem("~R~ead only", cmEditReadOnly, kbNoKey, hcNoContext, readOnly ? "on" : "off") +
         newLine() +
         *new TMenuItem("~S~ave", cmEditSave, kbNoKey, hcNoContext, "F2") +
-        *new TMenuItem("Save ~a~s...", cmEditSaveAs, kbNoKey, hcNoContext) +
+        *new TMenuItem("Save ~a~s...", cmEditSaveAs, kbNoKey, hcNoContext, "F12") +
+        *new TMenuItem("~O~pen...", cmEditOpen, kbNoKey, hcNoContext, "Ctrl-F12") +
+        *new TMenuItem("Re~l~oad", cmEditReload, kbNoKey, hcNoContext) +
         newLine() +
         *new TMenuItem("~F~ind...", cmEditFind, kbNoKey, hcNoContext, "F7") +
         *new TMenuItem("R~e~place...", cmEditReplace, kbNoKey, hcNoContext, "Ctrl-F7") +
         *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8");
+    // Reload: nothing for Untitled (shown disabled; commands above 255
+    // cannot be disabled through the command set, so the item is marked).
+    bool untitled = !editor || !*editor->fileName;
+    for (TMenuItem *p = &items; p; p = p->next)
+        if (p->command == cmEditReload)
+            p->disabled = Boolean(untitled);
     TPoint where = editor ? editor->makeGlobal(TPoint {0, 0}) : origin;
     ushort cmd = popupMenu(where, items, nullptr);
     switch (cmd)
@@ -1016,6 +1063,8 @@ void TVTermEditWindow::openMenu()
             break;
         case cmEditSave: message(this, evCommand, cmSave, nullptr); break;
         case cmEditSaveAs: message(this, evCommand, cmSaveAs, nullptr); break;
+        case cmEditOpen: openFile(); break;
+        case cmEditReload: reloadFromMenu(); break;
         case cmEditFind: message(this, evCommand, cmFind, nullptr); break;
         case cmEditReplace: message(this, evCommand, cmReplace, nullptr); break;
         case cmEditGoToLine:
@@ -1023,6 +1072,147 @@ void TVTermEditWindow::openMenu()
                 goToLine(*editor);
             break;
     }
+}
+
+bool TVTermEditWindow::saveChangesOrDrop()
+{
+    if (!editor || !editor->modified)
+        return true;
+    ushort answer = *editor->fileName
+        ? messageBox(mfInformation | mfYesNoCancel, "%s has been modified. Save?", editor->fileName)
+        : messageBox("Save untitled file?", mfInformation | mfYesNoCancel);
+    if (answer == cmCancel)
+        return false;
+    if (answer == cmYes)
+    {
+        // As F2: the backups, read only → Save As, the Settings editor's
+        // check of the file on disk. Not saved (Cancel in Save As, an
+        // error, No to "Save anyway?"): nothing more.
+        message(this, evCommand, cmSave, nullptr);
+        if (!editor || editor->modified)
+            return false;
+    }
+    return true;
+}
+
+void TVTermEditWindow::loadIntoWindow(const std::string &path)
+{
+    TFileEditor &e = *editor;
+    strnzcpy(e.fileName, path, MAXPATH);
+    fexpand(e.fileName);
+    if (!e.loadFile())
+        // The box was shown; the buffer may hold parts of both texts.
+        e.setBufLen(0);
+    undoList.reset(e);
+    updateWidthLimit();
+    // The new file: its first save from this window makes a backup.
+    backedUpFile.clear();
+    setReadOnly(false);
+    e.update(ufView);
+    e.doUpdate();
+    if (frame)
+        frame->drawView();
+}
+
+void TVTermEditWindow::openFile()
+{
+    if (!editor)
+        return;
+    using namespace editwnd;
+    // The dialog of Ctrl-B O, listing the folder of the window's file.
+    std::string filter = fileopen::firstFileFilter();
+    std::string dir = dirOf(editor->fileName);
+    char fileName[MAXPATH];
+    strnzcpy(fileName, filter, sizeof(fileName));
+    TFileDialog *d;
+    if (dir.empty() || access(dir.c_str(), F_OK) != 0)
+        d = fileopen::newFileDialog(filter, "Open file", fdOpenButton, fileopen::hiOpenFile);
+    else
+    {
+        d = fileopen::newFileDialog(filter, "Open file", fdOpenButton | fdNoLoadDir, fileopen::hiOpenFile);
+        fileopen::setDialogDirectory(d, dir + "/");
+    }
+    TView *p = TProgram::application->validView(d);
+    if (!p)
+        return;
+    ushort result = TProgram::deskTop->execView(p);
+    if (result != cmCancel)
+        p->getData(fileName);
+    TObject::destroy(p);
+    if (result == cmCancel)
+        return;
+    std::string path = fileName;
+    std::string error;
+    if (!readableFile(path, true, error))
+    {
+        messageBox(mfError | mfOKButton, "Cannot open %s:\n%s", path.c_str(), error.c_str());
+        return;
+    }
+    // A large file asks first (external viewer / editor, tvterm, Cancel).
+    if (!fileopen::acceptInTvterm(path, fileopen::Target::Editor))
+        return;
+    if (!saveChangesOrDrop())
+        return;
+    loadIntoWindow(path);
+    showStatus("Opened " + path + ".");
+}
+
+bool TVTermEditWindow::reloadFile()
+{
+    if (!editor)
+        return false;
+    using namespace editwnd;
+    TFileEditor &e = *editor;
+    uint line = lineIndexOf(e, e.curPtr);
+    int col = e.curPos.x;
+    int row = e.curPos.y - e.delta.y;    // the cursor's row in the window
+    int deltaX = e.delta.x;
+    bool ok = e.loadFile();
+    if (!ok)
+        e.setBufLen(0);
+    undoList.reset(e);
+    updateWidthLimit();
+    // Back to the same line (or the last one) and column, at the same row
+    // of the window when it can be.
+    uint lastLine = 0;
+    for (uint end = e.lineEnd(0); end < e.bufLen; end = e.lineEnd(e.nextChar(end)))
+        ++lastLine;
+    uint p = e.charPtr(nextLines(e, 0, std::min(line, lastLine)), col);
+    e.lock();
+    e.setCurPtr(p, 0);
+    int dy = std::max(0, e.curPos.y - std::max(0, row));
+    int dx = std::max(e.curPos.x - e.size.x + 1, std::min(deltaX, e.curPos.x));
+    e.scrollTo(std::max(0, dx), dy);
+    e.unlock();
+    e.update(ufView);
+    e.doUpdate();
+    return ok;
+}
+
+void TVTermEditWindow::reloadFromMenu()
+{
+    if (!editor)
+        return;
+    using namespace editwnd;
+    if (!*editor->fileName)
+    {
+        showStatus("Untitled: nothing to reload.");
+        return;
+    }
+    std::string path = editor->fileName;
+    std::string error;
+    if (!readableFile(path, false, error))
+    {
+        messageBox(mfError | mfOKButton, "Cannot reload %s:\n%s", path.c_str(), error.c_str());
+        return;
+    }
+    if ( editor->modified &&
+         messageBox( mfConfirmation | mfYesButton | mfNoButton,
+                     "%s has been modified. Discard the changes and reload it?",
+                     path.c_str() ) != cmYes )
+        return;
+    if (reloadFile())
+        showStatus("Reloaded " + path + ".");
 }
 
 void TVTermEditWindow::updateWidthLimit()
@@ -1116,12 +1306,28 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
 void TVTermEditWindow::handleEvent(TEvent &ev)
 {
     closeKeyToCommand(*this, ev);
-    if ( ev.what == evKeyDown && editor && editor->keyState == 0 &&
-         TKey(ev.keyDown) == TKey(kbF9) && (state & sfFocused) )
+    if (ev.what == evKeyDown && editor && editor->keyState == 0 && (state & sfFocused))
     {
-        clearEvent(ev);
-        openMenu();
-        return;
+        TKey k(ev.keyDown);
+        if (k == TKey(kbF9))
+        {
+            clearEvent(ev);
+            openMenu();
+            return;
+        }
+        // F12: Save As; Ctrl-F12: Open (E65; both also in the F9 menu).
+        if (k == TKey(kbF12))
+        {
+            clearEvent(ev);
+            message(this, evCommand, cmSaveAs, nullptr);
+            return;
+        }
+        if (k == TKey(kbCtrlF12))
+        {
+            clearEvent(ev);
+            openFile();
+            return;
+        }
     }
     if (readOnly && (state & sfFocused))
     {

@@ -281,6 +281,19 @@ void SettingsEditWindow::afterSave()
     removeOwnMarker();
 }
 
+bool SettingsEditWindow::reloadFile()
+{
+    bool ok = TVTermEditWindow::reloadFile();
+    if (editsSettings())
+    {
+        savedText = text();
+        diskStamp = FileStamp::of(path);
+        seenStamp = diskStamp;
+        removeOwnMarker();
+    }
+    return ok;
+}
+
 void SettingsEditWindow::reloadFromDisk()
 {
     uint oldPtr = editor->curPtr;

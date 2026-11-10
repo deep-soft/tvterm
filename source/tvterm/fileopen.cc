@@ -1184,7 +1184,7 @@ std::string externalCommand(const std::string &tmpl, const std::string &path)
     return r;
 }
 
-void open(const std::string &path, Target target)
+bool acceptInTvterm(const std::string &path, Target target)
 {
     using namespace fileopenimpl;
     const Settings &s = TVTermApp::settings();
@@ -1194,12 +1194,20 @@ void open(const std::string &path, Target target)
     {
         switch (askLargeFile(path, st.st_size, target))
         {
-            case cmExtViewer: runExternal(s.externalViewer, path, "external viewer"); return;
-            case cmExtEditor: runExternal(s.externalEditor, path, "external editor"); return;
+            case cmExtViewer: runExternal(s.externalViewer, path, "external viewer"); return false;
+            case cmExtEditor: runExternal(s.externalEditor, path, "external editor"); return false;
             case cmInTvterm: break;
-            default: return;
+            default: return false;
         }
     }
+    return true;
+}
+
+void open(const std::string &path, Target target)
+{
+    using namespace fileopenimpl;
+    if (!acceptInTvterm(path, target))
+        return;
     if (target == Target::Editor)
         openEditor(path);
     else

@@ -27,8 +27,32 @@ public:
     // Shift-F7 and Ctrl-L (Search again); the dialogs are in editwnd.cc.
     // Also Ctrl-Down / Ctrl-Up (next / previous line with text in the
     // cursor's column; with Shift the selection grows), Alt-F8 (Go to line),
-    // Alt-D (Duplicate line) and Alt-W (Select word).
+    // Alt-D (Duplicate line) and Alt-W (Select word). F9 opens the window's
+    // menu; F12 is Save As and Ctrl-F12 Open (E65).
     void handleEvent(TEvent &ev) override;
+
+    // Open (E65, F9 > Open..., Ctrl-F12): the Open file dialog (the first
+    // 'file-filters' pattern, the same lists as Ctrl-B O), listing the
+    // folder of the window's file; the chosen file is loaded into this
+    // window (a large file asks first as in Ctrl-B O; a file open in
+    // another window opens anyway). A modified text asks "... has been
+    // modified. Save?" first: Yes saves as F2 does (Untitled: Save As),
+    // No drops the changes, Cancel keeps everything. After it: the new
+    // name in the title, undo emptied, read only off, the first save makes
+    // a backup.
+    void openFile();
+
+    // Reload (E65, F9 > Reload): reads the window's file from disk again
+    // ("... has been modified. Discard changes?" when modified; nothing
+    // for Untitled, or when the file is gone or cannot be read). The cursor
+    // stays on its line and column (the last line when the text is
+    // shorter); undo emptied.
+    void reloadFromMenu();
+
+    // Reads the file from disk again, keeping the cursor as described
+    // above. False on a read error (the editor's box was shown, the
+    // editor is empty).
+    virtual bool reloadFile();
 
     // The file name, or "Untitled"; " [RO]" added while read only.
     const char *getTitle(short maxSize) override;
@@ -93,6 +117,10 @@ private:
 
     // F9: the window's menu.
     void openMenu();
+    // The "modified" question before Open: false = do not go on.
+    bool saveChangesOrDrop();
+    // Loads 'path' into the editor (openFile's last step).
+    void loadIntoWindow(const std::string &path);
     // Whether 'ev' would change the text (for read only).
     bool isEditingEvent(const TEvent &ev);
 

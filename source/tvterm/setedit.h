@@ -32,6 +32,8 @@ public:
     Boolean valid(ushort command) override;
     void shutDown() override;
     const char *getTitle(short maxSize) override;
+    // Reload (E65): the file on disk becomes the saved text again.
+    bool reloadFile() override;
 
     // Called every 2 seconds (and once when the window opens).
     void tick();

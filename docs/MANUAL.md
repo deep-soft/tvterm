@@ -511,8 +511,30 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 **F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and
 **Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
-**F9** opens the editor's menu: Read only, Save, Save as, Find, Replace, Go to line ([Read only](#read-only)).
+**F9** opens the editor's menu: Read only, Save, Save as (**F12**), Open (**Ctrl-F12**), Reload, Find, Replace, Go
+to line ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
+
+### Open and Reload
+
+**F9 > Open...** (`o`, or **Ctrl-F12**) loads another file **into the same window**: the Open file dialog of Ctrl-B O
+(the same filters and lists), listing the folder of the window's file (an untitled editor: the current directory).
+A large file asks first, as in Ctrl-B O. If the text has unsaved changes, `… has been modified. Save?` comes first:
+**Yes** saves as F2 does (with its backup; an untitled editor asks for a name, and Cancel there stops everything),
+**No** drops the changes, **Cancel** keeps the window as it is. Then the window shows the new file: its name in the
+title, undo emptied, read only off; the first save of the new file makes a backup. A file that is already open in
+another window opens anyway; a name that does not exist yet gives an empty editor with that name (as Ctrl-B O).
+Save Profile As writes the window's new file.
+
+**F9 > Reload** (`l`; no key) reads the window's file from disk again, e.g. after another program changed it. With
+unsaved changes it asks `… has been modified. Discard the changes and reload it?` (**Yes** / **No**). The cursor
+stays on its line and column (on the last line when the file became shorter), at the same row of the window; undo
+is emptied; read only stays as it was. Reload is grey for an untitled editor, and a file that is gone or cannot be
+read gives an error box and changes nothing. In the Settings editor, Reload makes the text on disk the saved text
+again (no question when the editor is closed afterwards); Open of another file there turns it into an ordinary
+editor, as Save As does.
+
+The status line keeps its items; F12 and Ctrl-F12 are free keys (only a [global key](#global-keys) set to them wins).
 
 ### Backups
 
