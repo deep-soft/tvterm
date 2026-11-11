@@ -152,7 +152,7 @@ window can still be moved partly off the screen to the left or right.
 
 ### The Ctrl-B menu
 
-**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click); free letters: J, K, X.
+**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click); free letters: J, K, U, X.
 Ctrl-B is not sent to programs (see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
 ([Global keys](#global-keys)); the top bar then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
 writes Ctrl-B.
@@ -184,12 +184,19 @@ writes Ctrl-B.
 | `C` | Save Profile As... | saves the open windows as a profile |
 | `V` | Event Viewer | opens it; if already open, pauses / resumes it |
 | `M` | More... | submenu, see below |
-| `U` | Suspend | stops tvterm and returns to the outer shell; `fg` brings it back |
 | `Q` | Exit | asks first if terminals or Log Views are running |
 
 **More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
 Cascade · Grab Input ·
-View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Edit settings (tvterm.ini) · Reload settings · About tvterm.
+View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm.
+
+**More... > Suspend...** (`u`; until E66 it was Ctrl-B `U`) stops tvterm and returns to the shell that started it;
+`fg` there brings it back. It asks first, `Suspend tvterm?`, with **No** as the default (Enter or Esc: nothing
+happens). It works only when tvterm was started from an interactive shell with job control (typed at a bash prompt);
+started from a script (e.g. `tvt-dbg`, `tvt.sh`), as the first program of a session, or from a program without job
+control, nothing could bring it back (the screen would stay frozen), so a box says `Suspend is not available here …`
+instead. If tvterm was stopped anyway (e.g. `kill -STOP`): `kill -CONT <pid>` from another session; do not press
+Ctrl-C in the frozen one first (it waits and ends tvterm as soon as it continues).
 
 **Ctrl-W** closes the focused Editor, Log View or Event Viewer (an editor with unsaved changes asks first). In a
 terminal Ctrl-W is not taken: it goes to the program (in bash it deletes the word before the cursor).

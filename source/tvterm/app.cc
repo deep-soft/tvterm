@@ -15,6 +15,9 @@
 #define Uses_TFileEditor
 #define Uses_THistoryWindow
 #define Uses_THistoryViewer
+#define Uses_TDialog
+#define Uses_TButton
+#define Uses_TStaticText
 #include <tvision/tv.h>
 
 #include "app.h"
@@ -596,8 +599,48 @@ void TVTermApp::tileGrid(int n, bool columns)
         note("Tile in " + what(res.used) + ": too many windows, some overlap" + need);
 }
 
+// More... > Suspend (E67). tvision's dosShell stops tvterm with SIGTSTP; only
+// a shell with job control can bring it back ('fg'). Started from a script
+// (tvt-dbg, tvt.sh) or as the session's first program, nothing would: the
+// screen stays frozen and Ctrl-C waits (it ends tvterm after kill -CONT).
+// So: tvterm must lead its own process group (a job of an interactive
+// shell) without leading the session.
+static bool canSuspend()
+{
+    pid_t pid = getpid();
+    return getpgrp() == pid && getsid(0) != pid;
+}
+
+// "Suspend tvterm?" with No as the default button (Enter / Esc: No).
+static bool confirmSuspend()
+{
+    TDialog *d = new TDialog(TRect(0, 0, 54, 9), "Suspend");
+    d->options |= ofCentered;
+    d->insert(new TStaticText(TRect(3, 2, 51, 5),
+        "Suspend tvterm?\n"
+        "It stops until 'fg' in the shell that started it."));
+    d->insert(new TButton(TRect(14, 6, 24, 8), "~Y~es", cmYes, bfNormal));
+    TButton *no = new TButton(TRect(28, 6, 38, 8), "~N~o", cmNo, bfDefault);
+    d->insert(no);
+    no->select();
+    ushort result = TProgram::application->execView(d);
+    TObject::destroy(d);
+    return result == cmYes;
+}
+
 void TVTermApp::handleEvent(TEvent &event)
 {
+    if (event.what == evCommand && event.message.command == cmDosShell)
+    {
+        clearEvent(event);
+        if (!canSuspend())
+            messageBox( mfInformation | mfOKButton,
+                        "Suspend is not available here: tvterm was not started "
+                        "from a shell with job control, so 'fg' could not bring it back." );
+        else if (confirmSuspend())
+            dosShell();
+        return;
+    }
     // Instead of TApplication's: the Event Viewer and editors stay in place.
     if (event.what == evCommand && event.message.command == cmCascade)
     {
@@ -768,7 +811,8 @@ void TVTermApp::openMenu()
     TMenuItem &menuItems =
         // Order agreed in chat 43: desktops and windows, alerts, terminals,
         // window size, text and editors, profiles, the rest. Letters of
-        // item 30 (chat 43); free: J K X (F is the former Zoom letter).
+        // item 30 (chat 43); free: J K U X (F is the former Zoom letter;
+        // U was Suspend, in More... since E67).
         *new TMenuItem("Desktop...", cmDesktopMenu, 'D', hcNoContext, "~D~,~0~-~9~") +
         *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
         *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
@@ -816,9 +860,11 @@ void TVTermApp::openMenu()
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
             *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +
             newLine() +
+            // Here since E67 (was Ctrl-B U): not chosen by a stray click.
+            *new TMenuItem("S~u~spend...", cmDosShell, kbNoKey) +
+            newLine() +
             *new TMenuItem("A~b~out tvterm...", cmAbout, kbNoKey)
         ) +
-        *new TMenuItem("Suspend", cmDosShell, 'U', hcNoContext, "~U~") +
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
 
     TMenu *menu = new TMenu(menuItems);

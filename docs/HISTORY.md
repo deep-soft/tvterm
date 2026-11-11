@@ -148,6 +148,8 @@ E65. Editor: F9 > Open... (Ctrl-F12) loads another file into the same window (a 
      F9 > Reload reads the file from disk again (cursor line kept; Discard the changes? when modified); Save as F12
 E66. Editor: Alt-C (`key-editor-comment`) inserts a comment line with the date and time at the cursor, then a line
      break (`comment-template` = `"# %Y-%m-%d %H:%M:%S "`, `comment-width` = 79, `-` fill); `tvterm.ini` format 3
+E67. Menu: Suspend moved from Ctrl-B `U` to More... > Suspend... (between separators, above About); asks first (No
+     by default) and only works when started from a shell with job control (otherwise a box says why)
 
 ---
 
@@ -159,9 +161,17 @@ Order since E39, letters since E41 (both agreed in chat 43; groups between separ
 Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom
 (Maximize/Restore; `F` before E20, still works) | `T` Select Text · `P` Paste · `E` New Editor · `O` Open File in
 Editor · `S` Editor Save As | `B` Load Profile · `I` Load Profile in Editor · `C` Save Profile As | `V` Event Viewer ·
-`More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, About) · `U` Suspend ·
-`Q` Exit. The menu opens with no item selected (the first Down selects Desktop...).
-Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
+`More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, Suspend (E67), About) ·
+`Q` Exit (`U` Suspend until E66). The menu opens with no item selected (the first Down selects Desktop...).
+Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
+- **E67** (item 24, chat 64): Suspend (tvision's `cmDosShell`: `suspend`, `raise(SIGTSTP)`, `resume`) was chosen by a
+  stray click under More... on srvr, where tvterm runs under the `tvt-dbg` script: the script (non-interactive bash)
+  has no `fg`, Ctrl-C stayed pending and ended tvterm after `kill -CONT` from another session. Now in More... as
+  `S~u~spend...` between two separators, above About; `TVTermApp::handleEvent` takes `cmDosShell` before
+  `TApplication`: `canSuspend()` = `getpgrp() == getpid() && getsid(0) != getpid()` (a job of an interactive shell, not
+  the session's first program), else a box `Suspend is not available here: tvterm was not started from a shell with
+  job control, …`; then `confirmSuspend()`, a small dialog `Suspend tvterm?` / `It stops until 'fg' …` with Yes / No,
+  No the default button and selected (Enter, Esc: No); Yes → `dosShell()`.
 - **E41** (item 30, agreed in chat 43): before it, D = Log View, K = Alerts, T = Rename Term, S = Select Text, L = Load
   Profile, A = Save Profile As, Desktop... had only `0-9`. Desktop... shows `D,0-9` on the right. Rename Term has no letter
   (rarely used; arrows + Enter or the mouse). Two new items:
@@ -1919,6 +1929,11 @@ examples/profiles/example.ini
   `invalid key-editor-comment 'Foo-X' …`), the previous values kept (checked with `loadSettings` in a small program);
   unquoted `# %H ` → `# %H` (the final space trimmed); `none` → no key; `--print-settings` → `## format 3` and the
   three keys. Seen (pre-existing, tvision): a new Untitled editor has CRLF line ends (`defaultLineEndingType`).
+- Suspend (E67), in tmux: the pane running tvterm directly (session leader) and `bash -c 'true; tvterm'` (a script) →
+  More... `u` → the `Suspend is not available here …` box; Ctrl-B `u` → nothing (the menu stays open); in `bash
+  --norc -i` with tvterm typed at the prompt: More... shows `Suspend...` between two separators above `About
+  tvterm...`; `u` → `Suspend tvterm?`, Enter → closed, tvterm runs; Esc → the same; `y` → `[1]+ Stopped … tvterm`,
+  the prompt; `fg` → tvterm back, the screen redrawn.
 
 ## 6. Known limitations
 
@@ -2024,6 +2039,7 @@ examples/profiles/example.ini
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
+| Suspend in More... (`far2l-extended`) | E67 | Suspend moved from Ctrl-B `U` to More... (between separators, above About); `Suspend tvterm?` with No by default; not available (a box) when tvterm is not a job of a shell with job control |
 | Editor comment line (`far2l-extended`) | E66 | Alt-C (`key-editor-comment`): a comment line with the date and time at the cursor, then a line break; `comment-template` (`"# %Y-%m-%d %H:%M:%S "`, strftime, local time) filled with `-` up to `comment-width` (79); one undo step; read only: nothing; `tvterm.ini` format 3 |
 | Editor Open / Reload (`far2l-extended`) | E65 | F9 > Open... (Ctrl-F12): another file into the same window (Save? first when modified; large file box; undo emptied, read only off); F9 > Reload: the file from disk again (Discard the changes? when modified; cursor line kept); Save as F12 |
 | Editor backups (`far2l-extended`) | E64 | first save of an editor window (F2, Ctrl-W Yes, Settings editor): the file copied to `name-YYYY-MM-DD-hhmmss` (local time, `-2` in the same second; file keeps inode / mode / owner), the oldest over `file-backups-number` (5) deleted; `file-backups = no`: none; Save As over an existing file the same; failure → `Save anyway?`; `tvterm.ini` format 2; no more `name.bak` |
