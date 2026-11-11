@@ -397,6 +397,23 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                           std::to_string(settings.fileBackupsNumber) );
                 }
             }
+            else if (key == "comment-template")
+            {
+                // Quotes keep spaces at the start or the end.
+                std::string v = value;
+                if (v.size() >= 2 && v.front() == '"' && v.back() == '"')
+                    v = v.substr(1, v.size() - 2);
+                if (v.empty() || v.size() > 200)
+                    invalid("1 to 200 characters, strftime codes allowed, e.g. \"# %Y-%m-%d %H:%M:%S \""),
+                    settings.commentTemplate = previous.commentTemplate;
+                else
+                    settings.commentTemplate = v;
+            }
+            else if (key == "comment-width")
+            {
+                if (!parseInt(value, 0, 1000, settings.commentWidth))
+                    invalid("0 to 1000"), settings.commentWidth = previous.commentWidth;
+            }
             else
                 warn("unknown key '" + key + "' in [general]");
         }
@@ -495,11 +512,13 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             TKey *target = key == "history-page-up" ? &settings.keyPageUp :
                            key == "history-page-down" ? &settings.keyPageDown :
                            key == "history-top" ? &settings.keyTop :
-                           key == "history-bottom" ? &settings.keyBottom : nullptr;
+                           key == "history-bottom" ? &settings.keyBottom :
+                           key == "key-editor-comment" ? &settings.keyEditorComment : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
-                               key == "history-bottom" ? &previous.keyBottom : nullptr;
+                               key == "history-bottom" ? &previous.keyBottom :
+                               key == "key-editor-comment" ? &previous.keyEditorComment : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -616,6 +635,14 @@ std::string settingsTemplate()
         "  # are deleted.\n"
         " #file-backups = " + std::string(d.fileBackups ? "yes" : "no") + "\n"
         " #file-backups-number = " + std::to_string(d.fileBackupsNumber) + "\n"
+        "  # The comment line that key-editor-comment ([keys], Alt-C) inserts in an\n"
+        "  # editor, at the cursor, followed by a line break: comment-template with the\n"
+        "  # date and time (local time; %Y year, %m month, %d day, %H:%M:%S time, %%\n"
+        "  # a percent sign, other strftime codes too), filled with '-' up to\n"
+        "  # comment-width columns (0 to 1000; 0: not filled). Quotes keep the spaces\n"
+        "  # at the start or the end of the template.\n"
+        " #comment-template = \"" + d.commentTemplate + "\"\n"
+        " #comment-width = " + std::to_string(d.commentWidth) + "\n"
         "\n"
         "[scrollback]\n"
         "  # Lines kept per terminal (0 to 100000). About 4 KB per line of 100 columns.\n"
@@ -714,6 +741,9 @@ std::string settingsTemplate()
         " #history-page-down = " + keyName(d.keyPageDown) + "\n"
         " #history-top = " + keyName(d.keyTop) + "\n"
         " #history-bottom = " + keyName(d.keyBottom) + "\n"
+        "  # Key that inserts the comment line in an editor (comment-template in\n"
+        "  # [general]), e.g. Alt-C, Ctrl-F5 or none.\n"
+        " #key-editor-comment = " + keyName(d.keyEditorComment) + "\n"
         "  # Global keys: they work in every window (not in dialogs, menus or Grab\n"
         "  # Input). A comma separates several keys; modifiers Ctrl-, Alt-, Shift-;\n"
         "  # keys F1-F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, with Ctrl\n"

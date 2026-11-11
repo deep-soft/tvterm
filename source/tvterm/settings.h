@@ -25,8 +25,9 @@ const int minFileDialogHeight = 19;
 // one when a version adds, renames or changes the meaning of keys, so that
 // an older file can be recognized (a note in the Event Viewer; the file is
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
-// file-backups-number (E64).
-const int settingsFormat = 2;
+// file-backups-number (E64); 3: comment-template, comment-width and
+// key-editor-comment (E66).
+const int settingsFormat = 3;
 
 struct Settings
 {
@@ -72,6 +73,12 @@ struct Settings
     // file (1 to 99), the oldest deleted over it.
     bool fileBackups {true};
     int fileBackupsNumber {5};
+    // comment-template / comment-width: the line inserted by
+    // key-editor-comment in an editor (E66): the template through strftime
+    // (local time), filled with '-' up to comment-width columns (0: not
+    // filled). The default makes "# 2026-11-10 10:06:43 ---...", 79 columns.
+    std::string commentTemplate {"# %Y-%m-%d %H:%M:%S "};
+    int commentWidth {79};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};
@@ -101,6 +108,8 @@ struct Settings
     TKey keyPageDown {kbPgDn, kbShift | kbAltShift};
     TKey keyTop {kbHome, kbShift | kbAltShift};
     TKey keyBottom {kbEnd, kbShift | kbAltShift};
+    // key-editor-comment: inserts the comment line in an editor (E66).
+    TKey keyEditorComment {'C', kbAltShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

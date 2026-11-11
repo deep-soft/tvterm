@@ -511,6 +511,7 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 **F7** finds and **Ctrl-F7** replaces text ([Find and Replace](#find-and-replace)). **Ctrl-Z** undoes and
 **Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
+**Alt-C** inserts a comment line with the date and time ([Comment line](#comment-line)).
 **F9** opens the editor's menu: Read only, Save, Save as (**F12**), Open (**Ctrl-F12**), Reload, Find, Replace, Go
 to line ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
@@ -666,6 +667,26 @@ editor). In a terminal window they still go to the program in it; Log View keeps
   with the word ([Find and Replace](#find-and-replace)). No word there: `No word at the cursor.` in the status line.
 - The editor's status line does not list these keys (no room).
 
+### Comment line
+
+**Alt-C** inserts a comment line with the date and time **at the cursor**, then a line break: with the defaults,
+
+```
+# 2026-11-10 10:06:43 ---------------------------------------------------------
+```
+
+(79 columns). The text that was after the cursor goes to the next line, and the cursor to the start of that line, so
+typing goes on below the comment. A selection is not replaced (it is dropped first). One undo step. In a read only
+editor it does nothing (`Read only.`). The line break uses the file's line ends.
+
+Set in `tvterm.ini` ([chapter 6](#6-settings-file-tvtermini)): `comment-template` (`[general]`) is the text, with the
+codes of `strftime` (local time): `%Y` year, `%m` month, `%d` day, `%H:%M:%S` time, `%%` a percent sign; quotes keep
+the spaces at the start or the end (`" #comment-template = "// %H:%M "`; without quotes a final space is lost).
+`comment-width` fills the line with `-` up to that many columns (counting from the start of the comment, not of the
+line; `0`: not filled; a longer text is not cut). `key-editor-comment` (`[keys]`) is the key (`none`: no key); a key
+of tvterm's own editor keys (Alt-D, Alt-W, Alt-F8, Ctrl-Down / Ctrl-Up) keeps its action, any other key (also one of
+tvision's editor keys) does the comment instead. Alt-C arrives through putty4far2l / far2l like the other Alt keys.
+
 ### Opening and viewing files
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
@@ -713,9 +734,10 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 2, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
+  `## format 3, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
-  changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
+  `comment-template`, `comment-width`, `key-editor-comment`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -750,6 +772,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `undo-limit-memory` | `20M` | memory the undo steps of an editor may use: bytes, or a number with K, M or G; `0`: no limit; over it the oldest steps are dropped ([Undo and Redo](#undo-and-redo)) |
 | | `file-backups` | `yes` | at the first save of each editor window (and Save As over an existing file) the file is copied to `name-YYYY-MM-DD-hhmmss` (local time); `no`: no backups ([Backups](#backups)) |
 | | `file-backups-number` | `5` | backups kept per file, 1–99; the oldest are deleted after each new one; invalid: a note in the Event Viewer and `5` ([Backups](#backups)) |
+| | `comment-template` | `"# %Y-%m-%d %H:%M:%S "` | the comment line of `key-editor-comment` (Alt-C) in an editor: text with `strftime` codes (local time), 1–200 characters; quotes keep spaces at the start or end ([Comment line](#comment-line)) |
+| | `comment-width` | `79` | the comment line filled with `-` up to this many columns, 0–1000; `0`: not filled |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
@@ -768,6 +792,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `history-page-down` | `Alt-Shift-PgDn` | |
 | | `history-top` | `Alt-Shift-Home` | |
 | | `history-bottom` | `Alt-Shift-End` | |
+| | `key-editor-comment` | `Alt-C` | inserts the comment line in an editor (`comment-template`); `none`: no key |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
 | | `key-window-left`, `-right`, `-up`, `-down` | (none) | keys that go to the neighbouring window |

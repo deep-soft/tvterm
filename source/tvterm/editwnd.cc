@@ -476,6 +476,46 @@ static uint nextLines(TEditor &e, uint line, uint count)
     return line;
 }
 
+// The comment line of key-editor-comment (E66): comment-template through
+// strftime (local time), filled with '-' up to comment-width columns (a
+// UTF-8 character counts as one column).
+static std::string commentLine(const Settings &s)
+{
+    time_t now = time(nullptr);
+    struct tm tm;
+    localtime_r(&now, &tm);
+    char buf[1024];
+    size_t n = strftime(buf, sizeof(buf), s.commentTemplate.c_str(), &tm);
+    std::string line(buf, n);
+    int cols = 0;
+    for (unsigned char c : line)
+        if ((c & 0xC0) != 0x80)
+            ++cols;
+    if (s.commentWidth > cols)
+        line.append(s.commentWidth - cols, '-');
+    return line;
+}
+
+// key-editor-comment (Alt-C): the comment line at the cursor, then a line
+// break; the cursor goes to the start of the next line (the text that was
+// after the cursor). A selection is not replaced: it is dropped first. One
+// undo step.
+static void insertComment(TEditor &e)
+{
+    std::string text = commentLine(TVTermApp::settings());
+    if (text.empty())
+    {
+        showStatus("The comment template gives an empty line.");
+        return;
+    }
+    // Converted by tvision to the file's line ends.
+    text += "\n";
+    e.lock();
+    e.setCurPtr(e.curPtr, 0);
+    e.insertText(text.data(), (uint) text.size(), False);
+    e.unlock();
+}
+
 // Alt-D: the current line, or the lines of the selection, copied below
 // them. The cursor (and the selection) go to the same place in the copy.
 static void duplicateLines(TEditor &e)
@@ -909,7 +949,7 @@ static bool isEditingCommand(ushort cmd)
     return false;
 }
 
-enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord };
+enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment };
 
 // The keys of 45 (not while the editor waits for the second key of
 // Ctrl-Q / Ctrl-K). 'extend': with Shift (Ctrl-Shift-Down / Up).
@@ -935,6 +975,10 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
         return ekDuplicate;
     if (k == TKey(kbAltW))
         return ekSelectWord;
+    // key-editor-comment of tvterm.ini (Alt-C; none: no key).
+    TKey comment = TVTermApp::settings().keyEditorComment;
+    if (comment.code != 0 && k == comment)
+        return ekComment;
     return ekNone;
 }
 
@@ -1011,7 +1055,7 @@ bool TVTermEditWindow::isEditingEvent(const TEvent &ev)
     bool extend;
     editwnd::EditorKey ek = editwnd::editorKey(editor, ev, extend);
     if (ek != editwnd::ekNone)
-        return ek == editwnd::ekDuplicate;
+        return ek == editwnd::ekDuplicate || ek == editwnd::ekComment;
     if (editwnd::undoRedoKey(editor, ev) != editwnd::noUndoKey)
         return true;
     if (ushort cmd = editwnd::searchKeyCommand(editor, ev.keyDown.keyCode))
@@ -1297,6 +1341,9 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
         case editwnd::ekSelectWord:
             editwnd::selectWord(e);
             break;
+        case editwnd::ekComment:
+            editwnd::insertComment(e);
+            break;
         default:
             break;
     }
@@ -1365,6 +1412,11 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
         if (undoKeys(ev))
             return;
         kind = editwnd::eventKind(editor, ev);
+        // The keys of editorKeys (Alt-D, the comment key...): a step of
+        // their own, even when the key is a character.
+        bool extend;
+        if (editwnd::editorKey(editor, ev, extend) != editwnd::ekNone)
+            kind = EditUndo::ukOther;
         hadSelection = editor->hasSelection();
         replaceAllCount = 0;
     }

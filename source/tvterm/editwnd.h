@@ -27,8 +27,9 @@ public:
     // Shift-F7 and Ctrl-L (Search again); the dialogs are in editwnd.cc.
     // Also Ctrl-Down / Ctrl-Up (next / previous line with text in the
     // cursor's column; with Shift the selection grows), Alt-F8 (Go to line),
-    // Alt-D (Duplicate line) and Alt-W (Select word). F9 opens the window's
-    // menu; F12 is Save As and Ctrl-F12 Open (E65).
+    // Alt-D (Duplicate line), Alt-W (Select word) and key-editor-comment
+    // (Alt-C, E66: a comment line with the date and time at the cursor).
+    // F9 opens the window's menu; F12 is Save As and Ctrl-F12 Open (E65).
     void handleEvent(TEvent &ev) override;
 
     // Open (E65, F9 > Open..., Ctrl-F12): the Open file dialog (the first
@@ -132,7 +133,7 @@ private:
 
     bool undoKeys(TEvent &ev);
     // Ctrl-Down / Ctrl-Up (and with Shift), Alt-F8 Go to line, Alt-D
-    // Duplicate line, Alt-W Select word (editwnd.cc).
+    // Duplicate line, Alt-W Select word, the comment key (editwnd.cc).
     bool editorKeys(TEvent &ev);
 };
 

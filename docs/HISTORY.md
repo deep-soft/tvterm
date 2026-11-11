@@ -146,6 +146,8 @@ E64. Editor backups: at the first save of a window the file is copied to `name-Y
      same; `file-backups = no`: none; `tvterm.ini` format 2; no more `name.bak`
 E65. Editor: F9 > Open... (Ctrl-F12) loads another file into the same window (a modified text asks Save? first) and
      F9 > Reload reads the file from disk again (cursor line kept; Discard the changes? when modified); Save as F12
+E66. Editor: Alt-C (`key-editor-comment`) inserts a comment line with the date and time at the cursor, then a line
+     break (`comment-template` = `"# %Y-%m-%d %H:%M:%S "`, `comment-width` = 79, `-` fill); `tvterm.ini` format 3
 
 ---
 
@@ -345,7 +347,7 @@ Free menu letters: J, K, X (`M` opens More..., `F` is the old Zoom letter). Digi
   `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
   `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
 - **Format line** (E53, item 47): `settingsTemplate()` starts with `## format N, created by tvterm <version> (<commit>,
-  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; `buildinfo::version`, `commit`, `date`), so the file made by
+  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; 3 since E66; `buildinfo::version`, `commit`, `date`), so the file made by
   Edit settings and `--print-settings` say which tvterm made them. The number goes up when a version adds, renames or
   changes the meaning of keys. `loadSettings` reads it (`parseFormatLine`: `##`, more `#` or spaces, `format `, 1–6
   digits, then the end, `,`, space or tab) only before the first section, the first such line; `Settings::fileFormat`,
@@ -1082,6 +1084,17 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `SettingsEditWindow::reloadFile` override: after the base, `savedText` / `diskStamp` / `seenStamp` taken again and
   the own marker removed (so Ctrl-W then asks nothing); Open of another file in the Settings editor makes it an
   ordinary editor (`detach` after `handleEvent`, as after Save As). Save Profile As writes the window's new file.
+- **Comment line** (E66, item 21, chat 64; `editwnd.cc`, `settings.*`): `key-editor-comment` (`[keys]`, default
+  Alt-C, `TKey('C', kbAltShift)` = `kbAltC`; `none`: no key) is one more `editorKey` (`ekComment`, checked after
+  Alt-F8 / Alt-D / Alt-W, so those keep their action; before tvision's editor, so a tvision editor key set here does
+  the comment). `insertComment`: `commentLine()` = `strftime(comment-template)` on `localtime_r` (1024-byte buffer),
+  filled with `-` up to `comment-width` columns (UTF-8: a character = a column; 0 or a longer text: no fill), plus
+  `\n` (tvision converts it to the editor's line ends); `setCurPtr(curPtr, 0)` drops a selection, `insertText` at the
+  cursor, so the cursor ends at the start of the next line. `isEditingEvent` counts it (read only: `Read only.`); the
+  undo kind of every `editorKey` is `ukOther` (one step even for a key that is a character). Settings: `[general]
+  comment-template` (quotes stripped when the value starts and ends with `"`; 1–200 characters, else invalid and the
+  previous value) and `comment-width` (0–1000); `settingsFormat` = 3 (`examples/tvterm.ini` `## format 3`). Default
+  width 79: the user's own separator lines (`# 2026-11-10 10:06:43 ` + 57 `-`).
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1896,6 +1909,16 @@ examples/profiles/example.ini
   the `Large file` box, Cancel → nothing; Edit settings, `x`, Ctrl-F12 `h.txt`, `n` → an ordinary editor on `h.txt`,
   `tvterm.ini.editing` removed; Edit settings again, `Q`, marker present, F9 `l` `y` → the text from disk, marker
   removed, Ctrl-W → closed without a question.
+- Comment line (E66), in tmux (140×40, `XDG_CONFIG_HOME` empty): Ctrl-B E, `abc def`, cursor before ` def`, Alt-C →
+  `abc# <date time> ---…` and ` def` on the next line, cursor at its column 0; saved: `abc` + 79 columns; Ctrl-Z → `abc
+  def` (one step); End, Enter (auto indent), Alt-C → ` # … ` (79 columns after the space); read only on, Alt-C →
+  `Read only.`, nothing inserted; `abc` selected (Shift-Right ×3), Alt-C → inserted after it, `abc` kept;
+  `comment-template = "// %H:%M %% "`, `comment-width = 0`, `key-editor-comment = Ctrl-F5` (auto reload) → Alt-C
+  nothing, Ctrl-F5 → `// 06:27 % `; `comment-template = ""`, `comment-width = 2000`, `key-editor-comment = Foo-X` → 3
+  warnings (`invalid comment-template '""' (1 to 200 characters …)`, `invalid comment-width '2000' (0 to 1000)`,
+  `invalid key-editor-comment 'Foo-X' …`), the previous values kept (checked with `loadSettings` in a small program);
+  unquoted `# %H ` → `# %H` (the final space trimmed); `none` → no key; `--print-settings` → `## format 3` and the
+  three keys. Seen (pre-existing, tvision): a new Untitled editor has CRLF line ends (`defaultLineEndingType`).
 
 ## 6. Known limitations
 
@@ -2001,5 +2024,6 @@ examples/profiles/example.ini
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
+| Editor comment line (`far2l-extended`) | E66 | Alt-C (`key-editor-comment`): a comment line with the date and time at the cursor, then a line break; `comment-template` (`"# %Y-%m-%d %H:%M:%S "`, strftime, local time) filled with `-` up to `comment-width` (79); one undo step; read only: nothing; `tvterm.ini` format 3 |
 | Editor Open / Reload (`far2l-extended`) | E65 | F9 > Open... (Ctrl-F12): another file into the same window (Save? first when modified; large file box; undo emptied, read only off); F9 > Reload: the file from disk again (Discard the changes? when modified; cursor line kept); Save as F12 |
 | Editor backups (`far2l-extended`) | E64 | first save of an editor window (F2, Ctrl-W Yes, Settings editor): the file copied to `name-YYYY-MM-DD-hhmmss` (local time, `-2` in the same second; file keeps inode / mode / owner), the oldest over `file-backups-number` (5) deleted; `file-backups = no`: none; Save As over an existing file the same; failure → `Save anyway?`; `tvterm.ini` format 2; no more `name.bak` |
