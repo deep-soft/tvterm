@@ -16,6 +16,8 @@
 #include "statline.h"
 #include "winlist.h"
 
+#include <time.h>
+
 namespace topbar
 {
 
@@ -23,15 +25,38 @@ namespace topbar
 const uchar currentColor = 0x20; // Black on green.
 const uchar otherColor = 0x30;   // Black on cyan.
 const uchar alertColor = 0x4F;   // White on red.
+const uchar flashColor = 0x74;   // Red on white: the other phase of A1.
 
 static std::string menuText()
 {
     return globalkeys::menuKeyName() + " Menu";
 }
 
-static std::string alertsText(size_t count)
+// "Alerts: 1+7": level 1 and the other levels (E68).
+static std::string alertsText(size_t level1, size_t others)
 {
-    return "Alerts: " + std::to_string(count) + " (" + globalkeys::menuKeyName() + " G)";
+    return "Alerts: " + std::to_string(level1) + "+" + std::to_string(others) +
+           " (" + globalkeys::menuKeyName() + " G)";
+}
+
+// 'text' cut to 'width' columns ('\u2026' at the end if cut).
+static std::string fitText(const std::string &text, int width)
+{
+    if (width <= 0)
+        return {};
+    if ((int) strwidth(text) <= width)
+        return text;
+    std::string out = text;
+    while (!out.empty() && (int) strwidth(out) > width - 1)
+    {
+        // One whole UTF-8 character: its continuation bytes, then its
+        // first byte.
+        while (!out.empty() && ((unsigned char) out.back() & 0xC0) == 0x80)
+            out.pop_back();
+        if (!out.empty())
+            out.pop_back();
+    }
+    return out + "\u2026";
 }
 
 // " D2 ", or " 2:mail " with the names of the desktops.
@@ -117,8 +142,14 @@ std::vector<TopBar::Item> TopBar::layout() const
     // On a narrow screen they are dropped from the end: Alerts, DeskList,
     // WinList, the menu.
     if ( add(itMenu, menuText()) && add(itWindowList, "WinList") &&
-         add(itDesktopList, "DeskList") && state_.alerts > 0 )
-        add(itAlerts, alertsText(state_.alerts));
+         add(itDesktopList, "DeskList") && state_.alerts > 0 &&
+         add(itAlerts, alertsText(state_.level1, state_.others)) && !state_.alert1.empty() )
+    {
+        // The A1 item: as much of its text as fits (at least 12 columns).
+        int room = right - x - 1;
+        if (room >= 12)
+            add(itAlert1, fitText(state_.alert1, room));
+    }
     x = right;
     for (int n : shown)
     {
@@ -151,7 +182,11 @@ void TopBar::draw()
                 b.moveStr(item.x, "DeskList", normal);
                 break;
             case itAlerts:
-                b.moveStr(item.x, alertsText(state_.alerts), TColorAttr(alertColor));
+                b.moveStr(item.x, alertsText(state_.level1, state_.others), TColorAttr(alertColor));
+                break;
+            case itAlert1:
+                b.moveStr(item.x, fitText(state_.alert1, item.width),
+                          TColorAttr(state_.flashOn ? flashColor : alertColor));
                 break;
             case itDesktop:
             {
@@ -184,7 +219,8 @@ void TopBar::run(const Item &item)
         case itMenu: event.message.command = cmMenu; break;
         case itWindowList: event.message.command = cmWindowList; break;
         case itDesktopList: event.message.command = cmDesktopMenu; break;
-        case itAlerts: event.message.command = cmNextAlert; break;
+        case itAlerts:
+        case itAlert1: event.message.command = cmNextAlert; break;
         case itDesktop:
             if (item.desktop == state_.current)
                 return;
@@ -224,6 +260,8 @@ std::string TopBar::hintFor(const Item &item) const
             return "Window List: the windows of every desktop (" + key + " W).";
         case itDesktopList:
             return "Desktop list: the 9 desktops, a digit or Enter shows one (" + key + " D).";
+        case itAlert1:
+            return "Level 1 alert (" + key + " G goes to it): " + state_.alert1;
         case itAlerts:
         case itDesktop:
             break;
@@ -251,7 +289,8 @@ std::string TopBar::hintFor(const Item &item) const
         }
     std::string text;
     if (item.kind == itAlerts)
-        text = "Go to the oldest alert (" + key + " G). Alerts: ";
+        text = "Go to the most urgent alert (" + key + " G). Level 1: " + std::to_string(state_.level1) +
+               ", other levels: " + std::to_string(state_.others) + ". Alerts: ";
     else
     {
         text = desktops::label(item.desktop);
@@ -296,6 +335,13 @@ void TopBar::update(TDeskTop &deskTop)
     s.current = desktops::current();
     s.names = desktops::namesVersion();
     s.alerts = countAlerts(deskTop);
+    countAlerts(deskTop, s.level1, s.others);
+    if (s.level1)
+    {
+        s.alert1 = level1AlertText(deskTop);
+        // Flashing: the other colors every other second.
+        s.flashOn = alertConfig.flash && (time(nullptr) & 1);
+    }
     auto counts = desktops::windowCounts(deskTop);
     for (int n = 1; n <= desktops::count; ++n)
         s.counts[n] = counts[n];

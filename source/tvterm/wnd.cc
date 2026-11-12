@@ -142,36 +142,41 @@ void TerminalWindow::checkAlerts() noexcept
 
     if (!text.empty())
     {
-        if (!alertSettings.keywords.empty() && alert != Alert::Keyword)
+        // Every line is checked (E68): each match goes to the alert log
+        // and may run the level 1 action, even if the window already has an
+        // alert.
+        if (!alertSettings.keywords.empty())
         {
             pendingLine += text;
             size_t start = 0, end;
-            while ( alert != Alert::Keyword &&
-                    (end = pendingLine.find('\n', start)) != std::string::npos )
+            while ((end = pendingLine.find('\n', start)) != std::string::npos)
             {
                 checkKeywordLine(pendingLine.substr(start, end - start));
                 start = end + 1;
             }
-            if (alert == Alert::Keyword)
-                pendingLine.clear();
-            else
+            pendingLine.erase(0, start);
+            // A very long line without an end (e.g. a progress bar).
+            if (pendingLine.size() > 16 * 1024)
             {
-                pendingLine.erase(0, start);
-                // A very long line without an end (e.g. a progress bar).
-                if (pendingLine.size() > 16 * 1024)
-                {
-                    checkKeywordLine(pendingLine);
-                    pendingLine.clear();
-                }
+                checkKeywordLine(pendingLine);
+                pendingLine.clear();
             }
             pendingSince = now;
             pendingChecked = false;
         }
         if ( alertSettings.activity &&
-             text.find_first_not_of(" \n") != std::string::npos )
-            raiseAlert(Alert::Activity);
+             text.find_first_not_of(" \r\n") != std::string::npos &&
+             raiseAlert(Alert::Activity, alertSettings.activityLevel) )
+        {
+            // The first line with text.
+            size_t a = text.find_first_not_of(" \r\n");
+            size_t b = text.find('\n', a);
+            alertEvent(this, plainTitle(), alertSettings.activityLevel, "activity",
+                       text.substr(a, b == std::string::npos ? std::string::npos : b - a),
+                       alertSettings.action, true);
+        }
     }
-    else if ( !pendingLine.empty() && !pendingChecked && alert != Alert::Keyword &&
+    else if ( !pendingLine.empty() && !pendingChecked &&
               now - pendingSince >= std::chrono::milliseconds(500) )
     {
         // The line has not ended for a while (a prompt...): checked as it
@@ -184,24 +189,40 @@ void TerminalWindow::checkAlerts() noexcept
          now - silenceSince >= std::chrono::seconds(alertSettings.silenceSeconds) )
     {
         silenceArmed = false;
-        raiseAlert(Alert::Silence);
+        raiseAlert(Alert::Silence, alertSettings.silenceLevel);
+        // Logged even if a more urgent alert hides it.
+        alertEvent(this, plainTitle(), alertSettings.silenceLevel, "silent",
+                   std::to_string(alertSettings.silenceSeconds) + " s",
+                   alertSettings.action, true);
     }
 }
 
 void TerminalWindow::checkKeywordLine(const std::string &line) noexcept
 {
     if (const KeywordGroup *group = alertSettings.keywords.match(lowerAscii(line)))
-        raiseAlert(Alert::Keyword, group, line);
+    {
+        raiseAlert(Alert::Keyword, group->level, group, line);
+        alertEvent(this, plainTitle(), group->level, group->label, line, alertSettings.action, true);
+    }
 }
 
-void TerminalWindow::raiseAlert(Alert kind, const KeywordGroup *group, const std::string &line) noexcept
+std::string TerminalWindow::plainTitle()
 {
-    // A keyword is more important than silence, which is more important
-    // than activity.
-    if (kind <= alert)
-        return;
-    if (alert == Alert::None)
+    const char *title = Super::getTitle(255);
+    return title && *title ? title : "(no title)";
+}
+
+bool TerminalWindow::raiseAlert(Alert kind, int level, const KeywordGroup *group, const std::string &line) noexcept
+{
+    // A more urgent level wins; at the same level, a keyword is more
+    // important than silence, which is more important than activity.
+    if (alert != Alert::None && (level > alertLevel || (level == alertLevel && kind <= alert)))
+        return false;
+    // A new order when the level changes (Ctrl-B G, the notification of
+    // level 1 alerts).
+    if (alert == Alert::None || level != alertLevel)
         alertOrder = newAlertOrder();
+    alertLevel = level;
     alert = kind;
     alertTime = time(nullptr);
     alertKeyword = group ? group->shortLabel : std::string();
@@ -209,6 +230,7 @@ void TerminalWindow::raiseAlert(Alert kind, const KeywordGroup *group, const std
     alertLine = group ? alertLineFragment(line, group) : std::string();
     if (frame)
         frame->drawView();
+    return true;
 }
 
 void TerminalWindow::clearAlert() noexcept
@@ -228,12 +250,12 @@ AlertInfo TerminalWindow::getAlertInfo() noexcept
 {
     AlertInfo info;
     info.time = alertTime;
+    info.level = getAlertLevel();
     info.mark = alertMark((int) alert == (int) Alert::Keyword ? 3 :
                           (int) alert == (int) Alert::Silence ? 2 : 1, alertKeyword);
     while (!info.mark.empty() && info.mark.back() == ' ')
         info.mark.pop_back();
-    const char *title = Super::getTitle(255);
-    info.title = title && *title ? title : "(no title)";
+    info.title = plainTitle();
     info.group = alertGroup;
     info.line = alertLine;
     return info;

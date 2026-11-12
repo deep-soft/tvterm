@@ -474,6 +474,51 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 else
                     invalid("use yellow, cyan or none"), settings.alertSeenColor = previous.alertSeenColor;
             }
+            else if (key == "action")
+                settings.alertConfig.action = value;
+            else if (key == "log")
+                settings.alertConfig.log = value;
+            else if (key == "action-interval" || key == "notify-repeat")
+            {
+                int &out = key == "action-interval" ? settings.alertConfig.actionInterval
+                                                    : settings.alertConfig.notifyRepeat;
+                char *end;
+                long n = strtol(value.c_str(), &end, 10);
+                if (value.empty() || *end || n < 0 || n > 86400)
+                    invalid("use seconds, 0-86400");
+                else
+                    out = (int) n;
+            }
+            else if (key == "notify")
+            {
+                // A list: flash notify bell, or none.
+                AlertConfig c = settings.alertConfig;
+                c.flash = c.notify = c.bell = false;
+                bool ok = true, none = false;
+                size_t words = 0;
+                std::string v = lower(value);
+                for (size_t i = 0; i < v.size();)
+                {
+                    size_t a = v.find_first_not_of(" \t,", i);
+                    if (a == std::string::npos)
+                        break;
+                    size_t b = v.find_first_of(" \t,", a);
+                    if (b == std::string::npos)
+                        b = v.size();
+                    std::string w = v.substr(a, b - a);
+                    ++words;
+                    if (w == "flash") c.flash = true;
+                    else if (w == "notify") c.notify = true;
+                    else if (w == "bell") c.bell = true;
+                    else if (w == "none") none = true;
+                    else ok = false;
+                    i = b;
+                }
+                if (!ok || words == 0 || (none && words > 1))
+                    invalid("use flash, notify, bell (one or more) or none");
+                else
+                    settings.alertConfig = c;
+            }
             else
                 warn("unknown key '" + key + "' in [alerts]");
         }
@@ -665,13 +710,34 @@ std::string settingsTemplate()
         "\n"
         "[alerts]\n"
         "  # Title of a window with an alert (terminal or Log View, Ctrl-B A): red\n"
-        "  # (the title text white on red until the window gets the focus) or none\n"
-        "  # (only the mark, e.g. [!], in the title).\n"
+        "  # (the title text in the color of its level until the window gets the\n"
+        "  # focus: 1 and 5 white on red, 2 magenta, 3 brown, 4 cyan) or none (only\n"
+        "  # the mark, e.g. [!], in the title).\n"
         " #title-color = red\n"
         "  # Title of a window that got the focus while it had an alert (Ctrl-B G,\n"
         "  # a click), until it loses the focus: yellow (black on yellow), cyan\n"
         "  # or none.\n"
         " #seen-color = yellow\n"
+        "  # Alert levels: 1 (most urgent) to 5 (the default), set in the profile or\n"
+        "  # Ctrl-B A (alert-keywords = 1:authentication failed, 3:error; alert-silence\n"
+        "  # = 1:120; alert-activity = 3:yes). Only level 1 runs an action and notifies.\n"
+        "  # Command run for a level 1 alert of a window without its own alert-action\n"
+        "  # (sh -c, detached, no output); it gets TVTERM_ALERT_LEVEL, _TEXT, _WINDOW,\n"
+        "  # _DESK, _KEYWORD (the keyword group, activity or silent) and _TIME.\n"
+        " #action =\n"
+        "  # Seconds before the action runs again for the same level, keyword and\n"
+        "  # window (0: every time).\n"
+        " #action-interval = 60\n"
+        "  # File where every alert is written, one line each (every matching line, even\n"
+        "  # of the selected Log View): 'date time L<level> <desk>/<window> <keyword> |\n"
+        "  # <line>'. Empty: none.\n"
+        " #log =\n"
+        "  # How a level 1 alert is shown until its window is selected: flash (the A1\n"
+        "  # item of the top bar), notify (desktop notification through far2l; needs\n"
+        "  # a far2l terminal and a client that shows them), bell; one or more, or none.\n"
+        " #notify = flash\n"
+        "  # notify and bell repeated every N seconds while not seen (0: once).\n"
+        " #notify-repeat = 60\n"
         "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"

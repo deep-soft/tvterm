@@ -505,10 +505,10 @@ static std::string commandOf(TWindow *w)
 static Row describe(TWindow *w)
 {
     Row row;
-    // Alert levels come later (item 7): an alert is level 5 for now.
+    // The level of the alert (E68).
     if (auto *target = dynamic_cast<AlertTarget *>(w))
         if (target->hasAlert())
-            row.alert = "A5";
+            row.alert = "A" + std::to_string(target->getAlertLevel());
     row.desktop = desktopColumn(w);
     const char *title = w->getTitle(100);
     row.title = title && *title ? title : "(no title)";

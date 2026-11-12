@@ -278,6 +278,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
     applySettings(currentSettings);
+    // [alerts] level 1 action, log, notification (E68).
+    alertConfig = currentSettings.alertConfig;
     // [alerts] title-color, seen-color: the frames are drawn again (the windows keep
     // their drawing in a buffer, so redrawing the desktop is not enough).
     if ( alertTitleColor != currentSettings.alertTitleRed ||
@@ -669,6 +671,13 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmViewFile: viewFile(); break;
                 case cmLogViewsTable: showLogViewsTable(*deskTop); break;
                 case cmLogViewsList: showLogViewsTable(*deskTop, true); break;
+                case cmClearLowAlerts:
+                {
+                    size_t n = clearLowAlerts(*deskTop);
+                    appsettings::showStatus(n ? "Alerts of levels 2-5 cleared: " + std::to_string(n) + "."
+                                              : "No alerts of levels 2-5.");
+                    break;
+                }
                 case cmEventViewer: toggleEventViewer(); break;
                 case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
@@ -762,6 +771,8 @@ void TVTermApp::idle()
     checkSettingsFile();
     // Closed windows of the other desktops.
     desktops::prune(*deskTop);
+    // Level 1 alerts: far2l notification and bell (E68).
+    alertTick(*deskTop);
     // The alerts and the desktops, in the top bar.
     if (TopBar::instance)
         TopBar::instance->update(*deskTop);
@@ -856,6 +867,7 @@ void TVTermApp::openMenu()
             *new TMenuItem("~V~iew file...", cmViewFile, kbNoKey) +
             *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
             *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
+            *new TMenuItem("Clear ~n~on-urgent alerts (levels 2-5)", cmClearLowAlerts, kbNoKey) +
             newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
             *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +
@@ -1274,8 +1286,11 @@ void TVTermApp::openProfile(const Profile &profile)
                 term->launchKeepOpen = win.keepOpen;
                 AlertSettings alerts;
                 alerts.activity = win.alertActivity;
+                alerts.activityLevel = win.alertActivityLevel;
                 alerts.keywords = parseKeywords(win.alertKeywords);
                 alerts.silenceSeconds = win.alertSilence;
+                alerts.silenceLevel = win.alertSilenceLevel;
+                alerts.action = win.alertAction;
                 term->setAlertSettings(std::move(alerts));
                 window = term;
                 break;
@@ -1334,8 +1349,11 @@ void TVTermApp::openProfile(const Profile &profile)
                 }
                 AlertSettings alerts;
                 alerts.activity = win.alertActivity;
+                alerts.activityLevel = win.alertActivityLevel;
                 alerts.keywords = parseKeywords(win.alertKeywords);
                 alerts.silenceSeconds = win.alertSilence;
+                alerts.silenceLevel = win.alertSilenceLevel;
+                alerts.action = win.alertAction;
                 log->setAlertSettings(std::move(alerts));
                 window = log;
                 break;
@@ -1594,8 +1612,11 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
 
     const AlertSettings &alerts = w.getAlertSettings();
     term.alertActivity = alerts.activity;
+    term.alertActivityLevel = alerts.activityLevel;
     term.alertKeywords = alerts.keywords.text;
     term.alertSilence = alerts.silenceSeconds;
+    term.alertSilenceLevel = alerts.silenceLevel;
+    term.alertAction = alerts.action;
 
     setProfilePos(term, w, ext);
     return term;
@@ -1709,8 +1730,11 @@ void TVTermApp::saveProfile()
             win.logTransformOn = o.transformOn;
             const AlertSettings &alerts = log->getAlertSettings();
             win.alertActivity = alerts.activity;
+            win.alertActivityLevel = alerts.activityLevel;
             win.alertKeywords = alerts.keywords.text;
             win.alertSilence = alerts.silenceSeconds;
+            win.alertSilenceLevel = alerts.silenceLevel;
+            win.alertAction = alerts.action;
             setProfilePos(win, *w, ext);
             profile.windows.push_back(std::move(win));
         }

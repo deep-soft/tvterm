@@ -11,6 +11,7 @@
 #include "highlight.h"
 #include "transform.h"
 #include "globalkeys.h"
+#include "alerts.h"
 
 #include <string>
 #include <vector>
@@ -26,8 +27,9 @@ const int minFileDialogHeight = 19;
 // an older file can be recognized (a note in the Event Viewer; the file is
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
 // file-backups-number (E64); 3: comment-template, comment-width and
-// key-editor-comment (E66).
-const int settingsFormat = 3;
+// key-editor-comment (E66); 4: [alerts] action, action-interval, log,
+// notify, notify-repeat (E68).
+const int settingsFormat = 4;
 
 struct Settings
 {
@@ -94,6 +96,8 @@ struct Settings
     // seen-color: the title text of a window that got the focus while it
     // had an alert, until it loses the focus: yellow, cyan or none (0).
     uint8_t alertSeenColor {0xE0};
+    // action, action-interval, log, notify, notify-repeat (E68).
+    AlertConfig alertConfig;
     // [logview]
     int logViewMaxLines {50000};
     // builtin-highlight: the highlight sets built into tvterm (no: only the

@@ -134,8 +134,9 @@ Versions are tagged on GitHub (`v0.2.0`, signed); the release page of a tag list
 The screen has two bars, with the desktop (the windows) between them:
 
 - The **top bar**: `Ctrl-B Menu` (opens the menu), `WinList` (the Window List), `DeskList` (the list of desktops, like
-  Ctrl-B D: [Desktops](#desktops)), `Alerts: N (Ctrl-B G)` (white on red,
-  only while windows have alerts; a click goes to the oldest one, like Ctrl-B G) and, on the right, the buttons of the
+  Ctrl-B D: [Desktops](#desktops)), `Alerts: 1+7 (Ctrl-B G)` (white on red, only while windows have alerts: level 1
+  and the other levels; a click goes to the most urgent one, like Ctrl-B G), `A1 <window>: <keyword>` while a level 1
+  alert is waiting ([Levels](#levels)) and, on the right, the buttons of the
   desktops ([Desktops](#desktops)). It is not a menu bar: Alt+letters and F10 stay with the programs in the terminals.
   A click works on the item under the mouse when the button is released.
 - The **status line**, at the bottom: it changes with the focused window and shows its main keys; a click on an item
@@ -166,7 +167,7 @@ writes Ctrl-B.
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
 | `L` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `A` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
-| `G` | Go to Next Alert | goes to the window with the oldest alert |
+| `G` | Go to Next Alert | goes to the window with the most urgent alert, the oldest of that level |
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
 | (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
 | (none) | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one); arrows + Enter, or click it |
@@ -188,7 +189,7 @@ writes Ctrl-B.
 
 **More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
 Cascade · Grab Input ·
-View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm.
+View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Clear non-urgent alerts (levels 2-5, key `n`: [Levels](#levels)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm.
 
 **More... > Suspend...** (`u`; until E66 it was Ctrl-B `U`) stops tvterm and returns to the shell that started it;
 `fg` there brings it back. It asks first, `Suspend tvterm?`, with **No** as the default (Enter or Esc: nothing
@@ -233,8 +234,7 @@ terminals); menus and dialogs always have one.
 **Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in four columns, with
 their names on the row above the list:
 
-- **Alert**: `A5` for a window with an alert ([Alerts](#9-alerts)), empty otherwise. Every alert is level 5 for now;
-  levels 1–5 will come later.
+- **Alert**: `A1`…`A5`, the level of the window's alert ([Levels](#levels)), empty without an alert.
 - **Desk**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
 - **Name**: the title, with the alert mark if any.
 - **Command**: for a terminal, its command from the profile, otherwise the program started in it (your shell); for a
@@ -282,7 +282,7 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 - The **Event Viewer is on every desktop** and cannot be moved.
 - Each desktop remembers its focused window. Tab / Shift-Tab, the `key-window-*` keys, Tile and Cascade work on the
   current desktop only.
-- **Ctrl-B G** goes to the window with the oldest alert, showing its desktop. The Window List and the Go to button of
+- **Ctrl-B G** goes to the window with the most urgent alert (the oldest of that level), showing its desktop. The Window List and the Go to button of
   the Quit list do the same; the alert counter counts every desktop.
 - **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 8 columns (a longer name is cut, with a
   note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
@@ -741,10 +741,11 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 3, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
+  `## format 4, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
-  `comment-template`, `comment-width`, `key-editor-comment`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
+  `notify`, `notify-repeat`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -789,8 +790,13 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `save-name` | `name-first` | `name-first` or `date-first` ([chapter 4](#save)) |
 | | `search-case-sensitive` | `no` | starting value of "Case sensitive" in the search dialog |
 | | `shift-click-select` | `yes` | Shift+click selects in programs that use the mouse |
-| `[alerts]` | `title-color` | `red` | title text of a window with an alert: `red` (white on red) or `none` (normal colors, only the mark) ([chapter 9](#9-alerts)) |
+| `[alerts]` | `title-color` | `red` | title text of a window with an alert: `red` (the color of its level) or `none` (normal colors, only the mark) ([chapter 9](#9-alerts)) |
 | | `seen-color` | `yellow` | title text of a window reached from an alert, until it loses the focus: `yellow` (black on yellow), `cyan` or `none` |
+| | `action` | (none) | command run for a level 1 alert of a window without its own `alert-action` ([Levels](#levels)) |
+| | `action-interval` | `60` | seconds before the action runs again for the same level, keyword and window (0: every time) |
+| | `log` | (none) | file where every alert is written, one line each (`~` allowed) |
+| | `notify` | `flash` | how a level 1 alert is shown: `flash`, `notify` (far2l desktop notification), `bell` (one or more), or `none` |
+| | `notify-repeat` | `60` | `notify` / `bell` repeated every N seconds while the level 1 alert is not seen (0: once) |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `builtin-highlight` | `yes` | `no`: the highlight sets built into tvterm are not used, only the `[highlight]` sections of `tvterm.ini` ([chapter 10](#colors-highlight)) |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
@@ -887,7 +893,8 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `dir` | current directory | working directory (`~` = home) |
 | `command` | interactive shell | command, run as `$SHELL -c "command"` |
 | `keep-open` | `yes` | `yes`: when the command ends (or Ctrl-C), a shell starts in the same terminal; `no`: the terminal stays `(Disconnected)` with its output |
-| `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts ([chapter 9](#9-alerts)) |
+| `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts ([chapter 9](#9-alerts)); `N:` before a value = level N ([Levels](#levels)) |
+| `alert-action` | (none) | command for the level 1 alerts of this window (else `[alerts] action`) |
 
 `[logview]` ([chapter 10](#10-log-view)):
 
@@ -909,7 +916,8 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
 | `transform` | (none) | transformation sets, e.g. `show-tls` ([chapter 10](#transformations)) |
 | `transform-on` | `yes` | `no`: the original lines shown (as after the T key) |
-| `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown |
+| `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown; `N:` before a value = level N ([Levels](#levels)) |
+| `alert-action` | (none) | command for the level 1 alerts of this window (else `[alerts] action`) |
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
@@ -1013,25 +1021,26 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
 - Silence is counted from the start of the window (or from setting the alert), then from the last output and from
   leaving the window. After a silence alert, new output arms it again.
 - Priority: keyword > silence > activity. A keyword found inside a window title or escape sequence does not count.
-- While a window has an alert, the **title text in its frame** (with the mark) is white on red; the frame keeps its
-  normal look (a focused window keeps its double frame). The color goes away with the alert, when the window gets the
-  focus. Every kind of alert uses the same color. `[alerts] title-color = none` in `tvterm.ini` turns it off (only the
+- While a window has an alert, the **title text in its frame** (with the mark) has the color of its level ([Levels](#levels):
+  white on red for levels 1 and 5); the frame keeps its normal look (a focused window keeps its double frame). The color
+  goes away with the alert, when the window gets the focus. `[alerts] title-color = none` in `tvterm.ini` turns it off (only the
   mark is left). Windows on other desktops show nothing more: their desktop button in the top bar is already red.
 - When a window gets the focus while it has an alert (Ctrl-B G, a click, the Window List), its **title text turns black
   on yellow** until the window loses the focus, so that you see at once where you are. Windows without an alert are not
   colored. `[alerts] seen-color = cyan` uses black on cyan, `none` turns it off.
-- The mark also appears in the Window List and the quit dialog; the top bar shows `Alerts: N (Ctrl-B G)` (a click
-  goes to the oldest alert, like Ctrl-B G) and its desktop button turns red.
-  **Ctrl-B G** goes to the oldest alert. Selecting the window clears its alert.
-- **A** in the Event Viewer lists the active alerts (those counted by `Alerts: N`), oldest first (the order of Ctrl-B G):
-  the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword time),
+- The mark also appears in the Window List and the quit dialog; the top bar shows `Alerts: 1+7 (Ctrl-B G)` (a click
+  goes to the most urgent alert, like Ctrl-B G) and its desktop button turns red.
+  **Ctrl-B G** goes to the most urgent alert, the oldest of that level. Selecting the window clears its alert.
+- **A** in the Event Viewer lists the active alerts, the most urgent first, oldest first within a level (the order of
+  Ctrl-B G): the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword
+  time), the level (`A1`…`A5`),
   the desktop of the window (as in the Window List: `*D1` = the current desktop, `2:mail` for a named one), the mark and
   the window title; for keywords also the group and the line (around the first term, about 150 bytes):
 
   ```
   --- Active alerts (2) ---
-  14:02:11 *D1     [!] Shell
-  14:05:40  2:mail [!192.168.88.4+:993] Log: FortiGate
+  14:05:40 A1  2:mail [!192.168.88.4+:993] Log: FortiGate
+  14:02:11 A5 *D1     [!] Shell
       group: 192.168.88.4 + :993
       line:  date=2026-10-29 time=14:05:40 ... srcip=192.168.88.4 ... dstport=993 ...
   ```
@@ -1040,6 +1049,45 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
 - No false alarms from redrawing: output is ignored for 3 s after a terminal starts, and for 1.5 s after a resize or
   after leaving the terminal. For a Log View, the first 3 s after its source starts (e.g. the lines of `tail -n 5000`).
 - Activity alerts are noisy with full-screen programs (far2l's clock): use keywords there.
+
+### Levels
+
+Each alert has a **level**, from **1** (most urgent) to **5**. The level says how urgent it is, not what happened.
+Without a level, an alert is level 5 (as before levels existed).
+
+| Where | Written | Meaning |
+|---|---|---|
+| Keywords | `1:authentication failed, 3:error, warning` | `N:` at the start of a group: level N (`warning` is 5); `\:` is a plain `:` |
+| Silence | `alert-silence = 1:120`, dialog `1:120` | level 1 after 120 s without output |
+| Activity | `alert-activity = 3:yes`, dialog Level field | level 3 for any new text |
+
+- A line matching several groups takes the most urgent one. A window keeps **one alert**: a new one replaces it only
+  if its level is more urgent (at the same level: keyword > silence > activity).
+- Title colors: levels 1 and 5 white on red, 2 on magenta, 3 on brown, 4 on cyan. Window List: `A1`…`A5`.
+- Only **level 1** does more: the top bar shows `A1 <window>: <keyword>` (or `silent` / `activity`), and:
+  - `[alerts] notify` in `tvterm.ini` (one or more, default `flash`): `flash` = the A1 item alternates its colors
+    every second; `notify` = a desktop notification through far2l (shown only by a far2l client that supports it;
+    other terminals ignore it); `bell` = the terminal bell. `notify` and `bell` come again every `notify-repeat`
+    seconds (60; 0 = once) until the window is selected (Ctrl-B G, a click, the Window List).
+  - **Action**: the window's `alert-action` (profile, or the Action field of Ctrl-B A), else `[alerts] action`, is
+    run with `sh -c`, in the background, without output, with `TVTERM_ALERT_LEVEL`, `TVTERM_ALERT_TEXT` (the line),
+    `TVTERM_ALERT_WINDOW`, `TVTERM_ALERT_DESK`, `TVTERM_ALERT_KEYWORD` (the keyword group, `activity` or `silent`) and
+    `TVTERM_ALERT_TIME`. Not again within `action-interval` seconds (60) for the same level, keyword and window.
+    Example: `action = /root/scripts/tvt-alert.sh`; `alert-silence = 1:300` on a collector's log runs it when the
+    collector stops.
+- **Alert log**: `[alerts] log = ~/tvterm-alerts.log` writes every alert, of every level, one line each:
+
+  ```
+  2026-11-12 13:51:15 L1 D1/Log: mail authentication failed | x Authentication FAILED for user1
+  2026-11-12 13:51:16 L3 D1/Log: mail error | an error here
+  2026-11-12 13:52:10 L2 2:mail/Log: fg silent | 300 s
+  ```
+
+  Every matching line is written, even when the window already has an alert, and even in the **selected** Log View
+  (there without an alert or action), so the log shows what your keywords catch: use it to refine Include / Exclude
+  and the keywords. Terminals are checked only when not selected. Lines are cut at 500 bytes; the file has mode 600.
+- **More... > Clear non-urgent alerts** (key `n`) removes the alerts of levels 2-5 without visiting their windows;
+  level 1 alerts go only when you select their window.
 
 ---
 

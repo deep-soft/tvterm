@@ -47,8 +47,11 @@ struct WindowProfile
     bool logTransformOn {true};
     // Terminal and Log View alerts (see alerts.h).
     bool alertActivity {false};
+    int alertActivityLevel {5}; // alert-activity = 3:yes (E68).
     std::string alertKeywords; // Comma-separated.
     int alertSilence {0};      // Seconds; 0: disabled.
+    int alertSilenceLevel {5};  // alert-silence = 1:120 (E68).
+    std::string alertAction;    // alert-action (E68): level 1 alerts.
     // Editor: file name (empty: untitled).
     std::string file;
     bool readOnly {false};      // [editor] read-only (E63).

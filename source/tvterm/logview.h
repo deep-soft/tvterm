@@ -126,7 +126,9 @@ public:
     void setAlertSettings(AlertSettings settings) noexcept override;
     bool hasAlert() const noexcept override { return alert != Alert::None; }
     uint64_t getAlertOrder() const noexcept override { return alertOrder; }
+    int getAlertLevel() const noexcept override { return alert == Alert::None ? 0 : alertLevel; }
     AlertInfo getAlertInfo() noexcept override;
+    void dismissAlert() noexcept override { clearAlert(); }
 
     // Takes the new lines from the source. Called at every idle time.
     void update();
@@ -228,7 +230,8 @@ private:
     Alert alert {Alert::None};
     // Alert::Keyword: the group found and the line.
     std::string alertKeyword, alertGroup, alertLine;
-    uint64_t alertOrder {0};
+    uint64_t alertOrder {0}; // New when the alert gets a more urgent level.
+    int alertLevel {0};
     time_t alertTime {0}; // When the alert got its current kind.
     bool silenceArmed {true};
     Clock::time_point silenceSince;
@@ -269,7 +272,8 @@ private:
     std::string displayText(uint64_t seq) const;
     // The text shown changed (T, other sets): the caches and the positions.
     void transformChanged();
-    void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
+    // True if the alert changed (see TerminalWindow::raiseAlert).
+    bool raiseAlert(Alert kind, int level, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
     // The title without the alert mark.
     std::string plainTitle() const;
     // The title without "Log: " / "View: " (for messages).

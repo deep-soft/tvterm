@@ -150,6 +150,10 @@ E66. Editor: Alt-C (`key-editor-comment`) inserts a comment line with the date a
      break (`comment-template` = `"# %Y-%m-%d %H:%M:%S "`, `comment-width` = 79, `-` fill); `tvterm.ini` format 3
 E67. Menu: Suspend moved from Ctrl-B `U` to More... > Suspend... (between separators, above About); asks first (No
      by default) and only works when started from a shell with job control (otherwise a box says why)
+E68. Alert levels 1-5 (`1:` before a keyword group, `alert-silence = 1:120`, `alert-activity = 3:yes`): title color
+     and Window List `A1`…`A5` by level, `Alerts: 1+7` and a flashing `A1 <window>: <keyword>` in the top bar, Ctrl-B G
+     to the most urgent; level 1 runs `alert-action` (profile) or `[alerts] action`; `[alerts] log` gets every alert;
+     `[alerts] notify` (flash / far2l notify / bell); More... > Clear non-urgent alerts; `tvterm.ini` format 4
 
 ---
 
@@ -161,7 +165,8 @@ Order since E39, letters since E41 (both agreed in chat 43; groups between separ
 Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom
 (Maximize/Restore; `F` before E20, still works) | `T` Select Text · `P` Paste · `E` New Editor · `O` Open File in
 Editor · `S` Editor Save As | `B` Load Profile · `I` Load Profile in Editor · `C` Save Profile As | `V` Event Viewer ·
-`More...` (change dir, tile, cascade, Grab Input, View file, Edit settings, Reload settings, Suspend (E67), About) ·
+`More...` (change dir, tile, cascade, Grab Input, View file, Log Views as table / list, Clear non-urgent alerts (E68),
+Edit settings, Reload settings, Suspend (E67), About) ·
 `Q` Exit (`U` Suspend until E66). The menu opens with no item selected (the first Down selects Desktop...).
 Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
 - **E67** (item 24, chat 64): Suspend (tvision's `cmDosShell`: `suspend`, `raise(SIGTSTP)`, `resume`) was chosen by a
@@ -357,7 +362,7 @@ Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). D
   `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
   `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
 - **Format line** (E53, item 47): `settingsTemplate()` starts with `## format N, created by tvterm <version> (<commit>,
-  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; 3 since E66; `buildinfo::version`, `commit`, `date`), so the file made by
+  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; 3 since E66; 4 since E68; `buildinfo::version`, `commit`, `date`), so the file made by
   Edit settings and `--print-settings` say which tvterm made them. The number goes up when a version adds, renames or
   changes the meaning of keys. `loadSettings` reads it (`parseFormatLine`: `##`, more `#` or spaces, `format `, 1–6
   digits, then the end, `,`, space or tab) only before the first section, the first such line; `Settings::fileFormat`,
@@ -449,6 +454,39 @@ Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). D
   `clearAlert` (which draws the frame) and cleared with a frame redraw when the window is deselected; `drawAlertTitle`
   uses red while there is an alert (if `title-color`), else `alertSeenColor` if the alert was seen. A change of the
   setting draws the frames again, like `title-color`.
+- **Alert levels (E68**, item 7, agreed in chats 53, 65, 67): a level 1 (most urgent) to 5 says how urgent an alert
+  is, not what happened. Keywords: `N:` at the start of a comma element (`1:authentication failed, 3:error, warning`;
+  none = 5, as before; `\:` literal); `0:`, `9:`, `1:` alone and `1:!x` are errors (dialog message / profile problem).
+  A line matching several groups takes the most urgent one (`KeywordRules::match`). Silence and activity: `N:` before
+  the value (`alert-silence = 1:120`, `alert-activity = 3:yes`; dialog: `1:120` in the Silence field, a Level field
+  beside Any new text). Still **one alert per window**: a new one replaces it only if its level is more urgent, or the
+  same level and a more important kind (keyword > silence > activity); the alert order (Ctrl-B G, notifications) is
+  renewed when the level changes. Selecting the window still clears the alert (the acknowledgement of level 1, agreed in
+  chat 67 after reading the code: there is no alert list to delete from). Title color by level (`alertLevelColor`): 1
+  and 5 white on red (5 = before E68), 2 on magenta, 3 on brown, 4 on cyan. Window List `A1`…`A5`; Event Viewer A
+  sorted by level, then age, with `A<n>` after the time; Ctrl-B G = the most urgent, the oldest of that level. Top bar:
+  `Alerts: L1+other (Ctrl-B G)` and, when room is left (≥ 12 columns), `A1 <title>: <keyword>` of the oldest level 1
+  alert (`level1AlertText`; `silent` / `activity` without a keyword), cut with `…`; a click goes like Ctrl-B G. More...
+  > `Clear ~n~on-urgent alerts (levels 2-5)` dismisses them (`AlertTarget::dismissAlert`), level 1 only by visiting.
+  **Every match** goes through `alertEvent`: all lines are checked even when the window already has an alert; a
+  selected Log View still checks (log only: no alert, no action); terminals only when not selected, as before (what
+  you type yourself would match). **`[alerts] log`** (`~/` allowed; empty = off): `YYYY-MM-DD hh:mm:ss L<n>
+  <desk>/<title> <keyword group> | <line>` (activity: its first line; silence: `N s`), control characters as spaces,
+  cut at 500 bytes (UTF-8), `O_APPEND | O_CREAT | O_CLOEXEC`, mode 600, the fd kept open (reopened when the path
+  changes), one note per failing path. **Action** (level 1, window not selected): the window's `alert-action`, else
+  `[alerts] action`; not again within `action-interval` (60 s) for the same level + keyword + window (the match is still
+  logged); run as `/bin/sh -c` in a grandchild (`setsid`, stdio `/dev/null`, fds ≥ 3 closed, signals and mask reset;
+  the child is waited for, so no zombie), environment built before `fork`: `TVTERM_ALERT_LEVEL`, `_TEXT` (the line,
+  cleaned), `_WINDOW`, `_DESK` (`D1`, `2:mail`), `_KEYWORD` (the group, `activity`, `silent`), `_TIME`. **`notify`**
+  (`flash notify bell` or `none`; default `flash`): `flash` = the A1 item alternates white on red / red on white every
+  second (`TopBar::State::flashOn`); `notify` = far2l `FARTTY_INTERACT_DESKTOP_NOTIFICATION` (`'n'`, request id 0, no
+  answer: stack text, title, written as `ESC _far2l:<base64> ESC \` to stdout when it is a terminal; tvision has
+  already enabled the far2l extensions; other terminals ignore an APC); `bell` = BEL. `alertTick` (every idle) sends
+  notify / bell when a newer level 1 alert appears, then every `notify-repeat` seconds (60; 0 = once) while one is left.
+  Chat 67 test (blocks N1 / N2 on srvr): far2l passes the request on (`far2lok`), but putty4far2l (ivanshatsky) has the
+  `'n'` handler commented out ("not ready yet"), so `notify` shows nothing there yet (item 27); the bell did not reach
+  Windows in the user's setup. `tvterm.ini` keys are in `[alerts]` without the `alert-` prefix (`action`,
+  `action-interval`, `log`, `notify`, `notify-repeat`); format 4.
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
@@ -1934,6 +1972,22 @@ examples/profiles/example.ini
   --norc -i` with tvterm typed at the prompt: More... shows `Suspend...` between two separators above `About
   tvterm...`; `u` → `Suspend tvterm?`, Enter → closed, tvterm runs; Esc → the same; `y` → `[1]+ Stopped … tvterm`,
   the prompt; `fg` → tvterm back, the screen redrawn.
+- Alert levels (E68), tmux 140x40, `[alerts]` with `action = env | grep ^TVTERM_ALERT_ | sort > act-<ns>.txt`,
+  `action-interval = 3`, `log = ~/alerts.log`, `notify = flash bell notify`, `notify-repeat = 2`; the pane output kept
+  with `tmux pipe-pane`. A Log View (`3:error, 1:authentication failed, warn`) fed by a script: `x Authentication
+  FAILED` → L1, `an error here` → L3, `auth error AUTHENTICATION failed again` → L1 (most urgent group), 5 log lines; 4
+  level 1 matches in 6 s → 2 action files with the 6 variables; top bar `Alerts: 1+0 (Ctrl-B G)  A1 Log: mail:
+  authentication failed`, the A1 item `97;41` then `31;47`; BEL and `_far2l:` repeated every 2 s, the base64 decoded
+  as far2l pops it (id 0, `n`, title, text); Window List `A1`; Event Viewer A `… A1 *D1 [!authentication failed] Log:
+  mail`; Ctrl-B G → the window selected, the Alerts items gone, no more notifications. Second profile: activity `3:yes`
+  + `warn` (L5) + silence `2:6` → log L5 warn, L3 activity, L2 `silent | 6 s`, the title magenta; a terminal with
+  `4:error` → L4, cyan title; `Alerts: 0+2`; More... `n` → `Alerts of levels 2-5 cleared: 2.`, no marks left; no
+  action for levels 2-5. Third profile: the selected Log View `1:boom` → logged twice, no alert, its own action not
+  run; the other `1:bang` with its own `alert-action` → that one runs, the global one not. Ctrl-B A: the new fields;
+  activity on, level 3, silence `1:120` (keys sent one by one: a burst is taken as a paste, seen-before (a)), Ctrl-B C
+  → `alert-activity = 3:yes`, `alert-silence = 1:120`, `alert-action = …` in both Log Views. Invalid: keywords `0:x,
+  1:, 1:!y`, `alert-silence = 7:10`, `alert-activity = 9:yes` → profile problems at lines 7-9; `notify = flash blink`,
+  `action-interval = -1` → `Settings: 2 problem(s)`, `notify = none` accepted.
 
 ## 6. Known limitations
 
@@ -2039,6 +2093,7 @@ examples/profiles/example.ini
 | And include (`far2l-extended`) | E61 | Log View: a double click keeps the word (white on blue); `+` / F9 > Duplicate with word: a window like D with And include = the parent's words ` && ` the word (plain, all required, Ignore case applies), title + ` [word]`, any depth; F4 field, `include-and`, `[I+]`, table / list column |
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
+| Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
 | Suspend in More... (`far2l-extended`) | E67 | Suspend moved from Ctrl-B `U` to More... (between separators, above About); `Suspend tvterm?` with No by default; not available (a box) when tvterm is not a job of a shell with job control |
 | Editor comment line (`far2l-extended`) | E66 | Alt-C (`key-editor-comment`): a comment line with the date and time at the cursor, then a line break; `comment-template` (`"# %Y-%m-%d %H:%M:%S "`, strftime, local time) filled with `-` up to `comment-width` (79); one undo step; read only: nothing; `tvterm.ini` format 3 |
 | Editor Open / Reload (`far2l-extended`) | E65 | F9 > Open... (Ctrl-F12): another file into the same window (Save? first when modified; large file box; undo emptied, read only off); F9 > Reload: the file from disk again (Discard the changes? when modified; cursor line kept); Save as F12 |

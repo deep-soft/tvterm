@@ -41,7 +41,9 @@ public:
     void setAlertSettings(AlertSettings settings) noexcept override;
     bool hasAlert() const noexcept override { return alert != Alert::None; }
     uint64_t getAlertOrder() const noexcept override { return alertOrder; }
+    int getAlertLevel() const noexcept override { return alert == Alert::None ? 0 : alertLevel; }
     AlertInfo getAlertInfo() noexcept override;
+    void dismissAlert() noexcept override { clearAlert(); }
     Alert getAlert() const noexcept { return alert; }
 
     void handleEvent(TEvent &ev) override;
@@ -59,7 +61,8 @@ private:
     Alert alert {Alert::None};
     // Alert::Keyword: the group found and the line.
     std::string alertKeyword, alertGroup, alertLine;
-    uint64_t alertOrder {0};
+    uint64_t alertOrder {0}; // New when the alert gets a more urgent level.
+    int alertLevel {0};
     time_t alertTime {0}; // When the alert got its current kind.
     uint64_t lastOutputBytes {0};
     // Output received during this time is ignored, because it is most
@@ -81,7 +84,10 @@ private:
     TRect getMaxBounds();
     void checkAlerts() noexcept;
     void checkKeywordLine(const std::string &line) noexcept;
-    void raiseAlert(Alert kind, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
+    // True if the alert of the window changed (none before, a more urgent
+    // level, or the same level and a more important kind).
+    bool raiseAlert(Alert kind, int level, const KeywordGroup *group = nullptr, const std::string &line = {}) noexcept;
+    std::string plainTitle();
     void clearAlert() noexcept;
     void ignoreOutputFor(int ms) noexcept;
 };

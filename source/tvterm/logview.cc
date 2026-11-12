@@ -1683,27 +1683,51 @@ void LogViewWindow::checkAlerts(const std::deque<uint64_t> &lines, size_t from)
     }
     // The first lines (e.g. 'tail -n 5000') are not news.
     bool starting = now - sourceStart < std::chrono::seconds(3);
-    if (!alertSettings.enabled() || (state & sfSelected))
+    if (!alertSettings.enabled())
         return;
+    // In the selected window the keywords are still checked (E68): every
+    // match goes to the alert log, but raises no alert and runs no action.
+    bool selected = state & sfSelected;
     if (newLines && !starting)
     {
-        if (!alertSettings.keywords.empty() && alert != Alert::Keyword)
-            for (size_t i = from; i < lines.size() && alert != Alert::Keyword; ++i)
+        if (!alertSettings.keywords.empty())
+            for (size_t i = from; i < lines.size(); ++i)
             {
                 const LogLine &line = source->line(lines[i]);
                 if (line.marker)
                     continue;
                 if (const KeywordGroup *group = alertSettings.keywords.match(lowerAscii(line.text)))
-                    raiseAlert(Alert::Keyword, group, line.text);
+                {
+                    if (!selected)
+                        raiseAlert(Alert::Keyword, group->level, group, line.text);
+                    alertEvent(this, plainTitle(), group->level, group->label, line.text,
+                               alertSettings.action, !selected);
+                }
             }
-        if (alertSettings.activity)
-            raiseAlert(Alert::Activity);
+        if (!selected && alertSettings.activity &&
+            raiseAlert(Alert::Activity, alertSettings.activityLevel))
+        {
+            std::string first;
+            for (size_t i = from; i < lines.size(); ++i)
+                if (!source->line(lines[i]).marker)
+                {
+                    first = source->line(lines[i]).text;
+                    break;
+                }
+            alertEvent(this, plainTitle(), alertSettings.activityLevel, "activity", first,
+                       alertSettings.action, true);
+        }
     }
+    if (selected)
+        return;
     if ( alertSettings.silenceSeconds > 0 && silenceArmed && !newLines &&
          now - silenceSince >= std::chrono::seconds(alertSettings.silenceSeconds) )
     {
         silenceArmed = false;
-        raiseAlert(Alert::Silence);
+        raiseAlert(Alert::Silence, alertSettings.silenceLevel);
+        alertEvent(this, plainTitle(), alertSettings.silenceLevel, "silent",
+                   std::to_string(alertSettings.silenceSeconds) + " s",
+                   alertSettings.action, true);
     }
 }
 
@@ -1716,20 +1740,23 @@ void LogViewWindow::setAlertSettings(AlertSettings settings) noexcept
     clearAlert();
 }
 
-void LogViewWindow::raiseAlert(Alert kind, const KeywordGroup *group, const std::string &line) noexcept
+bool LogViewWindow::raiseAlert(Alert kind, int level, const KeywordGroup *group, const std::string &line) noexcept
 {
     using namespace logview;
-    // Keyword > silence > activity.
-    if (kind <= alert)
-        return;
-    if (alert == Alert::None)
+    // A more urgent level wins; at the same level, keyword > silence >
+    // activity.
+    if (alert != Alert::None && (level > alertLevel || (level == alertLevel && kind <= alert)))
+        return false;
+    if (alert == Alert::None || level != alertLevel)
         alertOrder = newAlertOrder();
+    alertLevel = level;
     alert = kind;
     alertTime = time(nullptr);
     alertKeyword = group ? group->shortLabel : std::string();
     alertGroup = group ? group->label : std::string();
     alertLine = group ? alertLineFragment(line, group) : std::string();
     updateTitle();
+    return true;
 }
 
 void LogViewWindow::clearAlert() noexcept
@@ -1750,6 +1777,7 @@ AlertInfo LogViewWindow::getAlertInfo() noexcept
     using namespace logview;
     AlertInfo info;
     info.time = alertTime;
+    info.level = getAlertLevel();
     info.mark = alertMark((int) alert, alertKeyword);
     while (!info.mark.empty() && info.mark.back() == ' ')
         info.mark.pop_back();
@@ -3143,11 +3171,13 @@ static std::string alertCell(const AlertSettings &a)
         out += (out.empty() ? "" : "; ") + part;
     };
     if (a.activity)
-        add("activity");
+        add("activity" + (a.activityLevel < alertLevelMax ? " " + std::to_string(a.activityLevel) : std::string()));
     if (!a.keywords.empty())
         add("keywords: " + a.keywords.text);
     if (a.silenceSeconds > 0)
-        add("silence: " + std::to_string(a.silenceSeconds));
+        add("silence: " + alertLevelPrefix(a.silenceLevel) + std::to_string(a.silenceSeconds));
+    if (!a.action.empty())
+        add("action: " + a.action);
     return out.empty() ? "none" : out;
 }
 

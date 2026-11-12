@@ -50,7 +50,8 @@ public:
 
     // The text of the bar and where each item is, for a given width
     // (also used by the tests through the screen).
-    enum ItemKind { itMenu, itWindowList, itDesktopList, itAlerts, itDesktop };
+    // itAlert1 (E68): "A1 <window>: <keyword>" of the oldest level 1 alert.
+    enum ItemKind { itMenu, itWindowList, itDesktopList, itAlerts, itAlert1, itDesktop };
     struct Item
     {
         ItemKind kind;
@@ -65,6 +66,10 @@ private:
     {
         int current {1};
         size_t alerts {0};
+        size_t level1 {0};     // Alerts of level 1 and of the other levels.
+        size_t others {0};
+        std::string alert1;    // level1AlertText.
+        bool flashOn {false};  // [alerts] notify = flash: the phase.
         // Windows on each desktop (index 1-9) and whether one of them has
         // an alert.
         std::array<int, 10> counts {};
@@ -73,6 +78,8 @@ private:
         bool operator==(const State &o) const
         {
             return current == o.current && alerts == o.alerts &&
+                   level1 == o.level1 && others == o.others && alert1 == o.alert1 &&
+                   flashOn == o.flashOn &&
                    counts == o.counts && alerted == o.alerted && names == o.names;
         }
     };

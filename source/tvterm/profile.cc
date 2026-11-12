@@ -390,9 +390,15 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (hasAlerts && key == "alert-activity")
             {
-                if (!parseBool(value, win.alertActivity))
-                    warn("invalid alert-activity '" + value + "' (use yes or no)");
+                int level;
+                std::string rest;
+                if (!splitAlertLevel(value, level, rest) || !parseBool(rest, win.alertActivity))
+                    warn("invalid alert-activity '" + value + "' (use yes or no, or N:yes with level N 1-5)");
+                else
+                    win.alertActivityLevel = level;
             }
+            else if (hasAlerts && key == "alert-action")
+                win.alertAction = value;
             else if (hasAlerts && key == "alert-keywords")
             {
                 KeywordRules rules;
@@ -403,12 +409,19 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
             }
             else if (hasAlerts && key == "alert-silence")
             {
+                int level;
+                std::string rest;
+                bool ok = splitAlertLevel(value, level, rest);
                 char *end;
-                long n = strtol(value.c_str(), &end, 10);
-                if (value.empty() || *end || n < 0 || n > 999999)
-                    warn("invalid alert-silence '" + value + "' (use a number of seconds, 0: off)");
+                long n = strtol(rest.c_str(), &end, 10);
+                if (!ok || rest.empty() || *end || n < 0 || n > 999999)
+                    warn("invalid alert-silence '" + value + "' (use a number of seconds, 0: off, "
+                         "or N:seconds with level N 1-5)");
                 else
+                {
                     win.alertSilence = (int) n;
+                    win.alertSilenceLevel = level;
+                }
             }
             else if (isEditor && key == "file")
                 win.file = expandHome(value);
@@ -508,11 +521,14 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                         file << "keep-open = no\n";
                 }
                 if (win.alertActivity)
-                    file << "alert-activity = yes\n";
+                    file << "alert-activity = " << alertLevelPrefix(win.alertActivityLevel) << "yes\n";
                 if (!win.alertKeywords.empty())
                     file << "alert-keywords = " << win.alertKeywords << "\n";
                 if (win.alertSilence > 0)
-                    file << "alert-silence = " << win.alertSilence << "\n";
+                    file << "alert-silence = " << alertLevelPrefix(win.alertSilenceLevel)
+                         << win.alertSilence << "\n";
+                if (!win.alertAction.empty())
+                    file << "alert-action = " << win.alertAction << "\n";
                 break;
             case WindowProfile::Editor:
                 file << "\n[editor]\n";
@@ -556,11 +572,14 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 if (!win.logTransform.empty() && !win.logTransformOn)
                     file << "transform-on = no\n";
                 if (win.alertActivity)
-                    file << "alert-activity = yes\n";
+                    file << "alert-activity = " << alertLevelPrefix(win.alertActivityLevel) << "yes\n";
                 if (!win.alertKeywords.empty())
                     file << "alert-keywords = " << win.alertKeywords << "\n";
                 if (win.alertSilence > 0)
-                    file << "alert-silence = " << win.alertSilence << "\n";
+                    file << "alert-silence = " << alertLevelPrefix(win.alertSilenceLevel)
+                         << win.alertSilence << "\n";
+                if (!win.alertAction.empty())
+                    file << "alert-action = " << win.alertAction << "\n";
                 break;
             case WindowProfile::EventViewer:
             {
