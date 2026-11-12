@@ -154,6 +154,9 @@ E68. Alert levels 1-5 (`1:` before a keyword group, `alert-silence = 1:120`, `al
      and Window List `A1`…`A5` by level, `Alerts: 1+7` and a flashing `A1 <window>: <keyword>` in the top bar, Ctrl-B G
      to the most urgent; level 1 runs `alert-action` (profile) or `[alerts] action`; `[alerts] log` gets every alert;
      `[alerts] notify` (flash / far2l notify / bell); More... > Clear non-urgent alerts; `tvterm.ini` format 4
+E69. Alerts: Ctrl-B G / Ctrl-A go back to the starting window when no alert is left (status line, no box); Log View
+     F5 = Alerts..., Settings dialog Alerts... button (Apply = Alt-Y); Event Viewer F8 clears levels 2-5; More...:
+     Cascade without a letter, About = `a`
 
 ---
 
@@ -166,9 +169,12 @@ Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` Hist
 (Maximize/Restore; `F` before E20, still works) | `T` Select Text · `P` Paste · `E` New Editor · `O` Open File in
 Editor · `S` Editor Save As | `B` Load Profile · `I` Load Profile in Editor · `C` Save Profile As | `V` Event Viewer ·
 `More...` (change dir, tile, cascade, Grab Input, View file, Log Views as table / list, Clear non-urgent alerts (E68),
-Edit settings, Reload settings, Suspend (E67), About) ·
+Edit settings, Reload settings, Suspend (E67), About (`a` since E69, `b` before; Cascade without a letter since E69)) ·
 `Q` Exit (`U` Suspend until E66). The menu opens with no item selected (the first Down selects Desktop...).
 Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
+- **E69** (item 29, chat 67): More... `Cascade` lost its letter `a` and About became `~A~bout tvterm...` (was
+  `A~b~out`): `a` was easy to hit for About. A letter More... does not have goes to the main menu (tvision's
+  `TMenuView` passes it to the parent), so `b` in More... now opens Load Profile (the same for any free letter before).
 - **E67** (item 24, chat 64): Suspend (tvision's `cmDosShell`: `suspend`, `raise(SIGTSTP)`, `resume`) was chosen by a
   stray click under More... on srvr, where tvterm runs under the `tvt-dbg` script: the script (non-interactive bash)
   has no `fg`, Ctrl-C stayed pending and ended tvterm after `kill -CONT` from another session. Now in More... as
@@ -308,6 +314,8 @@ Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). D
 - **Space** (E58) pauses / resumes it (`toggle()`, like Ctrl-B V) and **Ctrl-A** goes to the next alert (`cmNextAlert`,
   like Ctrl-B G); both are own keys (not shown as events; `ownKey` returns `' '` / `keyNextAlert`) and status line items
   (`Space Pause`, `Ctrl-A Next Alert`).
+- **F8** (E69): clears the alerts of levels 2-5 (`cmClearLowAlerts`, like More... > Clear non-urgent alerts; status
+  `Alerts of levels 2-5 cleared: N.` / `No alerts of levels 2-5.`); own key `keyClearLowAlerts`, status item `F8 Clear 2-5`.
 - The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
   Default: mouse movements hidden, everything else shown. Only new events are affected.
 - Hidden events are still counted: gaps in `Received event #N` show them.
@@ -487,6 +495,13 @@ Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). D
   `'n'` handler commented out ("not ready yet"), so `notify` shows nothing there yet (item 27); the bell did not reach
   Windows in the user's setup. `tvterm.ini` keys are in `[alerts]` without the `alert-` prefix (`action`,
   `action-interval`, `log`, `notify`, `notify-repeat`); format 4.
+- **Going through the alerts (E69**, item 29, agreed in chat 67): `goToNextAlert` (Ctrl-B G, Ctrl-A in Log Views and
+  the Event Viewer, the top bar's `Alerts:` item) returns a status line text instead of a bool; `TVTermApp::nextAlert`
+  shows it (`appsettings::showStatus`), no box any more. `alertchain::origin` = the window focused at the first jump,
+  `lastJump` = the window of the last jump; the current window ≠ `lastJump` (chosen by hand, or the first jump) starts a
+  new chain. No alert left: back to `origin` (`desktops::selectWindow`, also on another desktop) with `No more alerts:
+  back to <title>.`; `origin` closed (checked against `getDeskTopWindows`, the pointer is never used otherwise): `No
+  more alerts (the window where the jumps started is closed).`; no jump in this chain: `There are no alerts.`
 
 ### Log View — `far2l-extended`
 - **Ctrl-B D** opens a dialog: title (empty: the command), **command** (with a list of earlier commands, ↓), **include** and
@@ -495,6 +510,11 @@ Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). D
   restart after N seconds (0: no), **Filters on** (E7; the same as the F key). Invalid values are reported in the dialog, which stays open with the focus on the field.
   **F4** on an open window: the same dialog (modal) with **OK / Apply / Cancel**; Apply applies the settings and keeps the
   dialog open (to see the effect of the filters); Cancel closes it and drops only what was not applied.
+  E69: buttons `~A~lerts...  O~K~  Appl~y~  Cancel` (Apply lost `A`; Cancel has no letter, `C` is Command; Esc):
+  Alerts... (`cmLogAlertsButton`, the `alerts` callback of `execLogViewDialog`) applies like Apply, then runs
+  `execAlertSettings` on the window, and the settings dialog stays open; not shown for fixed lines (OK / Apply /
+  Cancel as before) nor in New Log View (OK / Cancel). **F5** (E69) = F9 > Alerts... (`cmLogAlerts`); the F9 menu
+  shows `F5` instead of `Ctrl-B A`; Ctrl-B A still works.
 - A Log View is a window, not a terminal: it shows the lines written by the command. As many as needed; windows with
   **the same command share one source** (one process, one buffer; the buffer keeps the largest number of lines asked for).
   A line passes if it matches the include expression (or there is none) and not the exclude one. **New filters apply to
@@ -1988,6 +2008,19 @@ examples/profiles/example.ini
   → `alert-activity = 3:yes`, `alert-silence = 1:120`, `alert-action = …` in both Log Views. Invalid: keywords `0:x,
   1:, 1:!y`, `alert-silence = 7:10`, `alert-activity = 9:yes` → profile problems at lines 7-9; `notify = flash blink`,
   `action-interval = -1` → `Settings: 2 problem(s)`, `notify = none` accepted.
+- E69, tmux 140x40, profile: Shell, Log View LA (`1:boom, 3:warn`), LB (`2:bang`), Event Viewer; lines appended to
+  the two files. Shell + boom + bang → Ctrl-B G: LA, LB, then `No more alerts: back to Shell.` (Shell focused), again
+  `There are no alerts.` (no box). Chain by hand: G to LA, Ctrl-B Tab to the Event Viewer, Ctrl-A → LB, Ctrl-A in LB →
+  back to the Event Viewer. Origin closed: a terminal `sleep 1` with `keep-open = no` focused, G to LA, the terminal
+  closed from the Window List (Up, Alt-C, Esc), G → LB, G → `No more alerts (the window where the jumps started is
+  closed).`. More...: shows `Cascade` and `About tvterm...`; `a` → About; `b` → Load profile (parent menu). LA: F9
+  shows `Alerts... F5`; F5 → the Alerts dialog; F4 shows `Alerts... OK Apply Cancel`; Alt-I `boo` (keys one by one),
+  Alt-A → the title `Log: LA [I] 1/2` (applied) under the Alerts dialog; Esc → back in the settings; Esc → closed, the
+  include kept; Alt-Y → `Settings applied.`; Alt-A, Alt-E `, zzz`, Enter, Enter → F5 shows `1:boom, 3:warn, zzz`, and a
+  `zzz` line in LA while unfocused gives an alert. Search > New window (fixed lines): F4 has `OK Apply Cancel`, F5 →
+  the fixed-lines box. New Log View: `OK Cancel`. Event Viewer focused (profile `focus = 4`): boom, warn, bang →
+  `Alerts: 1+1`; F8 → `Alerts of levels 2-5 cleared: 1.`, `Alerts: 1+0`, Window List A1 only; F8 again → `No alerts
+  of levels 2-5.`; status item `F8 Clear 2-5`. Ctrl-B A in a Log View still opens Alerts.
 
 ## 6. Known limitations
 
@@ -2094,6 +2127,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Going through the alerts (`far2l-extended`) | E69 | Ctrl-B G / Ctrl-A: with no alert left, back to the window of the first jump (status line `No more alerts: back to …`, no box; a window chosen by hand starts a new round); Log View F5 = Alerts..., F4 dialog `Alerts... OK Apply Cancel` (Alerts... applies, opens Alerts, comes back); Event Viewer F8 clears levels 2-5; More...: Cascade without a letter, About = `a` |
 | Suspend in More... (`far2l-extended`) | E67 | Suspend moved from Ctrl-B `U` to More... (between separators, above About); `Suspend tvterm?` with No by default; not available (a box) when tvterm is not a job of a shell with job control |
 | Editor comment line (`far2l-extended`) | E66 | Alt-C (`key-editor-comment`): a comment line with the date and time at the cursor, then a line break; `comment-template` (`"# %Y-%m-%d %H:%M:%S "`, strftime, local time) filled with `-` up to `comment-width` (79); one undo step; read only: nothing; `tvterm.ini` format 3 |
 | Editor Open / Reload (`far2l-extended`) | E65 | F9 > Open... (Ctrl-F12): another file into the same window (Save? first when modified; large file box; undo emptied, read only off); F9 > Reload: the file from disk again (Discard the changes? when modified; cursor line kept); Save as F12 |

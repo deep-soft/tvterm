@@ -822,15 +822,61 @@ static TWindow *nextAlert(TDeskTop &deskTop, int level = 0)
     return best;
 }
 
-bool goToNextAlert(TDeskTop &deskTop)
+namespace alertchain {
+
+// The chain of jumps (E69): the window focused before the first jump and
+// the window of the last jump. Only compared with the current windows,
+// never used if gone.
+static TWindow *origin = nullptr;
+static TWindow *lastJump = nullptr;
+
+static bool exists(TDeskTop &deskTop, TWindow *w)
 {
+    if (!w)
+        return false;
+    for (TWindow *x : getDeskTopWindows(deskTop))
+        if (x == w)
+            return true;
+    return false;
+}
+
+static std::string windowName(TWindow *w)
+{
+    const char *t = w->getTitle(100);
+    return t && *t ? t : "(no title)";
+}
+
+} // namespace alertchain
+
+std::string goToNextAlert(TDeskTop &deskTop)
+{
+    using namespace alertchain;
+    auto *current = dynamic_cast<TWindow *>(deskTop.current);
+    // Still on the window of the last jump: the same chain; otherwise (a
+    // window chosen by hand, or the first jump) a new one.
+    bool inChain = origin && lastJump && current == lastJump && exists(deskTop, lastJump);
+    if (!inChain)
+    {
+        origin = current;
+        lastJump = nullptr;
+    }
     if (TWindow *w = nextAlert(deskTop))
     {
         // On another desktop: that desktop is shown.
         desktops::selectWindow(deskTop, w);
-        return true;
+        lastJump = w;
+        return {};
     }
-    return false;
+    bool jumped = lastJump != nullptr;
+    TWindow *back = origin;
+    origin = lastJump = nullptr;
+    if (!jumped)
+        return "There are no alerts.";
+    if (!exists(deskTop, back))
+        return "No more alerts (the window where the jumps started is closed).";
+    if (back != current)
+        desktops::selectWindow(deskTop, back);
+    return "No more alerts: back to " + windowName(back) + ".";
 }
 
 size_t countAlerts(TDeskTop &deskTop)

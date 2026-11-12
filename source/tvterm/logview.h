@@ -15,7 +15,8 @@
 //   W long lines: wrapped / scrolled (Left/Right) · X clear the window
 //   / search (New window: the matching lines in a new window) ·
 //   F3 or n older · Shift-F3 or N newer · F2 or s save
-//   Ctrl-C copy · Ctrl-E to a new editor · Ctrl-A to an open editor
+//   Ctrl-C copy · Ctrl-E to a new editor · Ctrl-Shift-E to an open editor
+//   Ctrl-A next alert · F5 alert settings (like Ctrl-B A)
 //   Up/Down PgUp/PgDn Home/End move the cursor line (Shift: select);
 //   with the cursor on the last line, new lines are followed.
 // The copy keys use the selection or, without one, the cursor line.
@@ -82,8 +83,12 @@ struct LogViewOptions
 using LogViewApply = std::function<bool (const LogViewOptions &, std::string &error)>;
 // 'fixedLines': for a window with fixed lines (the command, max lines and
 // restart fields are disabled).
+// 'alerts' (E69): an Alerts... button, shown with 'apply'; the dialog is
+// applied first (like Apply), then 'alerts' runs (the Alerts dialog of the
+// window) and the Settings dialog stays open.
 bool execLogViewDialog( LogViewOptions &options, bool isNew, int focusField = 0,
-                        LogViewApply apply = nullptr, bool fixedLines = false );
+                        LogViewApply apply = nullptr, bool fixedLines = false,
+                        std::function<void ()> alerts = nullptr );
 
 class LogViewInterior;
 class TScrollBar;

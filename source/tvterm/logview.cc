@@ -558,7 +558,7 @@ void LogViewInterior::handleEvent(TEvent &ev)
 namespace logview
 {
 
-enum : ushort { cmLogApply = 3390 };
+enum : ushort { cmLogApply = 3390, cmLogAlertsButton = 3391 };
 
 // The values used in the Include, Exclude, Highlight (sets and words, each
 // with its own list) and Transform fields: kept
@@ -859,7 +859,7 @@ class LogViewDialog : public TDialog
 public:
 
     LogViewDialog( LogViewOptions &options, bool isNew, int focusField, LogViewApply apply,
-                   bool fixedLines ) noexcept;
+                   bool fixedLines, std::function<void ()> alerts ) noexcept;
 
     Boolean valid(ushort command) override;
     void handleEvent(TEvent &ev) override;
@@ -869,6 +869,7 @@ private:
     LogViewOptions &o;
     LogViewApply apply;
     bool fixedLines;
+    std::function<void ()> alerts;
     TInputLine *titleIn, *cmdIn, *incIn, *andIn, *excIn, *maxIn, *restartIn, *hlIn, *tfIn;
     TCheckBoxes *checkBoxes;
     HighlightModeButtons *hlMode;
@@ -890,13 +891,15 @@ private:
 };
 
 LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusField,
-                              LogViewApply aApply, bool aFixedLines ) noexcept :
+                              LogViewApply aApply, bool aFixedLines,
+                              std::function<void ()> aAlerts ) noexcept :
     TWindowInit(&initFrame),
     TDialog( TRect(0, 0, 76, 23),
              isNew ? "New Log View" : aFixedLines ? "Log View settings (fixed lines)" : "Log View settings" ),
     o(options),
     apply(std::move(aApply)),
-    fixedLines(aFixedLines)
+    fixedLines(aFixedLines),
+    alerts(std::move(aAlerts))
 {
     TView::options |= ofCentered;
     titleIn = new TInputLine(TRect(3, 3, 72, 4), 128);
@@ -951,11 +954,21 @@ LogViewDialog::LogViewDialog( LogViewOptions &options, bool isNew, int focusFiel
     insert(new TStaticText(TRect(3, 18, 73, 20),
         "Filters: grep -E, e.g. dstport=(993|465|587); trailing spaces kept.\n"
         "Highlight: sets (syslog kv) or words; Transform: sets (show-tls)"));
-    if (apply)
+    if (apply && alerts)
+    {
+        // E69: Alerts... applies the dialog (like Apply), opens the Alerts
+        // dialog and comes back here. Cancel has no letter (C = Command;
+        // Esc cancels).
+        insert(new TButton(TRect(8, 20, 20, 22), "~A~lerts...", cmLogAlertsButton, bfNormal));
+        insert(new TButton(TRect(23, 20, 35, 22), "O~K~", cmOK, bfDefault));
+        insert(new TButton(TRect(38, 20, 50, 22), "Appl~y~", cmLogApply, bfNormal));
+        insert(new TButton(TRect(53, 20, 65, 22), "Cancel", cmCancel, bfNormal));
+    }
+    else if (apply)
     {
         // Apply: the changes are applied and the dialog stays open.
         insert(new TButton(TRect(17, 20, 29, 22), "O~K~", cmOK, bfDefault));
-        insert(new TButton(TRect(32, 20, 44, 22), "~A~pply", cmLogApply, bfNormal));
+        insert(new TButton(TRect(32, 20, 44, 22), "Appl~y~", cmLogApply, bfNormal));
         insert(new TButton(TRect(47, 20, 59, 22), "Cancel", cmCancel, bfNormal));
     }
     else
@@ -1154,8 +1167,10 @@ Boolean LogViewDialog::valid(ushort command)
 void LogViewDialog::handleEvent(TEvent &ev)
 {
     TDialog::handleEvent(ev);
-    if (ev.what == evCommand && ev.message.command == cmLogApply)
+    if ( ev.what == evCommand &&
+         (ev.message.command == cmLogApply || ev.message.command == cmLogAlertsButton) )
     {
+        bool toAlerts = ev.message.command == cmLogAlertsButton;
         clearEvent(ev);
         LogViewOptions n;
         if (!apply || !readFields(n))
@@ -1168,18 +1183,22 @@ void LogViewDialog::handleEvent(TEvent &ev)
         }
         o = n;
         recordValues();
-        showStatus("Settings applied.");
+        if (toAlerts && alerts)
+            alerts();
+        else
+            showStatus("Settings applied.");
     }
 }
 
 } // namespace logview
 
-bool execLogViewDialog(LogViewOptions &o, bool isNew, int focusField, LogViewApply apply, bool fixedLines)
+bool execLogViewDialog( LogViewOptions &o, bool isNew, int focusField, LogViewApply apply, bool fixedLines,
+                        std::function<void ()> alerts )
 {
     using namespace logview;
     for (const auto &cmd : LogSource::commands())
         historyAdd(hiLogCommand, cmd);
-    auto *d = new LogViewDialog(o, isNew, focusField, std::move(apply), fixedLines);
+    auto *d = new LogViewDialog(o, isNew, focusField, std::move(apply), fixedLines, std::move(alerts));
     TView *p = TProgram::application->validView(d);
     if (!p)
         return false;
@@ -2290,7 +2309,7 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-Shift-E") +
         *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
         newLine() +
-        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, globalkeys::menuKeyName() + " A");
+        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, "F5");
     ushort cmd = popupMenu(where, items, nullptr);
     if (cmd)
         runCommand(cmd);
@@ -2344,8 +2363,12 @@ void LogViewWindow::editOptions(int focusField)
     auto apply = [this] (const LogViewOptions &n, std::string &error) {
         return setOptions(n, error);
     };
+    // Alerts... (E69): not for fixed lines (no new lines, no alerts).
+    std::function<void ()> alerts;
+    if (!hasFixedLines())
+        alerts = [this] { execAlertSettings(*this, *this); };
     // Cancel after Apply: what was applied stays.
-    if (!execLogViewDialog(o, false, focusField, apply, hasFixedLines()))
+    if (!execLogViewDialog(o, false, focusField, apply, hasFixedLines(), std::move(alerts)))
         return;
     std::string error;
     if (!setOptions(o, error))
@@ -3059,6 +3082,8 @@ void LogViewWindow::handleEvent(TEvent &ev)
         bool handled = true;
         if (key == TKey(kbF4)) editOptions(0);
         else if (key == TKey(kbEnter)) markChecked();
+        // E69: F5 opens Alerts... (like Ctrl-B A).
+        else if (key == TKey(kbF5)) runCommand(cmLogAlerts);
         else if (key == TKey(kbF9)) openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);
         else if (key == TKey(kbF2)) save();
         else if (key == TKey(kbF3)) findNext(true);

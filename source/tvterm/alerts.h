@@ -208,9 +208,13 @@ public:
 // Shows the alert settings of 'window'.
 void execAlertSettings(TWindow &window, AlertTarget &target);
 
-// Selects the window with the most urgent alert, the oldest of that level.
-// Returns false if there is none.
-bool goToNextAlert(TDeskTop &deskTop);
+// Selects the window with the most urgent alert, the oldest of that level
+// (Ctrl-B G, Ctrl-A in Log Views and the Event Viewer). E69: the window
+// focused at the first jump of a chain is remembered (a window chosen by
+// hand, i.e. not the last jump's, starts a new chain); with no alert left,
+// that window is selected again. Returns a status line message: empty
+// after a jump to an alert, otherwise what happened.
+std::string goToNextAlert(TDeskTop &deskTop);
 
 // Number of windows with an alert.
 size_t countAlerts(TDeskTop &deskTop);

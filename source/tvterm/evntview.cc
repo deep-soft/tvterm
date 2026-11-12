@@ -108,17 +108,20 @@ static bool shown(const EventFilter &filter, const TEvent &ev)
     return filter.other;
 }
 
-// Ctrl-A (Go to Next Alert), as returned by ownKey.
-enum : char { keyNextAlert = 1 };
+// Ctrl-A (Go to Next Alert) and F8 (Clear non-urgent alerts, E69), as
+// returned by ownKey.
+enum : char { keyNextAlert = 1, keyClearLowAlerts = 2 };
 
 static char ownKey(const TEvent &ev)
 // The letter of a filter key (lowercase), ' ' (Space: pause / resume),
-// keyNextAlert (Ctrl-A), or 0.
+// keyNextAlert (Ctrl-A), keyClearLowAlerts (F8), or 0.
 {
     if (ev.what != evKeyDown)
         return 0;
     if (TKey(ev.keyDown) == TKey(kbCtrlA))
         return keyNextAlert;
+    if (TKey(ev.keyDown) == TKey(kbF8))
+        return keyClearLowAlerts;
     if (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift))
         return 0;
     char c = ev.keyDown.charScan.charCode;
@@ -208,6 +211,10 @@ void TEventViewer::handleEvent(TEvent &ev)
             case evntview::keyNextAlert:
                 // Like Ctrl-B G (see TVTermApp::nextAlert).
                 message(TProgram::application, evCommand, cmNextAlert, this);
+                break;
+            case evntview::keyClearLowAlerts:
+                // Like More... > Clear non-urgent alerts (levels 2-5).
+                message(TProgram::application, evCommand, cmClearLowAlerts, this);
                 break;
         }
         updateTitle();

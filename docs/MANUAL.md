@@ -167,7 +167,7 @@ writes Ctrl-B.
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
 | `L` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `A` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
-| `G` | Go to Next Alert | goes to the window with the most urgent alert, the oldest of that level |
+| `G` | Go to Next Alert | goes to the window with the most urgent alert, the oldest of that level; with none left, back to the window where you started ([Going through the alerts](#going-through-the-alerts)) |
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
 | (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
 | (none) | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one); arrows + Enter, or click it |
@@ -188,8 +188,9 @@ writes Ctrl-B.
 | `Q` | Exit | asks first if terminals or Log Views are running |
 
 **More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
-Cascade · Grab Input ·
-View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Clear non-urgent alerts (levels 2-5, key `n`: [Levels](#levels)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm.
+Cascade (no letter) · Grab Input ·
+View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Clear non-urgent alerts (levels 2-5, key `n`: [Levels](#levels)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm (`a`; until E68 `b`, and Cascade had `a`).
+A letter that More... does not have goes to the main menu: `b` there is Load Profile.
 
 **More... > Suspend...** (`u`; until E66 it was Ctrl-B `U`) stops tvterm and returns to the shell that started it;
 `fg` there brings it back. It asks first, `Suspend tvterm?`, with **No** as the default (Enter or Esc: nothing
@@ -982,6 +983,7 @@ Keys, while it is focused (each one is also a status line item):
 | `X` | clears the window |
 | Space | pauses / resumes it (like Ctrl-B V) |
 | Ctrl-A | goes to the next alert (like Ctrl-B G) |
+| F8 | clears the alerts of levels 2-5 (like More... > Clear non-urgent alerts): `Alerts of levels 2-5 cleared: N.` |
 | Ctrl-W | closes the window |
 
 The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
@@ -1031,6 +1033,7 @@ Alerts tell you that something happened in a terminal or Log View you are **not*
 - The mark also appears in the Window List and the quit dialog; the top bar shows `Alerts: 1+7 (Ctrl-B G)` (a click
   goes to the most urgent alert, like Ctrl-B G) and its desktop button turns red.
   **Ctrl-B G** goes to the most urgent alert, the oldest of that level. Selecting the window clears its alert.
+  See [Going through the alerts](#going-through-the-alerts).
 - **A** in the Event Viewer lists the active alerts, the most urgent first, oldest first within a level (the order of
   Ctrl-B G): the time the alert got its current kind (an activity alert that became a keyword alert shows the keyword
   time), the level (`A1`…`A5`),
@@ -1086,8 +1089,17 @@ Without a level, an alert is level 5 (as before levels existed).
   Every matching line is written, even when the window already has an alert, and even in the **selected** Log View
   (there without an alert or action), so the log shows what your keywords catch: use it to refine Include / Exclude
   and the keywords. Terminals are checked only when not selected. Lines are cut at 500 bytes; the file has mode 600.
-- **More... > Clear non-urgent alerts** (key `n`) removes the alerts of levels 2-5 without visiting their windows;
-  level 1 alerts go only when you select their window.
+- **More... > Clear non-urgent alerts** (key `n`; **F8** in the Event Viewer) removes the alerts of levels 2-5
+  without visiting their windows; level 1 alerts go only when you select their window.
+
+### Going through the alerts
+
+**Ctrl-B G** (also **Ctrl-A** in a Log View or the Event Viewer, and a click on `Alerts:` in the top bar) goes to
+the most urgent alert, the oldest of that level. Press it again for the next one. The window you were in at the first
+jump is remembered: when no alert is left, the next Ctrl-B G (Ctrl-A) takes you **back to it**, and the status line
+says `No more alerts: back to <window>.` Choosing another window yourself (Tab, a click, the Window List) starts a new
+round from that window. With no alert at all: `There are no alerts.` in the status line (no box); if the window you
+started from was closed meanwhile: `No more alerts (the window where the jumps started is closed).`
 
 ---
 
@@ -1143,7 +1155,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 
 | Key | Action |
 |---|---|
-| F4 | settings dialog (OK / **Apply** / Cancel; Apply applies and keeps the dialog open) |
+| F4 | settings dialog (**Alerts...** / OK / **Apply** / Cancel, keys Alt-A / Alt-K / Alt-Y / Esc; Apply applies and keeps the dialog open; Alerts... applies too, opens the alerts dialog and comes back to the settings) |
 | `I` / `E` | the dialog, on Include / Exclude |
 | `F` | filters on/off (all the lines shown); a cursor line that leaves the screen goes to the third row |
 | `H` | colors on/off ([highlight sets](#colors-highlight) or [words](#words)) |
@@ -1167,7 +1179,7 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | F2 or `s` | save the lines shown, or the selection |
 | Esc | clears the selection, then the search match and the double-clicked word |
 | double click | copies a word and keeps it, shown selected (white on blue), for `+` |
-| Ctrl-B A | alerts |
+| F5 or Ctrl-B A | alerts ([chapter 9](#9-alerts)) |
 | Ctrl-W | closes the window |
 
 **Ctrl-Shift-E** arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or

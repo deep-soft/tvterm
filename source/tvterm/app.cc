@@ -526,6 +526,7 @@ TStatusLine *TVTermApp::initStatusLine(TRect r)
             *new TStatusItem("~X~ Clear", kbNoKey, keyCmd('x', 0, 'x')) +
             *new TStatusItem("~Space~ Pause", kbNoKey, keyCmd(' ', 0, ' ')) +
             *new TStatusItem("~Ctrl-A~ Next Alert", kbNoKey, keyCmd(kbCtrlA, kbCtrlShift)) +
+            *new TStatusItem("~F8~ Clear 2-5", kbNoKey, keyCmd(kbF8)) +
         *new TStatusDef(hcEditor, hcEditor) +
             *new TStatusItem("~F9~ Menu", kbNoKey, keyCmd(kbF9)) +
             *new TStatusItem("~F2~ Save", kbF2, cmSave) +
@@ -861,7 +862,8 @@ void TVTermApp::openMenu()
             *new TMenuItem("Tile (~R~ows First)", cmTileRows, kbNoKey) +
             *new TMenuItem("Tile in N C~o~lumns...", cmTileNCols, kbNoKey) +
             *new TMenuItem("Tile in N Ro~w~s...", cmTileNRows, kbNoKey) +
-            *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
+            // E69: no letter ('a' was easy to hit instead of About).
+            *new TMenuItem("Cascade", cmCascade, kbNoKey) +
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             newLine() +
             *new TMenuItem("~V~iew file...", cmViewFile, kbNoKey) +
@@ -875,7 +877,7 @@ void TVTermApp::openMenu()
             // Here since E67 (was Ctrl-B U): not chosen by a stray click.
             *new TMenuItem("S~u~spend...", cmDosShell, kbNoKey) +
             newLine() +
-            *new TMenuItem("A~b~out tvterm...", cmAbout, kbNoKey)
+            *new TMenuItem("~A~bout tvterm...", cmAbout, kbNoKey)
         ) +
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
 
@@ -1557,8 +1559,11 @@ void TVTermApp::alertSettings()
 
 void TVTermApp::nextAlert()
 {
-    if (!goToNextAlert(*deskTop))
-        messageBox("There are no alerts.", mfInformation | mfOKButton);
+    // E69: no box; when the alerts are done, back to where the chain of
+    // jumps started (see goToNextAlert).
+    std::string text = goToNextAlert(*deskTop);
+    if (!text.empty())
+        appsettings::showStatus(text);
 }
 
 void TVTermApp::renameTerm()
