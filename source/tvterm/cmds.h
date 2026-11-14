@@ -45,6 +45,8 @@ enum : ushort
     cmLogViewsTable,  // More... > Log Views as table.
     cmLogViewsList,   // More... > Log Views as list.
     cmClearLowAlerts, // More... > Clear alerts of levels 2-5 (E68).
+    cmCaptureDesk,    // More... > Capture Desk, Ctrl-F10 (E71).
+    cmCaptureWindow,  // More... > Capture Window, Ctrl-F11 (E71).
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };

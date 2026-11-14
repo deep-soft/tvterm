@@ -160,6 +160,8 @@ E69. Alerts: Ctrl-B G / Ctrl-A go back to the starting window when no alert is l
 E70. Menu (item 30, P1): Ctrl-B menu regrouped; `Windows ►` (`Z`: Zoom, Tile, Cascade, Grab Input, Resize/Move) and
      `Text ►` (`T`: Select Text, Paste) submenus; View file `F` (from More...), Load Profile `P` (was `B`); More... now
      Change working dir, Log Views, Clear non-urgent alerts, Edit / Reload settings, Suspend, About; free: B J K R U X
+E71. Capture Desk (Ctrl-F10) / Capture Window (Ctrl-F11), also in More...: the screen text with the frames, no colors,
+     to `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5
 
 ---
 
@@ -1179,6 +1181,26 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   previous value) and `comment-width` (0–1000); `settingsFormat` = 3 (`examples/tvterm.ini` `## format 3`). Default
   width 79: the user's own separator lines (`# 2026-11-10 10:06:43 ` + 57 `-`).
 
+### Capture (Desk / Window) — `far2l-extended`
+- **E71** (item 30, P1, agreed in chat 69): replaces the Shift+mouse captures of putty4far2l. `capture.cc`:
+  - **Capture Desk** (More... `d`, Ctrl-F10): the rows of the desktop (between the top bar and the status line) from
+    `TScreen::screenBuffer`, every row as wide as the screen, spaces where no window, trailing spaces kept; a dialog
+    or anything else on the screen is included.
+  - **Capture Window** (More... `i`, Ctrl-F11): the window (or dialog) at its size with its frame, from its own group
+    buffer (windows are `ofBuffered`; it is redrawn there with `lockFlag` raised, so nothing reaches the screen): its
+    own content also where another window covers it. Terminals: the visible screen, no scrollback.
+  - Cells: the trail of a wide character is skipped (on the screen tvision has made it a space: a cell with
+    `isWide()` skips the next one), so a wide character is one character in the file; an empty cell is a space; a
+    single byte that is not printable ASCII is translated through the codepage (`CpTranslator::toUtf8`), as tvision's
+    `DisplayBuffer::validateCell` does before showing it: the frames are drawn with CP437 bytes and only the screen
+    buffer holds them as UTF-8 (found in testing: the first window capture had raw `0xC9` bytes).
+  - Ctrl-F10 / Ctrl-F11 (in `TVTermApp::getEvent`) only when the active window is not a terminal (there the program
+    gets the key): the focused window, or the modal dialog (`TopView()`); not in menus nor while a window is dragged.
+    For a terminal: the More... items (the menu is gone from the screen when the command runs).
+  - File `<folder>/dsk-YYYY-MM-DD-hhmmss.txt` / `wnd-…` (local time; `-2`, `-3`… in the same second); the folder is
+    created; status line `Desk captured: <path>` / `Window captured: <path>` / `Capture failed: …`. `[capture] folder`
+    (`tvterm.ini` format 5).
+
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
   `Alerts: N (Ctrl-B G)` counter drawn over the right end covers it less often).
@@ -1328,6 +1350,7 @@ source/tvterm/             the application
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
                            previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
+  capture.cc/.h            Capture Desk / Window (E71): screen or window buffer as text, [capture] folder
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
                            and logview.cc (LogViewWindow::checkAlerts); AlertTitleFrame / drawAlertTitle: the title
@@ -2036,6 +2059,17 @@ examples/profiles/example.ini
   the fixed-lines box. New Log View: `OK Cancel`. Event Viewer focused (profile `focus = 4`): boom, warn, bang →
   `Alerts: 1+1`; F8 → `Alerts of levels 2-5 cleared: 1.`, `Alerts: 1+0`, Window List A1 only; F8 again → `No alerts
   of levels 2-5.`; status item `F8 Clear 2-5`. Ctrl-B A in a Log View still opens Alerts.
+- E70, tmux 120x40, `-p none`, a shell: Ctrl-B shows the new order (Windows / More... / Text with `►`); `z z` zooms
+  and again restores; `z m` → Resize/Move status line; `z e` → New Editor (letter from the main menu); `f` → View file
+  dialog; `p` → Load profile dialog; `t t` → `Click & Drag Select Text`; `m r` → Reload settings; `2` → D2 shown; `b`
+  → nothing (menu stays open).
+- E71, the same, `LANG=C.UTF-8`: a terminal running `cat -v` gets Ctrl-F10 (`^[[21;5~`, no file); an editor with
+  `Line äö 日本 end` (pasted): Ctrl-F11 → `wnd-…` 38 rows of 82 / 80 columns (the line with the two wide characters
+  is 2 shorter), frame as UTF-8; Ctrl-F10 → `dsk-…` 38 rows of 120 (118 for that line), both windows. Ctrl-B O, then
+  Ctrl-F11 → the `Open file` dialog (29 × 79); Ctrl-F10 → the desktop with the dialog. Ctrl-F10 inside the open menu:
+  nothing. A terminal focused (partly under the editor): More... `i` → the whole terminal (120 columns, no editor
+  text). `[capture] folder = ~/cap2/` + reload: files there; two captures in one second → `…-2.txt`; `folder =
+  /proc/x` → `Capture failed: cannot create /proc/x.`.
 
 ## 6. Known limitations
 
@@ -2142,6 +2176,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Capture Desk / Window (`far2l-extended`) | E71 | More... > Capture Desk (`d`, Ctrl-F10) / Capture Window (`i`, Ctrl-F11; the keys only when the active window is not a terminal, also in dialogs): the text on the screen with frames, no colors, exact rectangle (Window: its own content even where covered), into `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5 |
 | Menu regrouped (`far2l-extended`) | E70 | Ctrl-B: `Windows ►` (`Z`: Zoom `Z`, Tile Columns `C` / Rows `R`, Tile in N Columns `L` / Rows `S`, Cascade `A`, Grab Input `G`, Resize/Move `M`), `Text ►` (`T`: Select Text `T`, Paste `P`), View file `F`, Load Profile `P` (was `B`); More... keeps Change working dir `w`, Log Views, Clear non-urgent alerts, Edit / Reload settings (`r`), Suspend, About; free B J K R U X |
 | Going through the alerts (`far2l-extended`) | E69 | Ctrl-B G / Ctrl-A: with no alert left, back to the window of the first jump (status line `No more alerts: back to …`, no box; a window chosen by hand starts a new round); Log View F5 = Alerts..., F4 dialog `Alerts... OK Apply Cancel` (Alerts... applies, opens Alerts, comes back); Event Viewer F8 clears levels 2-5; More...: Cascade without a letter, About = `a` |
 | Suspend in More... (`far2l-extended`) | E67 | Suspend moved from Ctrl-B `U` to More... (between separators, above About); `Suspend tvterm?` with No by default; not available (a box) when tvterm is not a job of a shell with job control |

@@ -28,8 +28,8 @@ const int minFileDialogHeight = 19;
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
 // file-backups-number (E64); 3: comment-template, comment-width and
 // key-editor-comment (E66); 4: [alerts] action, action-interval, log,
-// notify, notify-repeat (E68).
-const int settingsFormat = 4;
+// notify, notify-repeat (E68); 5: [capture] folder (E71).
+const int settingsFormat = 5;
 
 struct Settings
 {
@@ -98,6 +98,9 @@ struct Settings
     uint8_t alertSeenColor {0xE0};
     // action, action-interval, log, notify, notify-repeat (E68).
     AlertConfig alertConfig;
+    // [capture] folder: where Capture Desk / Window write their files (E71;
+    // '~' allowed; empty: the default).
+    std::string captureFolder {"~/logs/tvterm/capture"};
     // [logview]
     int logViewMaxLines {50000};
     // builtin-highlight: the highlight sets built into tvterm (no: only the

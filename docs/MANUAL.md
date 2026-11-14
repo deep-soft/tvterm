@@ -199,10 +199,27 @@ Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z
 **Text ►** (`T`): `T` Select Text (selection mode in a terminal, [chapter 3](#3-terminals-and-the-clipboard)) · `P`
 Paste (pastes the clipboard into the terminal; Shift-Ins does the same).
 
-**More... ►** (`M`): `w` Change working dir · `l` Log Views as table · `s` Log Views as list
+**More... ►** (`M`): `w` Change working dir · `d` Capture Desk · `i` Capture Window ([Capture](#capture)) · `l` Log Views as table · `s` Log Views as list
 ([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `e` Edit
 settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `a` About tvterm. Until E69 More... also held Tile,
 Cascade, Grab Input and View file, and Load Profile was Ctrl-B `B` (E70 moved them).
+
+### Capture
+
+**More... > Capture Desk** (`d`, or **Ctrl-F10**) and **Capture Window** (`i`, or **Ctrl-F11**) write what the screen
+shows as UTF-8 text, with the frames and without colors, into the folder `[capture] folder` of `tvterm.ini`
+(default `~/logs/tvterm/capture`, created if missing): `dsk-YYYY-MM-DD-hhmmss.txt` / `wnd-YYYY-MM-DD-hhmmss.txt`
+(`-2` added for a second file in the same second). The status line shows the path.
+
+- **Desk**: the whole area between the top bar and the status line, every row as wide as the screen, spaces where
+  there is no window, trailing spaces kept (an exact rectangle); a dialog on the screen is included.
+- **Window**: the focused window at its size, with its frame (a window of 80 × 25 gives 25 rows of 80 columns): its
+  own content, also where another window covers it. A terminal: its screen, without the history.
+- A wide character (CJK, emoji) takes two columns on the screen and is one character in the file, so its row is one
+  character shorter.
+- **Ctrl-F10 / Ctrl-F11** work when the active window is not a terminal (Log View, editor, Event Viewer, an empty
+  desktop) and inside dialogs (Ctrl-F11: the dialog; Ctrl-F10: the desktop with the dialog). In a terminal the program
+  gets these keys; use the More... items (the capture is made after the menu closes).
 
 **More... > Suspend...** (`u`; until E66 it was Ctrl-B `U`) stops tvterm and returns to the shell that started it;
 `fg` there brings it back. It asks first, `Suspend tvterm?`, with **No** as the default (Enter or Esc: nothing
@@ -754,11 +771,11 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 4, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
+  `## format 5, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
-  `notify`, `notify-repeat`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `notify`, `notify-repeat`; format 5: `[capture] folder`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -810,6 +827,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `log` | (none) | file where every alert is written, one line each (`~` allowed) |
 | | `notify` | `flash` | how a level 1 alert is shown: `flash`, `notify` (far2l desktop notification), `bell` (one or more), or `none` |
 | | `notify-repeat` | `60` | `notify` / `bell` repeated every N seconds while the level 1 alert is not seen (0: once) |
+| `[capture]` | `folder` | `~/logs/tvterm/capture` | where Capture Desk / Window write their files; created if missing ([Capture](#capture)) |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `builtin-highlight` | `yes` | `no`: the highlight sets built into tvterm are not used, only the `[highlight]` sections of `tvterm.ini` ([chapter 10](#colors-highlight)) |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |

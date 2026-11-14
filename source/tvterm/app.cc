@@ -40,6 +40,7 @@
 #include "histdlg.h"
 #include "about.h"
 #include "alerts.h"
+#include "capture.h"
 #include "logview.h"
 #include "logsrc.h"
 #include <tvterm/termopts.h>
@@ -280,6 +281,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     applySettings(currentSettings);
     // [alerts] level 1 action, log, notification (E68).
     alertConfig = currentSettings.alertConfig;
+    // [capture] folder (E71).
+    capture::setFolder(currentSettings.captureFolder);
     // [alerts] title-color, seen-color: the frames are drawn again (the windows keep
     // their drawing in a buffer, so redrawing the desktop is not enough).
     if ( alertTitleColor != currentSettings.alertTitleRed ||
@@ -680,6 +683,8 @@ void TVTermApp::handleEvent(TEvent &event)
                     break;
                 }
                 case cmEventViewer: toggleEventViewer(); break;
+                case cmCaptureDesk: appsettings::showStatus(capture::captureDesk(*deskTop)); break;
+                case cmCaptureWindow: appsettings::showStatus(capture::captureWindow(deskTop->current)); break;
                 case cmNewLogView: newLogView(); break;
                 case cmLoadProfile: loadProfile(); break;
                 case cmLoadProfileInEditor: loadProfileInEditor(); break;
@@ -857,6 +862,11 @@ void TVTermApp::openMenu()
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
             *new TMenuItem("Change ~w~orking dir...", cmChangeDir, kbNoKey) +
+            newLine() +
+            // The keys are shown only: they work outside the menu, when
+            // the active window is not a terminal (see getEvent).
+            *new TMenuItem("Capture ~D~esk", cmCaptureDesk, kbNoKey, hcNoContext, "Ctrl-F10") +
+            *new TMenuItem("Capture W~i~ndow", cmCaptureWindow, kbNoKey, hcNoContext, "Ctrl-F11") +
             newLine() +
             *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
             *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
@@ -1067,6 +1077,29 @@ void TVTermApp::getEvent(TEvent &event)
     if (event.what != evNothing)
         if (auto *viewer = (TEventViewer *) message(deskTop, evBroadcast, cmFindEventViewer, nullptr))
             viewer->print(event);
+    // Ctrl-F10 / Ctrl-F11 (E71): Capture Desk / Window, when the active
+    // window is not a terminal (there the program gets the key; the More...
+    // items work for it). In a dialog: the dialog (Ctrl-F11), the desktop
+    // with the dialog (Ctrl-F10). Not in menus.
+    if ( event.what == evKeyDown &&
+         (event.keyDown.keyCode == kbCtrlF10 || event.keyDown.keyCode == kbCtrlF11) )
+    {
+        TView *top = TopView();
+        TView *target = top == this ? deskTop->current : dynamic_cast<TWindow *>(top);
+        bool captured = false;
+        if ( (top == this || target) && !dynamic_cast<TerminalWindow *>(target) &&
+             !(target && (target->state & sfDragging)) )
+        {
+            appsettings::showStatus(event.keyDown.keyCode == kbCtrlF10 ? capture::captureDesk(*deskTop)
+                                                                        : capture::captureWindow(target));
+            captured = true;
+        }
+        if (captured)
+        {
+            clearEvent(event);
+            return;
+        }
+    }
     // Global keys (menu-key, key-zoom, key-window-*): not in dialogs, menus
     // or Grab Input (another view is modal then), nor while a window is
     // being moved or resized.

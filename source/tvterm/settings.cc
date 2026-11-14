@@ -209,7 +209,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Alerts, Keys, LogView, Highlight, Transform, Unknown } section = None;
+    enum { None, General, Scrollback, Alerts, Capture, Keys, LogView, Highlight, Transform, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -261,6 +261,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             section = name == "general" ? General :
                       name == "scrollback" ? Scrollback :
                       name == "alerts" ? Alerts :
+                      name == "capture" ? Capture :
                       name == "keys" ? Keys :
                       name == "logview" ? LogView : Unknown;
             if (section == Unknown)
@@ -522,6 +523,13 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             else
                 warn("unknown key '" + key + "' in [alerts]");
         }
+        else if (section == Capture)
+        {
+            if (key == "folder")
+                settings.captureFolder = value.empty() ? Settings().captureFolder : value;
+            else
+                warn("unknown key '" + key + "' in [capture]");
+        }
         else if (section == LogView)
         {
             if (key == "max-lines")
@@ -738,6 +746,12 @@ std::string settingsTemplate()
         " #notify = flash\n"
         "  # notify and bell repeated every N seconds while not seen (0: once).\n"
         " #notify-repeat = 60\n"
+        "\n"
+        "[capture]\n"
+        "  # Folder of Ctrl-B More... Capture Desk (Ctrl-F10) and Capture Window\n"
+        "  # (Ctrl-F11): dsk-YYYY-MM-DD-hhmmss.txt / wnd-YYYY-MM-DD-hhmmss.txt, the text\n"
+        "  # on the screen with the frames, no colors; created if missing.\n"
+        " #folder = " + d.captureFolder + "\n"
         "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"
