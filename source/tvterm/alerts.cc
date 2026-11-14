@@ -1,5 +1,6 @@
 #define Uses_TDialog
 #define Uses_TCheckBoxes
+#define Uses_TRadioButtons
 #define Uses_TSItem
 #define Uses_TInputLine
 #define Uses_TLabel
@@ -375,9 +376,69 @@ struct DialogData
     char keywords[1024];
     char silence[10];
     char action[1024];
+    ushort mute;
 };
 
+// The Mute choice: radio button index <-> alertMuteFrom.
+static ushort muteIndex(int from)
+{
+    return from >= 2 && from <= alertLevelMax ? (ushort) (from - 1) : 0;
+}
+
+static int muteFromIndex(ushort index)
+{
+    return index >= 1 && index <= 4 ? index + 1 : 0;
+}
+
+static TRadioButtons *newMuteButtons(const TRect &r)
+{
+    return new TRadioButtons(r,
+        new TSItem("Off",
+        new TSItem("2-5",
+        new TSItem("3-5",
+        new TSItem("4-5",
+        new TSItem("5", nullptr))))));
+}
+
 } // namespace alertdlg
+
+int alertMuteFrom = 0;
+
+std::string alertMuteText(int from)
+{
+    if (from <= alertLevelMin || from > alertLevelMax)
+        return {};
+    if (from == alertLevelMax)
+        return std::to_string(from);
+    return std::to_string(from) + "-" + std::to_string(alertLevelMax);
+}
+
+void execMuteDialog()
+{
+    using namespace alertdlg;
+    TDialog *d = new TDialog(TRect(0, 0, 60, 12), "Mute alerts");
+    d->options |= ofCentered;
+    d->insert(new TStaticText(TRect(3, 2, 57, 5),
+        "Muted levels: their alerts stay (title, Window List, log) but are not counted "
+        "in the top bar and Go to Next Alert skips them. Level 1 is never muted."));
+    auto *mute = newMuteButtons(TRect(3, 6, 57, 7));
+    d->insert(mute);
+    d->insert(new TLabel(TRect(2, 5, 57, 6), "~M~ute levels (all windows):", mute));
+    d->insert(new TButton(TRect(17, 8, 27, 10), "O~K~", cmOK, bfDefault));
+    d->insert(new TButton(TRect(31, 8, 43, 10), "Cancel", cmCancel, bfNormal));
+    ushort index = muteIndex(alertMuteFrom);
+    mute->setData(&index);
+    mute->select();
+    TView *p = TProgram::application->validView(d);
+    if (!p)
+        return;
+    ushort result = TProgram::deskTop->execView(p);
+    if (result == cmOK)
+        mute->getData(&index);
+    TObject::destroy(p);
+    if (result == cmOK)
+        alertMuteFrom = muteFromIndex(index);
+}
 
 uint64_t newAlertOrder() noexcept
 {
@@ -683,7 +744,7 @@ void drawAlertTitle(TFrame &frame) noexcept
 void execAlertSettings(TWindow &window, AlertTarget &target)
 {
     using namespace alertdlg;
-    TDialog *d = new TDialog(TRect(0, 0, 70, 21), "Alerts");
+    TDialog *d = new TDialog(TRect(0, 0, 70, 23), "Alerts");
     d->options |= ofCentered;
 
     const char *title = window.getTitle(100);
@@ -710,10 +771,14 @@ void execAlertSettings(TWindow &window, AlertTarget &target)
     d->insert(action);
     d->insert(new TLabel(TRect(2, 12, 67, 13), "Ac~t~ion for level 1 (empty: [alerts] action of tvterm.ini):", action));
 
-    d->insert(new TStaticText(TRect(3, 15, 67, 16),
+    // E72: Mute is for all windows (not saved in the profile).
+    auto *mute = alertdlg::newMuteButtons(TRect(3, 16, 67, 17));
+    d->insert(mute);
+    d->insert(new TLabel(TRect(2, 15, 67, 16), "~M~ute levels, all windows (not counted, skipped by Go to Next):", mute));
+    d->insert(new TStaticText(TRect(3, 17, 67, 18),
         "Alerts appear only for windows that are not selected."));
-    d->insert(new TButton(TRect(22, 17, 32, 19), "O~K~", cmOK, bfDefault));
-    d->insert(new TButton(TRect(36, 17, 48, 19), "Cancel", cmCancel, bfNormal));
+    d->insert(new TButton(TRect(22, 19, 32, 21), "O~K~", cmOK, bfDefault));
+    d->insert(new TButton(TRect(36, 19, 48, 21), "Cancel", cmCancel, bfNormal));
     activity->select();
 
     const AlertSettings &cur = target.getAlertSettings();
@@ -724,6 +789,8 @@ void execAlertSettings(TWindow &window, AlertTarget &target)
     snprintf(data.silence, sizeof(data.silence), "%s%d",
              cur.silenceSeconds > 0 ? alertLevelPrefix(cur.silenceLevel).c_str() : "", cur.silenceSeconds);
     snprintf(data.action, sizeof(data.action), "%s", cur.action.c_str());
+    data.mute = alertdlg::muteIndex(alertMuteFrom);
+    mute->setData(&data.mute);
     activity->setData(&data.activity);
     activityLevel->setData(data.activityLevel);
     keywords->setData(data.keywords);
@@ -754,6 +821,8 @@ void execAlertSettings(TWindow &window, AlertTarget &target)
         activityLevel->getData(data.activityLevel);
         silence->getData(data.silence);
         action->getData(data.action);
+        mute->getData(&data.mute);
+        alertMuteFrom = alertdlg::muteFromIndex(data.mute);
     }
     TObject::destroy(p);
     if (result != cmOK)
@@ -810,7 +879,7 @@ static TWindow *nextAlert(TDeskTop &deskTop, int level = 0)
             {
                 int l = target->getAlertLevel();
                 uint64_t o = target->getAlertOrder();
-                if (level && l != level)
+                if (level ? l != level : alertMuted(l))
                     continue;
                 if (!best || l < bestLevel || (l == bestLevel && o < bestOrder))
                 {
@@ -871,7 +940,10 @@ std::string goToNextAlert(TDeskTop &deskTop)
     TWindow *back = origin;
     origin = lastJump = nullptr;
     if (!jumped)
-        return "There are no alerts.";
+    {
+        std::string muted = alertMuteText(alertMuteFrom);
+        return muted.empty() ? "There are no alerts." : "There are no alerts (levels " + muted + " muted).";
+    }
     if (!exists(deskTop, back))
         return "No more alerts (the window where the jumps started is closed).";
     if (back != current)
@@ -884,7 +956,7 @@ size_t countAlerts(TDeskTop &deskTop)
     size_t count = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
         if (auto *target = dynamic_cast<AlertTarget *>(w))
-            count += target->hasAlert();
+            count += target->hasAlert() && !alertMuted(target->getAlertLevel());
     return count;
 }
 
@@ -893,7 +965,7 @@ void countAlerts(TDeskTop &deskTop, size_t &level1, size_t &others)
     level1 = others = 0;
     for (TWindow *w : getDeskTopWindows(deskTop))
         if (auto *target = dynamic_cast<AlertTarget *>(w))
-            if (target->hasAlert())
+            if (target->hasAlert() && !alertMuted(target->getAlertLevel()))
                 ++(target->getAlertLevel() == alertLevelMin ? level1 : others);
 }
 
@@ -979,7 +1051,9 @@ std::string listAlerts(TDeskTop &deskTop)
               [] (const auto &a, const auto &b) {
                   return a.level != b.level ? a.level < b.level : a.order < b.order;
               });
-    std::string out = "--- Active alerts (" + std::to_string(active.size()) + ") ---\n";
+    std::string muted = alertMuteText(alertMuteFrom);
+    std::string out = "--- Active alerts (" + std::to_string(active.size()) +
+                      (muted.empty() ? "" : "; levels " + muted + " muted") + ") ---\n";
     for (auto &a : active)
     {
         AlertInfo info = a.target->getAlertInfo();
@@ -987,7 +1061,7 @@ std::string listAlerts(TDeskTop &deskTop)
         std::string desk = a.desktop;
         desk.append(deskWidth - min<size_t>(deskWidth, strwidth(desk)), ' ');
         out += formatEventTime(info.time) + " A" + std::to_string(a.level) + " " + desk + " " +
-               info.mark + " " + info.title + "\n";
+               info.mark + " " + info.title + (alertMuted(a.level) ? " (muted)" : "") + "\n";
         if (!info.group.empty())
         {
             out += "    group: " + info.group + "\n";

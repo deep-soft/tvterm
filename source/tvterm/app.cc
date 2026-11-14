@@ -281,6 +281,13 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     applySettings(currentSettings);
     // [alerts] level 1 action, log, notification (E68).
     alertConfig = currentSettings.alertConfig;
+    // [alerts] mute-above (E72): at startup and when the value in the file
+    // changes; a change made in Alerts... / More... stays otherwise.
+    {
+        static int fileMute = -1;
+        if (fileMute != currentSettings.alertConfig.muteAbove)
+            alertMuteFrom = fileMute = currentSettings.alertConfig.muteAbove;
+    }
     // [capture] folder (E71).
     capture::setFolder(currentSettings.captureFolder);
     // [alerts] title-color, seen-color: the frames are drawn again (the windows keep
@@ -675,6 +682,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmViewFile: viewFile(); break;
                 case cmLogViewsTable: showLogViewsTable(*deskTop); break;
                 case cmLogViewsList: showLogViewsTable(*deskTop, true); break;
+                case cmMuteAlerts: execMuteDialog(); break;
                 case cmClearLowAlerts:
                 {
                     size_t n = clearLowAlerts(*deskTop);
@@ -871,6 +879,7 @@ void TVTermApp::openMenu()
             *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
             *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
             *new TMenuItem("Clear ~n~on-urgent alerts (levels 2-5)", cmClearLowAlerts, kbNoKey) +
+            *new TMenuItem("~M~ute alerts above level...", cmMuteAlerts, kbNoKey) +
             newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
             *new TMenuItem("~R~eload settings", cmReloadSettings, kbNoKey) +
@@ -1266,6 +1275,8 @@ static TRect editorBounds(const TRect &extent);
 
 void TVTermApp::openProfile(const Profile &profile)
 {
+    // Mute (E72) goes back to [alerts] mute-above with every profile loaded.
+    alertMuteFrom = appsettings::currentSettings.alertConfig.muteAbove;
     using namespace tvterm;
     TRect ext = deskTop->getExtent();
     bool anyPos = false;

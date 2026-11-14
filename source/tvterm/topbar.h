@@ -70,6 +70,7 @@ private:
         size_t others {0};
         std::string alert1;    // level1AlertText.
         bool flashOn {false};  // [alerts] notify = flash: the phase.
+        int mute {0};          // alertMuteFrom (E72).
         // Windows on each desktop (index 1-9) and whether one of them has
         // an alert.
         std::array<int, 10> counts {};
@@ -79,7 +80,7 @@ private:
         {
             return current == o.current && alerts == o.alerts &&
                    level1 == o.level1 && others == o.others && alert1 == o.alert1 &&
-                   flashOn == o.flashOn &&
+                   flashOn == o.flashOn && mute == o.mute &&
                    counts == o.counts && alerted == o.alerted && names == o.names;
         }
     };

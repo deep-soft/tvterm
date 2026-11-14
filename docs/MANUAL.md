@@ -200,7 +200,7 @@ Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z
 Paste (pastes the clipboard into the terminal; Shift-Ins does the same).
 
 **More... ►** (`M`): `w` Change working dir · `d` Capture Desk · `i` Capture Window ([Capture](#capture)) · `l` Log Views as table · `s` Log Views as list
-([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `e` Edit
+([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `m` Mute alerts above level... ([Mute](#mute)) · `e` Edit
 settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `a` About tvterm. Until E69 More... also held Tile,
 Cascade, Grab Input and View file, and Load Profile was Ctrl-B `B` (E70 moved them).
 
@@ -775,7 +775,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
-  `notify`, `notify-repeat`; format 5: `[capture] folder`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -827,6 +827,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `log` | (none) | file where every alert is written, one line each (`~` allowed) |
 | | `notify` | `flash` | how a level 1 alert is shown: `flash`, `notify` (far2l desktop notification), `bell` (one or more), or `none` |
 | | `notify-repeat` | `60` | `notify` / `bell` repeated every N seconds while the level 1 alert is not seen (0: once) |
+| | `mute-above` | `off` | Mute at start: `2`–`5` mutes that level and the less urgent ones ([Mute](#mute)) |
 | `[capture]` | `folder` | `~/logs/tvterm/capture` | where Capture Desk / Window write their files; created if missing ([Capture](#capture)) |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `builtin-highlight` | `yes` | `no`: the highlight sets built into tvterm are not used, only the `[highlight]` sections of `tvterm.ini` ([chapter 10](#colors-highlight)) |
@@ -1121,6 +1122,19 @@ Without a level, an alert is level 5 (as before levels existed).
   and the keywords. Terminals are checked only when not selected. Lines are cut at 500 bytes; the file has mode 600.
 - **More... > Clear non-urgent alerts** (key `n`; **F8** in the Event Viewer) removes the alerts of levels 2-5
   without visiting their windows; level 1 alerts go only when you select their window.
+
+### Mute
+
+**More... > Mute alerts above level...** (`m`), or the **Mute levels** field of **Ctrl-B A** (Alerts...), mutes the
+less urgent alerts for a while, in every window: `Off`, `2-5`, `3-5`, `4-5` or `5` (the level chosen and the less urgent
+ones; level 1 is never muted). A muted alert still exists: the title has its mark and color, the Window List shows
+`A<n>`, `[alerts] log` gets it and the Event Viewer list (key A) shows it with `(muted)`. But it is not counted in the
+top bar nor on the desktop buttons, and **Ctrl-B G / Ctrl-A skip it** (`There are no alerts (levels 3-5 muted).`). The
+top bar shows the choice: `Alerts: 1+2 (muted 3-5) (Ctrl-B G)` (in the normal colors when nothing is counted).
+
+The start value is `[alerts] mute-above = off` (or `2`–`5`) in `tvterm.ini`. A choice made in tvterm lasts until it is
+changed again, tvterm restarts, a profile is loaded (Ctrl-B P: back to `mute-above`) or `mute-above` itself changes in
+the file (another change of the file keeps it).
 
 ### Going through the alerts
 

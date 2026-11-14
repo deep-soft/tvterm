@@ -160,6 +160,8 @@ struct AlertConfig
     // notify / bell repeated while a level 1 alert is not seen (seconds;
     // 0: once).
     int notifyRepeat {60};
+    // mute-above: the first muted level (2-5; 0: off), see alertMuteFrom.
+    int muteAbove {0};
 };
 extern AlertConfig alertConfig;
 
@@ -216,9 +218,24 @@ void execAlertSettings(TWindow &window, AlertTarget &target);
 // after a jump to an alert, otherwise what happened.
 std::string goToNextAlert(TDeskTop &deskTop);
 
-// Number of windows with an alert.
+// Mute (item 30, P1; E72): the alerts of level 'alertMuteFrom' and of the
+// less urgent levels (up to 5) stay (title, Window List A<n>, alert log,
+// Event Viewer list) but are not counted in the top bar nor on the desktop
+// buttons, and Ctrl-B G / Ctrl-A skip them. Level 1 is never muted (it is
+// the only level that flashes, notifies and runs the action). 0: off; 2-5.
+// Set from [alerts] mute-above at startup, when that value changes in
+// tvterm.ini, and at Load Profile; changed in Alerts... or More... > Mute.
+extern int alertMuteFrom;
+inline bool alertMuted(int level) noexcept
+    { return alertMuteFrom > alertLevelMin && level >= alertMuteFrom; }
+// "3-5", "5" (empty: off).
+std::string alertMuteText(int from);
+// More... > Mute alerts: the dialog with the choice (off, 2-5 ... 5).
+void execMuteDialog();
+
+// Number of windows with an alert that is not muted.
 size_t countAlerts(TDeskTop &deskTop);
-// The same, split: level 1 and the other levels.
+// The same, split: level 1 and the other levels (not muted).
 void countAlerts(TDeskTop &deskTop, size_t &level1, size_t &others);
 // "A1 <title>: <keyword>" of the oldest level 1 alert (empty: none).
 std::string level1AlertText(TDeskTop &deskTop);

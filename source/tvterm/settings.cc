@@ -490,6 +490,17 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 else
                     out = (int) n;
             }
+            else if (key == "mute-above")
+            {
+                // E72: off (0) or the first muted level, 2-5.
+                std::string v = lower(value);
+                if (v == "off" || v == "0" || v == "no" || v == "none")
+                    settings.alertConfig.muteAbove = 0;
+                else if (v.size() == 1 && v[0] >= '2' && v[0] <= '5')
+                    settings.alertConfig.muteAbove = v[0] - '0';
+                else
+                    invalid("use off or 2-5"), settings.alertConfig.muteAbove = previous.alertConfig.muteAbove;
+            }
             else if (key == "notify")
             {
                 // A list: flash notify bell, or none.
@@ -746,6 +757,11 @@ std::string settingsTemplate()
         " #notify = flash\n"
         "  # notify and bell repeated every N seconds while not seen (0: once).\n"
         " #notify-repeat = 60\n"
+        "  # Mute at start: the alerts of this level and the less urgent ones (2: 2-5,\n"
+        "  # 3: 3-5, ..., 5: only 5) are kept but not counted in the top bar, and Go to\n"
+        "  # Next Alert skips them; level 1 never. Changed in Ctrl-B A or More... Mute\n"
+        "  # until tvterm restarts or a profile is loaded. off or 2-5.\n"
+        " #mute-above = off\n"
         "\n"
         "[capture]\n"
         "  # Folder of Ctrl-B More... Capture Desk (Ctrl-F10) and Capture Window\n"

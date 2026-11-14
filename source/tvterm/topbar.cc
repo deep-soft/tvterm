@@ -32,10 +32,13 @@ static std::string menuText()
     return globalkeys::menuKeyName() + " Menu";
 }
 
-// "Alerts: 1+7": level 1 and the other levels (E68).
-static std::string alertsText(size_t level1, size_t others)
+// "Alerts: 1+7": level 1 and the other levels (E68); with Mute (E72)
+// "Alerts: 1+2 (muted 3-5)", the muted alerts not counted.
+static std::string alertsText(size_t level1, size_t others, int mute)
 {
+    std::string muted = alertMuteText(mute);
     return "Alerts: " + std::to_string(level1) + "+" + std::to_string(others) +
+           (muted.empty() ? "" : " (muted " + muted + ")") +
            " (" + globalkeys::menuKeyName() + " G)";
 }
 
@@ -142,8 +145,8 @@ std::vector<TopBar::Item> TopBar::layout() const
     // On a narrow screen they are dropped from the end: Alerts, DeskList,
     // WinList, the menu.
     if ( add(itMenu, menuText()) && add(itWindowList, "WinList") &&
-         add(itDesktopList, "DeskList") && state_.alerts > 0 &&
-         add(itAlerts, alertsText(state_.level1, state_.others)) && !state_.alert1.empty() )
+         add(itDesktopList, "DeskList") && (state_.alerts > 0 || state_.mute) &&
+         add(itAlerts, alertsText(state_.level1, state_.others, state_.mute)) && !state_.alert1.empty() )
     {
         // The A1 item: as much of its text as fits (at least 12 columns).
         int room = right - x - 1;
@@ -182,7 +185,9 @@ void TopBar::draw()
                 b.moveStr(item.x, "DeskList", normal);
                 break;
             case itAlerts:
-                b.moveStr(item.x, alertsText(state_.level1, state_.others), TColorAttr(alertColor));
+                // Only Mute shown (no alert counted): the normal colors.
+                b.moveStr(item.x, alertsText(state_.level1, state_.others, state_.mute),
+                          state_.alerts > 0 ? TColorAttr(alertColor) : normal);
                 break;
             case itAlert1:
                 b.moveStr(item.x, fitText(state_.alert1, item.width),
@@ -276,7 +281,7 @@ std::string TopBar::hintFor(const Item &item) const
                 continue;
             int n = desktops::of(w);
             auto *target = dynamic_cast<AlertTarget *>(w);
-            bool alert = target && target->hasAlert();
+            bool alert = target && target->hasAlert() && !alertMuted(target->getAlertLevel());
             if (item.kind == itAlerts ? !alert : n != item.desktop)
                 continue;
             const char *t = w->getTitle(255);
@@ -290,7 +295,9 @@ std::string TopBar::hintFor(const Item &item) const
     std::string text;
     if (item.kind == itAlerts)
         text = "Go to the most urgent alert (" + key + " G). Level 1: " + std::to_string(state_.level1) +
-               ", other levels: " + std::to_string(state_.others) + ". Alerts: ";
+               ", other levels: " + std::to_string(state_.others) +
+               (state_.mute ? " (levels " + alertMuteText(state_.mute) + " muted, More... > Mute)" : "") +
+               ". Alerts: ";
     else
     {
         text = desktops::label(item.desktop);
@@ -335,6 +342,7 @@ void TopBar::update(TDeskTop &deskTop)
     s.current = desktops::current();
     s.names = desktops::namesVersion();
     s.alerts = countAlerts(deskTop);
+    s.mute = alertMuteFrom;
     countAlerts(deskTop, s.level1, s.others);
     if (s.level1)
     {
@@ -347,7 +355,7 @@ void TopBar::update(TDeskTop &deskTop)
         s.counts[n] = counts[n];
     for (TWindow *w : getDeskTopWindows(deskTop))
         if (auto *target = dynamic_cast<AlertTarget *>(w))
-            if ( target->hasAlert() && !desktops::isGlobal(w) &&
+            if ( target->hasAlert() && !alertMuted(target->getAlertLevel()) && !desktops::isGlobal(w) &&
                  ((w->state & sfVisible) || desktops::isHidden(w)) )
                 s.alerted[desktops::of(w)] = true;
     if (!(s == state_))

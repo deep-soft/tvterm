@@ -162,6 +162,8 @@ E70. Menu (item 30, P1): Ctrl-B menu regrouped; `Windows ►` (`Z`: Zoom, Tile, 
      Change working dir, Log Views, Clear non-urgent alerts, Edit / Reload settings, Suspend, About; free: B J K R U X
 E71. Capture Desk (Ctrl-F10) / Capture Window (Ctrl-F11), also in More...: the screen text with the frames, no colors,
      to `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5
+E72. Mute alerts (More... > Mute alerts above level..., Ctrl-B A field, `[alerts] mute-above`): levels n-5 (n = 2-5;
+     level 1 never) kept but not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) and skipped by Ctrl-B G / Ctrl-A
 
 ---
 
@@ -512,6 +514,17 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   `'n'` handler commented out ("not ready yet"), so `notify` shows nothing there yet (item 27); the bell did not reach
   Windows in the user's setup. `tvterm.ini` keys are in `[alerts]` without the `alert-` prefix (`action`,
   `action-interval`, `log`, `notify`, `notify-repeat`); format 4.
+- **Mute (E72**, item 30, P1, agreed in chat 69 as "alerts above level n"; read in chat 71 as the level chosen and the
+  less urgent ones, so that every choice 2-5 does something): `alertMuteFrom` (0 off, 2-5) / `alertMuted(level)`.
+  Muted alerts keep everything of their window (title mark and color, Window List `A<n>`, alert log, Event Viewer list
+  with `(muted)` and `levels 3-5 muted` in its header) but `countAlerts` (top bar counter, hover text, desktop buttons'
+  alert marker) leaves them out and `nextAlert` (Ctrl-B G / Ctrl-A) skips them; with only muted ones: `There are no
+  alerts (levels 3-5 muted).`. Level 1 can never be muted (it alone flashes, notifies, runs the action). Top bar:
+  `Alerts: 1+2 (muted 3-5) (Ctrl-B G)`, shown also with nothing counted (normal colors). Set by: `[alerts] mute-above
+  = off | 2-5` (at startup and when that value changes in the file: a reload for another key keeps a choice made in
+  tvterm; an invalid value keeps the previous one), Load Profile (back to `mute-above`), More... > Mute alerts above
+  level... (`m`, dialog with radio buttons Off 2-5 3-5 4-5 5), the Mute field of Ctrl-B A (dialog 2 rows taller;
+  label `~M~ute levels, all windows …`). Not saved in profiles.
 - **Going through the alerts (E69**, item 29, agreed in chat 67): `goToNextAlert` (Ctrl-B G, Ctrl-A in Log Views and
   the Event Viewer, the top bar's `Alerts:` item) returns a status line text instead of a bool; `TVTermApp::nextAlert`
   shows it (`appsettings::showStatus`), no box any more. `alertchain::origin` = the window focused at the first jump,
@@ -2070,6 +2083,14 @@ examples/profiles/example.ini
   nothing. A terminal focused (partly under the editor): More... `i` → the whole terminal (120 columns, no editor
   text). `[capture] folder = ~/cap2/` + reload: files there; two captures in one second → `…-2.txt`; `folder =
   /proc/x` → `Capture failed: cannot create /proc/x.`.
+- E72, tmux 120x40, profile Shell + Log Views L1 (`1:boom`), L3 (`3:warn`), L5 (`info`) on one file: `warn`, `info` →
+  `Alerts: 0+2`; More... `m`, 4-5 → `Alerts: 0+1 (muted 4-5)`, Ctrl-B G → L3 (L5 skipped), counter `0+0 (muted 4-5)`;
+  Mute Off → `0+1`, G → L5. `mute-above = 2` + reload → `(muted 2-5)`; `boom` → `1+0 (muted 2-5)` + `A1 Log: L1: boom`,
+  G → L1, G → `No more alerts: back to Shell.`, G → `There are no alerts (levels 2-5 muted).`. Ctrl-B A shows the Mute
+  row with `2-5`; Alt-M, a change to `5` → `(muted 5)`. Load Profile (No to closing) → back to `(muted 2-5)`. Event
+  Viewer A: `--- Active alerts (1; levels 2-5 muted) ---`, `… Log: L5 (muted)`. Mute changed to Off in tvterm, then
+  `tvterm.ini` changed only in `seen-color` + reload → still Off; `mute-above = 3` → `(muted 3-5)`; `mute-above = 7`
+  → one problem, `(muted 3-5)` kept.
 
 ## 6. Known limitations
 
@@ -2176,6 +2197,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Mute alerts (`far2l-extended`) | E72 | More... > Mute alerts above level... / Ctrl-B A field / `[alerts] mute-above` (off, 2-5): that level and the less urgent ones (level 1 never) keep their title, `A<n>`, log, Event Viewer list `(muted)`, but are not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) nor on the desktop buttons, and Ctrl-B G / Ctrl-A skip them; until changed, restart, Load Profile or a change of `mute-above` |
 | Capture Desk / Window (`far2l-extended`) | E71 | More... > Capture Desk (`d`, Ctrl-F10) / Capture Window (`i`, Ctrl-F11; the keys only when the active window is not a terminal, also in dialogs): the text on the screen with frames, no colors, exact rectangle (Window: its own content even where covered), into `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5 |
 | Menu regrouped (`far2l-extended`) | E70 | Ctrl-B: `Windows ►` (`Z`: Zoom `Z`, Tile Columns `C` / Rows `R`, Tile in N Columns `L` / Rows `S`, Cascade `A`, Grab Input `G`, Resize/Move `M`), `Text ►` (`T`: Select Text `T`, Paste `P`), View file `F`, Load Profile `P` (was `B`); More... keeps Change working dir `w`, Log Views, Clear non-urgent alerts, Edit / Reload settings (`r`), Suspend, About; free B J K R U X |
 | Going through the alerts (`far2l-extended`) | E69 | Ctrl-B G / Ctrl-A: with no alert left, back to the window of the first jump (status line `No more alerts: back to …`, no box; a window chosen by hand starts a new round); Log View F5 = Alerts..., F4 dialog `Alerts... OK Apply Cancel` (Alerts... applies, opens Alerts, comes back); Event Viewer F8 clears levels 2-5; More...: Cascade without a letter, About = `a` |

@@ -28,7 +28,8 @@ const int minFileDialogHeight = 19;
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
 // file-backups-number (E64); 3: comment-template, comment-width and
 // key-editor-comment (E66); 4: [alerts] action, action-interval, log,
-// notify, notify-repeat (E68); 5: [capture] folder (E71).
+// notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
+// mute-above (E72).
 const int settingsFormat = 5;
 
 struct Settings
