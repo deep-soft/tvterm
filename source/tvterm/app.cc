@@ -782,10 +782,10 @@ void TVTermApp::idle()
 namespace appmenu
 {
 
-// The Ctrl-B menu. F, the former letter of Zoom (Maximize/Restore), still
-// works. The digits 1-9 show that desktop, 0 the previous one: the command
-// is sent once the menu is closed (TMenuView::execute puts back the
-// evCommand that ends it).
+// The Ctrl-B menu. The digits 1-9 show that desktop, 0 the previous one:
+// the command is sent once the menu is closed (TMenuView::execute puts back
+// the evCommand that ends it). E70: F is View file (it was the old letter
+// of Zoom, now in Windows ► as Z).
 class MainMenuPopup : public CenteredMenuPopup
 {
 public:
@@ -804,13 +804,6 @@ public:
             event.message.command = cmSwitchDesktop;
             event.message.infoInt = n;
         }
-        else if (event.what == evKeyDown && TKey(event.keyDown) == TKey('F'))
-        {
-            event.keyDown.keyCode = 'z';
-            event.keyDown.controlKeyState = 0;
-            event.keyDown.text[0] = 'z';
-            event.keyDown.textLength = 1;
-        }
     }
 };
 
@@ -821,13 +814,24 @@ using appmenu::MainMenuPopup;
 void TVTermApp::openMenu()
 {
     TMenuItem &menuItems =
-        // Order agreed in chat 43: desktops and windows, alerts, terminals,
-        // window size, text and editors, profiles, the rest. Letters of
-        // item 30 (chat 43); free: J K U X (F is the former Zoom letter;
-        // U was Suspend, in More... since E67).
+        // Order of item 30 (P1, chat 69; E70): desktops and windows, alerts,
+        // terminals, files and editors, profiles, the rest. Free letters:
+        // B J K R U X. In a submenu its own letters win; a letter it lacks
+        // reaches this menu (tvision looks for the hot key from the top).
         *new TMenuItem("Desktop...", cmDesktopMenu, 'D', hcNoContext, "~D~,~0~-~9~") +
-        *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
         *new TMenuItem("Move Window to Desktop...", cmMoveWindowMenu, 'Y', hcNoContext, "~Y~") +
+        *new TMenuItem("Window List...", cmWindowList, 'W', hcNoContext, "~W~") +
+        ( *new TSubMenu("Windows: ~Z~oom/Tile/...", kbNoKey, hcMenu) +
+            *new TMenuItem("~Z~oom (Maximize/Restore)", cmZoom, kbNoKey) +
+            *new TMenuItem("Tile (~C~olumns First)", cmTileCols, kbNoKey) +
+            *new TMenuItem("Tile (~R~ows First)", cmTileRows, kbNoKey) +
+            *new TMenuItem("Tile in N Co~l~umns...", cmTileNCols, kbNoKey) +
+            *new TMenuItem("Tile in N Row~s~...", cmTileNRows, kbNoKey) +
+            *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
+            newLine() +
+            *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
+            *new TMenuItem("Resize/~M~ove", cmResize, kbNoKey)
+        ) +
         newLine() +
         *new TMenuItem("Log View (filtered output)...", cmNewLogView, 'L', hcNoContext, "~L~") +
         *new TMenuItem("Alerts...", cmAlertSettings, 'A', hcNoContext, "~A~") +
@@ -841,43 +845,34 @@ void TVTermApp::openMenu()
         *new TMenuItem("Previous Term", cmPrev, kbShiftTab, hcNoContext, "~Shift-Tab~") +
         *new TMenuItem("History (Scroll/Search/Save)", cmHistoryMode, 'H', hcNoContext, "~H~") +
         newLine() +
-        *new TMenuItem("Resize/Move", cmResize, 'R', hcNoContext, "~R~") +
-        *new TMenuItem("Zoom (Maximize/Restore)", cmZoom, 'Z', hcNoContext, "~Z~") +
-        newLine() +
-        *new TMenuItem("Select Text", cmStartSelection, 'T', hcNoContext, "~T~") +
-        *new TMenuItem("Paste", cmPaste, 'P', hcNoContext, "~P~") +
+        *new TMenuItem("View file...", cmViewFile, 'F', hcNoContext, "~F~") +
         *new TMenuItem("New Editor", cmNewEditor, 'E', hcNoContext, "~E~") +
         *new TMenuItem("Open File in Editor...", cmOpenEditor, 'O', hcNoContext, "~O~") +
         *new TMenuItem("Editor Save As...", cmEditorSaveAs, 'S', hcNoContext, "~S~") +
         newLine() +
-        *new TMenuItem("Load Profile...", cmLoadProfile, 'B', hcNoContext, "~B~") +
+        *new TMenuItem("Load Profile...", cmLoadProfile, 'P', hcNoContext, "~P~") +
         *new TMenuItem("Load Profile in Editor...", cmLoadProfileInEditor, 'I', hcNoContext, "~I~") +
         *new TMenuItem("Save Profile As...", cmSaveProfile, 'C', hcNoContext, "~C~") +
         newLine() +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
-            *new TMenuItem("Change working ~d~ir...", cmChangeDir, kbNoKey) +
+            *new TMenuItem("Change ~w~orking dir...", cmChangeDir, kbNoKey) +
             newLine() +
-            *new TMenuItem("Tile (~C~olumns First)", cmTileCols, kbNoKey) +
-            *new TMenuItem("Tile (~R~ows First)", cmTileRows, kbNoKey) +
-            *new TMenuItem("Tile in N C~o~lumns...", cmTileNCols, kbNoKey) +
-            *new TMenuItem("Tile in N Ro~w~s...", cmTileNRows, kbNoKey) +
-            // E69: no letter ('a' was easy to hit instead of About).
-            *new TMenuItem("Cascade", cmCascade, kbNoKey) +
-            *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
-            newLine() +
-            *new TMenuItem("~V~iew file...", cmViewFile, kbNoKey) +
             *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
             *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
             *new TMenuItem("Clear ~n~on-urgent alerts (levels 2-5)", cmClearLowAlerts, kbNoKey) +
             newLine() +
             *new TMenuItem("~E~dit settings (tvterm.ini)", cmEditSettings, kbNoKey) +
-            *new TMenuItem("Reload se~t~tings", cmReloadSettings, kbNoKey) +
+            *new TMenuItem("~R~eload settings", cmReloadSettings, kbNoKey) +
             newLine() +
-            // Here since E67 (was Ctrl-B U): not chosen by a stray click.
+            // Only here since E67 (was Ctrl-B U): not chosen by a stray click.
             *new TMenuItem("S~u~spend...", cmDosShell, kbNoKey) +
             newLine() +
             *new TMenuItem("~A~bout tvterm...", cmAbout, kbNoKey)
+        ) +
+        ( *new TSubMenu("~T~ext: Select/Paste", kbNoKey, hcMenu) +
+            *new TMenuItem("Select ~T~ext", cmStartSelection, kbNoKey) +
+            *new TMenuItem("~P~aste", cmPaste, kbNoKey)
         ) +
         *new TMenuItem("Exit", cmQuit, 'Q', hcNoContext, "~Q~");
 

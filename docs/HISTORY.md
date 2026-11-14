@@ -157,21 +157,36 @@ E68. Alert levels 1-5 (`1:` before a keyword group, `alert-silence = 1:120`, `al
 E69. Alerts: Ctrl-B G / Ctrl-A go back to the starting window when no alert is left (status line, no box); Log View
      F5 = Alerts..., Settings dialog Alerts... button (Apply = Alt-Y); Event Viewer F8 clears levels 2-5; More...:
      Cascade without a letter, About = `a`
+E70. Menu (item 30, P1): Ctrl-B menu regrouped; `Windows ►` (`Z`: Zoom, Tile, Cascade, Grab Input, Resize/Move) and
+     `Text ►` (`T`: Select Text, Paste) submenus; View file `F` (from More...), Load Profile `P` (was `B`); More... now
+     Change working dir, Log Views, Clear non-urgent alerts, Edit / Reload settings, Suspend, About; free: B J K R U X
 
 ---
 
 ## 2. Features (all tested by the user in the real setup, unless marked otherwise)
 
 ### Menu (Ctrl-B)
-Order since E39, letters since E41 (both agreed in chat 43; groups between separators): `D` (and `0-9`) Desktop... ·
-`W` Window List · `Y` Move Window to Desktop | `L` Log View · `A` Alerts · `G` Go to Next Alert | `N` New Term · Close
-Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `R` Resize/Move · `Z` Zoom
-(Maximize/Restore; `F` before E20, still works) | `T` Select Text · `P` Paste · `E` New Editor · `O` Open File in
-Editor · `S` Editor Save As | `B` Load Profile · `I` Load Profile in Editor · `C` Save Profile As | `V` Event Viewer ·
-`More...` (change dir, tile, cascade, Grab Input, View file, Log Views as table / list, Clear non-urgent alerts (E68),
-Edit settings, Reload settings, Suspend (E67), About (`a` since E69, `b` before; Cascade without a letter since E69)) ·
-`Q` Exit (`U` Suspend until E66). The menu opens with no item selected (the first Down selects Desktop...).
-Free menu letters: J, K, U, X (`M` opens More..., `F` is the old Zoom letter). Digits 1-9: desktops; 0: the previous desktop (E35).
+Order and letters since **E70** (item 30, P1, agreed in chat 69; groups between separators): `D` (and `0-9`) Desktop... ·
+`Y` Move Window to Desktop · `W` Window List · `Z` Windows ► | `L` Log View · `A` Alerts · `G` Go to Next Alert | `N`
+New Term · Close Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `F` View file · `E`
+New Editor · `O` Open File in Editor · `S` Editor Save As | `P` Load Profile · `I` Load Profile in Editor · `C` Save
+Profile As | `V` Event Viewer · `M` More... ► · `T` Text ► · `Q` Exit. **Windows ►**: `Z` Zoom (Maximize/Restore) ·
+`C` Tile (Columns First) · `R` Tile (Rows First) · `L` Tile in N Columns... · `S` Tile in N Rows... · `A` Cascade |
+`G` Grab Input · `M` Resize/Move. **Text ►**: `T` Select Text · `P` Paste. **More... ►**: `w` Change working dir |
+`l` Log Views as table · `s` as list · `n` Clear non-urgent alerts | `e` Edit settings · `r` Reload settings | `u`
+Suspend | `a` About. The menu opens with no item selected (the first Down selects Desktop...). Free main letters: B,
+J, K, R, U, X. Digits 1-9: desktops; 0: the previous desktop (E35; only in the main menu, not in a submenu).
+A submenu's own letters win; a letter it lacks reaches the main menu (tvision's `TMenuView` looks for the hot key from
+the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter in their name (`Windows: ~Z~oom/Tile/...`,
+`~T~ext: Select/Paste`): a tvision submenu item has no right-hand text, only `►`.
+- **E70** (item 30, chat 69 / 71): Zoom is now Ctrl-B Z Z (the window keys `key-zoom` stay direct), Resize/Move Ctrl-B
+  Z M, Select Text Ctrl-B T T, Paste Ctrl-B T P (rare from the menu: Shift-Ins). `F` (the Zoom letter before E20, then
+  an alias) is View file; Load Profile moved from `B` to `P`; Reload settings `~R~` (was `se~t~tings`); Change working
+  dir `~w~` (was `~d~`).
+- Before E70 (E39 / E41, chat 43): `D` Desktop... · `W` · `Y` | `L` · `A` · `G` | `N` · Close · Rename · `Tab` ·
+  `Shift-Tab` · `H` | `R` Resize/Move · `Z` Zoom (`F` alias) | `T` Select Text · `P` Paste · `E` · `O` · `S` | `B` Load
+  Profile · `I` · `C` | `V` · More... (change dir, Tile, Cascade, Grab Input, View file, Log Views, Clear non-urgent
+  alerts, Edit / Reload settings, Suspend, About) · `Q`.
 - **E69** (item 29, chat 67): More... `Cascade` lost its letter `a` and About became `~A~bout tvterm...` (was
   `A~b~out`): `a` was easy to hit for About. A letter More... does not have goes to the main menu (tvision's
   `TMenuView` passes it to the parent), so `b` in More... now opens Load Profile (the same for any free letter before).
@@ -2127,6 +2142,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Menu regrouped (`far2l-extended`) | E70 | Ctrl-B: `Windows ►` (`Z`: Zoom `Z`, Tile Columns `C` / Rows `R`, Tile in N Columns `L` / Rows `S`, Cascade `A`, Grab Input `G`, Resize/Move `M`), `Text ►` (`T`: Select Text `T`, Paste `P`), View file `F`, Load Profile `P` (was `B`); More... keeps Change working dir `w`, Log Views, Clear non-urgent alerts, Edit / Reload settings (`r`), Suspend, About; free B J K R U X |
 | Going through the alerts (`far2l-extended`) | E69 | Ctrl-B G / Ctrl-A: with no alert left, back to the window of the first jump (status line `No more alerts: back to …`, no box; a window chosen by hand starts a new round); Log View F5 = Alerts..., F4 dialog `Alerts... OK Apply Cancel` (Alerts... applies, opens Alerts, comes back); Event Viewer F8 clears levels 2-5; More...: Cascade without a letter, About = `a` |
 | Suspend in More... (`far2l-extended`) | E67 | Suspend moved from Ctrl-B `U` to More... (between separators, above About); `Suspend tvterm?` with No by default; not available (a box) when tvterm is not a job of a shell with job control |
 | Editor comment line (`far2l-extended`) | E66 | Alt-C (`key-editor-comment`): a comment line with the date and time at the cursor, then a line break; `comment-template` (`"# %Y-%m-%d %H:%M:%S "`, strftime, local time) filled with `-` up to `comment-width` (79); one undo step; read only: nothing; `tvterm.ini` format 3 |

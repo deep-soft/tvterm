@@ -27,7 +27,7 @@
 // A window made by Search > New window has fixed lines (a copy of the
 // matching lines of the other window, see LogSource::createFixed): no
 // command, no pause, no restart, no alerts, not saved in profiles. So has
-// a file shown by More... > View file or Save > Open after saving > Viewer
+// a file shown by Ctrl-B F (View file) or Save > Open after saving > Viewer
 // (title "View: <file>").
 // Ctrl-W closes the window.
 

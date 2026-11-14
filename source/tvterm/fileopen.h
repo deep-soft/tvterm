@@ -27,7 +27,7 @@ void open(const std::string &path, Target target);
 // given to an external program, or Cancel.
 bool acceptInTvterm(const std::string &path, Target target);
 
-// More... > View file: the external viewer if set (without the size
+// Ctrl-B F (View file): the external viewer if set (without the size
 // check), otherwise the tvterm viewer.
 void view(const std::string &path);
 

@@ -50,7 +50,7 @@ struct TVTermApp : public TApplication
     void changeDir();
     void newEditor();
     void openEditor();
-    // More... > View file.
+    // Ctrl-B F (View file).
     void viewFile();
     // Where a new editor goes (80 columns on the right of a wide desktop).
     static TRect editorRect();
@@ -64,7 +64,7 @@ struct TVTermApp : public TApplication
     bool closeWindowsBeforeLoad();
     // After Tile / Cascade: a note if the fixed windows left no room.
     void noteNoFreeArea();
-    // More... > Tile in N Columns / Rows: asks for N (1-20; the last value
+    // Windows > Tile in N Columns / Rows: asks for N (1-20; the last value
     // is proposed), then tileGrid.
     void tileInN(bool columns);
     // Tile in 'n' columns / rows (see TVTermDesk::tileGrid), with notes in

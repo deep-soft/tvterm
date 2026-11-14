@@ -43,7 +43,7 @@ struct Settings
     // nothing (none) after an automatic reload.
     bool reloadMessage {true};
     // Files larger than this (bytes) ask before they open in tvterm (Save >
-    // Open after saving, Ctrl-B O, More... > View file); 0: never ask.
+    // Open after saving, Ctrl-B O, Ctrl-B F View file); 0: never ask.
     long long largeFile {5LL * 1024 * 1024};
     // Programs for files ('%f': the path, quoted for the shell); empty: none.
     std::string externalViewer;

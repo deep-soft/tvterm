@@ -146,14 +146,14 @@ The screen has two bars, with the desktop (the windows) between them:
   they come through far2l's extensions; a plain xterm reports moves only while a button is pressed.
 
 Windows are moved with the mouse by their title, resized by any of their four corners and closed with the `[■]` button,
-as in any Turbo Vision program; with the keyboard: Ctrl-B R (Resize/Move; Ctrl-F5 in dialogs)
+as in any Turbo Vision program; with the keyboard: Ctrl-B Z M (Windows > Resize/Move; Ctrl-F5 in dialogs)
 (arrows move, Shift+arrows resize, Ctrl+arrows in larger steps, Enter ends, Esc goes back). The bottom edge of a window
 stops at the status line: a window moved down stops there, one made taller stops growing there (its top row stays). A
 window can still be moved partly off the screen to the left or right.
 
 ### The Ctrl-B menu
 
-**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click); free letters: J, K, U, X.
+**Ctrl-B** opens the menu in the middle of the screen; then press the letter (or click); free letters: B, J, K, R, U, X.
 Ctrl-B is not sent to programs (see Grab Input below). Another key, or several, can open the menu instead: `menu-key` in `tvterm.ini`
 ([Global keys](#global-keys)); the top bar then shows the first one (e.g. `` Ctrl-` Menu ``). This manual always
 writes Ctrl-B.
@@ -163,8 +163,9 @@ writes Ctrl-B.
 | `D` | Desktop... | lists the desktops ([Desktops](#desktops)); shown in the menu as `D,0-9` |
 | `1`–`9` | Desktop... | shows that desktop directly |
 | `0` | Desktop... | shows the previous desktop (again: back) |
-| `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
+| `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
+| `Z` | Windows ► | submenu: Zoom, Tile, Cascade, Grab Input, Resize/Move (see below) |
 | `L` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `A` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the most urgent alert, the oldest of that level; with none left, back to the window where you started ([Going through the alerts](#going-through-the-alerts)) |
@@ -173,24 +174,35 @@ writes Ctrl-B.
 | (none) | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one); arrows + Enter, or click it |
 | `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
-| `R` | Resize/Move | arrows move, Shift+arrows resize, Ctrl faster, Enter done, Esc cancel |
-| `Z` | Zoom (Maximize/Restore) | maximizes the focused window; again: back to its size (`F`, the former letter, also works) |
-| `T` | Select Text | selection mode in a terminal ([chapter 3](#3-terminals-and-the-clipboard)) |
-| `P` | Paste | pastes the clipboard into the terminal |
+| `F` | View file... | shows a file ([Opening and viewing files](#opening-and-viewing-files)) |
 | `E` | New Editor | empty editor |
 | `O` | Open File in Editor... | a file larger than `large-file` asks first ([Opening files](#opening-and-viewing-files)) |
 | `S` | Editor Save As... | saves the focused editor under another name ([chapter 5](#5-editor)) |
-| `B` | Load Profile... | opens a profile ([chapter 7](#7-profiles)) |
+| `P` | Load Profile... | opens a profile ([chapter 7](#7-profiles)) |
 | `I` | Load Profile in Editor... | opens a profile file in a tvterm editor, to read or change it (nothing is loaded) |
 | `C` | Save Profile As... | saves the open windows as a profile |
 | `V` | Event Viewer | opens it; if already open, pauses / resumes it |
-| `M` | More... | submenu, see below |
+| `M` | More... ► | submenu, see below |
+| `T` | Text ► | submenu: Select Text, Paste (see below) |
 | `Q` | Exit | asks first if terminals or Log Views are running |
 
-**More...**: Change working dir · Tile (Columns First) · Tile (Rows First) · Tile in N Columns... · Tile in N Rows... ·
-Cascade (no letter) · Grab Input ·
-View file ([chapter 5](#opening-and-viewing-files)) · Log Views as table · Log Views as list ([chapter 10](#log-views-as-table--list)) · Clear non-urgent alerts (levels 2-5, key `n`: [Levels](#levels)) · Edit settings (tvterm.ini) · Reload settings · Suspend... · About tvterm (`a`; until E68 `b`, and Cascade had `a`).
-A letter that More... does not have goes to the main menu: `b` there is Load Profile.
+The submenus show their letter in their name (`Windows: Zoom/Tile/...`, `More...`, `Text: Select/Paste`). In a
+submenu its own letters work; a letter it does not have goes to the main menu (Ctrl-B Z E = New Editor). The digits
+`0`–`9` work only in the main menu.
+
+**Windows ►** (`Z`): `Z` Zoom (Maximize/Restore: maximizes the focused window; again: back to its size) · `C` Tile
+(Columns First) · `R` Tile (Rows First) · `L` Tile in N Columns... · `S` Tile in N Rows... · `A` Cascade
+([Tile and Cascade](#tile-and-cascade)) · `G` Grab Input ([Grab Input](#grab-input)) · `M` Resize/Move (arrows move,
+Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z Z** and Resize/Move **Ctrl-B Z M**
+(`key-zoom` in [Global keys](#global-keys) gives Zoom a direct key).
+
+**Text ►** (`T`): `T` Select Text (selection mode in a terminal, [chapter 3](#3-terminals-and-the-clipboard)) · `P`
+Paste (pastes the clipboard into the terminal; Shift-Ins does the same).
+
+**More... ►** (`M`): `w` Change working dir · `l` Log Views as table · `s` Log Views as list
+([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `e` Edit
+settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `a` About tvterm. Until E69 More... also held Tile,
+Cascade, Grab Input and View file, and Load Profile was Ctrl-B `B` (E70 moved them).
 
 **More... > Suspend...** (`u`; until E66 it was Ctrl-B `U`) stops tvterm and returns to the shell that started it;
 `fg` there brings it back. It asks first, `Suspend tvterm?`, with **No** as the default (Enter or Esc: nothing
@@ -210,7 +222,7 @@ windows use the largest rectangle that overlaps none of them. If that rectangle 
 (or there is no fixed window), the whole desktop is used and the Event Viewer gets the note
 "no free area beside the fixed windows, using the whole desktop".
 
-**Tile in N Columns...** / **Tile in N Rows...** (More..., keys `o` / `w`) ask for a number from 1 to 20 (the last one
+**Tile in N Columns...** / **Tile in N Rows...** (Windows ►, keys `l` / `s`) ask for a number from 1 to 20 (the last one
 used is proposed; 2 at start) and arrange the windows in exactly that many columns (rows):
 
 - the windows go **in the order they were opened** (as in the Window List), column by column from top to bottom
@@ -293,7 +305,7 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
 
 ### Grab Input
 
-**More... > Grab Input** sends every key to the program in the focused terminal, Ctrl-B and the global keys included
+**Ctrl-B Z G (Windows > Grab Input)** sends every key to the program in the focused terminal, Ctrl-B and the global keys included
 (the title shows `(Input Grab)`). **Alt-End** or a click outside the window ends it.
 
 ### Global keys
@@ -303,7 +315,7 @@ Keys set in `[keys]` of `tvterm.ini` ([chapter 6](#6-settings-file-tvtermini)) t
 | Key in `tvterm.ini` | Default | What it does |
 |---|---|---|
 | `menu-key` | `Ctrl-B` | opens the Ctrl-B menu |
-| `key-zoom` | (none) | Zoom: maximizes the focused window; again: back to its size (like Ctrl-B Z) |
+| `key-zoom` | (none) | Zoom: maximizes the focused window; again: back to its size (like Ctrl-B Z Z) |
 | `key-window-left` / `-right` / `-up` / `-down` | (none) | goes to the window beside the focused one in that direction |
 
 - A comma separates several keys: `` menu-key = Ctrl-B, Ctrl-` ``. Modifiers `Ctrl-`, `Alt-`, `Shift-` (or with `+`, any case and
@@ -430,14 +442,14 @@ When the program of a terminal ends, the title shows `(Disconnected)` and the ou
   dragging afterwards extends by words or lines.
 - **Shift+click** selects even in programs that use the mouse (far2l, mc), if `shift-click-select = yes` (default).
   Note: putty4far2l uses Shift+mouse for its own selection; tvterm receives it only if that is turned off there.
-- **Ctrl-B T** starts the selection mode, for programs that use the mouse.
+- **Ctrl-B T T** (Text > Select Text) starts the selection mode, for programs that use the mouse.
 - With a selection: **Ctrl-C** copies it, **Esc** cancels it.
 
 ### Copy and paste
 
 | Where | Copy | Paste |
 |---|---|---|
-| terminal | selection + Ctrl-C | **Shift-Ins**, Ctrl-B P, or the outer terminal's paste (e.g. right click in PuTTY) |
+| terminal | selection + Ctrl-C | **Shift-Ins**, Ctrl-B T P, or the outer terminal's paste (e.g. right click in PuTTY) |
 | far2l inside tvterm | far2l's own keys (Ctrl-C, Ctrl-Ins) | far2l's own keys (Ctrl-V, Shift-Ins) |
 | editor | Ctrl-Ins (Shift-Del cuts) | Shift-Ins |
 | text fields of dialogs | Ctrl-Ins or Ctrl-C (selected text) | Shift-Ins or Ctrl-V |
@@ -699,7 +711,7 @@ tvision's editor keys) does the comment instead. Alt-C arrives through putty4far
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
   first `file-filters` pattern (default `*.txt`); Down in the name field offers the others ([File dialogs](#file-dialogs)).
-- **More... > View file...** shows a file: with `external-viewer` set in `tvterm.ini`, in that program, at once, whatever
+- **Ctrl-B F (View file...)** shows a file: with `external-viewer` set in `tvterm.ini`, in that program, at once, whatever
   the size; otherwise in tvterm's **viewer**.
 - The **Save** dialog of the history and the Log View can open the saved file: **Open after saving**
   ([chapter 4](#save)).
@@ -857,10 +869,10 @@ history-page-down = Ctrl-F6
 ## 7. Profiles
 
 A profile opens a set of windows with their commands, titles, alerts and positions. Open it with `tvterm -p NAME`,
-with **Ctrl-B B**, or as the default profile. **Ctrl-B C** saves the open windows as a profile. **Ctrl-B I** (Load Profile
+with **Ctrl-B P**, or as the default profile. **Ctrl-B C** saves the open windows as a profile. **Ctrl-B I** (Load Profile
 in Editor...) opens a profile file of the same directory in a tvterm editor, to read or change it; nothing is loaded.
 
-**Ctrl-B B** with windows open asks "Close the current windows first?": **Yes** lists the running terminals and Log Views
+**Ctrl-B P** with windows open asks "Close the current windows first?": **Yes** lists the running terminals and Log Views
 (Close / Go to / Cancel), editors with unsaved changes ask to save, then everything closes and the profile opens;
 **No** adds the profile's windows to the open ones; **Cancel** loads nothing.
 
