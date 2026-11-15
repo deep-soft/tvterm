@@ -2,8 +2,8 @@
 
 Development history of the deep-soft/tvterm fork: what was implemented, how it works,
 how it is tested and which pitfalls were found. Reference document, updated with each new
-feature. Romanian version: [HISTORY-ro.md](HISTORY-ro.md); both are kept in sync.
-How to use tvterm today (keys, settings, profiles, examples): [MANUAL.md](MANUAL.md) / [MANUAL-ro.md](MANUAL-ro.md).
+feature. English only (the Romanian versions were removed in E75).
+How to use tvterm today (keys, settings, profiles, examples): [MANUAL.md](MANUAL.md).
 
 Typical setup of this fork's main user: `Far (Windows) → putty4far2l → far2l (on the server) → tvterm → bash / far2l / mc`.
 The outer far2l restores the session when SSH drops; tvterm runs inside it.
@@ -168,6 +168,8 @@ E73. Capture Desk without the desktop background: the background pattern (`░`)
      spaces; the screen does not change
 E74. `[general]` `desktop-pattern` (any one-column character, `space`), `desktop-pattern-on-capture` (`space`, a
      character, `same`), `auto-reload-check` (1-60 s, 2 while the Settings editor is open); `tvterm.ini` format 6
+E75. README: a section about this fork above the original text; COPYRIGHT: a line for deep-soft under magiblot's;
+     `docs/HISTORY-ro.md` and `docs/MANUAL-ro.md` removed (English only)
 
 ---
 
@@ -950,7 +952,7 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `window-list-size`), written by `saveProfile` when > 0; invalid values → the usual warning.
 
 ### Manual — `far2l-extended`
-- `docs/MANUAL.md` (English) and `docs/MANUAL-ro.md` (Romanian), kept in sync (E12): how to use tvterm as it is now —
+- `docs/MANUAL.md` (English; `docs/MANUAL-ro.md`, Romanian, from E12 until E75): how to use tvterm as it is now —
   building and command line, the Ctrl-B menu, terminals and clipboard, history, editor, every `tvterm.ini` key with its
   default, profiles, Event Viewer, alerts, Log View, complete examples (Postfix and Dovecot, fail2ban, nginx, a `tail | awk`
   script, multitail with several views on a firewall log) and known problems. Written from the sources (keys, defaults,
@@ -2230,6 +2232,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| README, COPYRIGHT, English only (`far2l-extended`) | E75 | README: section about the fork (branches, additions, build, versions, license) above magiblot's text; COPYRIGHT: `Copyright (c) 2026 deep-soft …` under magiblot's line, license unchanged; HISTORY-ro / MANUAL-ro removed |
 | Desktop pattern, check interval (`far2l-extended`) | E74 | `[general] desktop-pattern` (any one-column character, `space`; applies at once), `desktop-pattern-on-capture` (`space`, a character, `same`), `auto-reload-check` (1-60 s; 2 while the Settings editor is open); `tvterm.ini` format 6 |
 | Capture without background (`far2l-extended`) | E73 | Capture Desk writes the desktop background (`░`) and the window shadows as spaces; the screen does not change |
 | Mute alerts (`far2l-extended`) | E72 | More... > Mute alerts above level... / Ctrl-B A field / `[alerts] mute-above` (off, 2-5): that level and the less urgent ones (level 1 never) keep their title, `A<n>`, log, Event Viewer list `(muted)`, but are not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) nor on the desktop buttons, and Ctrl-B G / Ctrl-A skip them; until changed, restart, Load Profile or a change of `mute-above` |

@@ -4,7 +4,7 @@ How to use tvterm as it is today, on the `far2l-extended` branch (`far2l-integra
 terminals, clipboard, editor, Event Viewer without filters, profiles, Window List, Tile; not the history,
 `tvterm.ini`, alerts, Log View or `--version`).
 What changed and why is in
-[HISTORY.md](HISTORY.md). Romanian version: [MANUAL-ro.md](MANUAL-ro.md); the two are kept in sync.
+[HISTORY.md](HISTORY.md).
 
 tvterm is a terminal emulator with windows, built on Turbo Vision. It runs inside another terminal
 (e.g. far2l over SSH, PuTTY, xterm) and shows many terminals, editors and filtered log windows on one screen.

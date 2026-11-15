@@ -1,4 +1,48 @@
-# tvterm
+# tvterm (deep-soft fork)
+
+This is [deep-soft/tvterm](https://github.com/deep-soft/tvterm), a fork of
+[magiblot/tvterm](https://github.com/magiblot/tvterm) extended for daily work on servers, typically in the chain
+`Far (Windows) → putty4far2l → far2l (on the server) → tvterm → bash / far2l / mc`. The original README follows
+below, unchanged.
+
+## Branches
+
+| Branch | Content |
+|---|---|
+| `far2l-extended` (default) | the working branch: everything below |
+| `far2l-integration` | generic fixes and the far2l integration only, kept small for pull requests to magiblot |
+| `master` | a copy of magiblot's `master` |
+
+## Main additions (`far2l-extended`)
+
+- Clipboard in every direction (OSC 52, far2l extensions, bracketed paste), far2l keys and vertical blocks.
+- Profiles (windows, positions, commands), desktops 1-9, Window List, top bar, Tile / Cascade around fixed windows.
+- History (scrollback) with search and save; an editor with Find / Replace, undo, backups, read only.
+- Log View: `tail -F` windows with filters, highlight and transformation sets, tables, alerts (levels 1-5, actions,
+  notifications, mute).
+- Settings file `~/.config/tvterm/tvterm.ini` (never written by tvterm itself), Event Viewer, Capture Desk / Window.
+
+How to use it: [docs/MANUAL.md](docs/MANUAL.md). What changed, how and why: [docs/HISTORY.md](docs/HISTORY.md).
+
+## Building
+
+`scripts/build.sh [dynamic|static|both]` builds `bin/tvterm-dynamic` and / or `bin/tvterm-static` (the required
+packages are listed at the top of the script; a static build made on Alpine runs on most Linux systems).
+`tvterm --version` shows the version, commit and build date.
+
+## Versions
+
+Signed tags `vX.Y.Z` with GitHub [Releases](https://github.com/deep-soft/tvterm/releases) at milestones. The first
+line of a `tvterm.ini` made by tvterm says which format and version made it, e.g.
+`## format 6, created by tvterm v0.3.0 (<commit>, built <date>)`.
+
+## License
+
+MIT, as the original: see [COPYRIGHT](COPYRIGHT).
+
+---
+
+# Original README (magiblot/tvterm)
 
 A terminal emulator that runs in your terminal. Powered by Turbo Vision.
 
