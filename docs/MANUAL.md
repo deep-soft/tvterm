@@ -808,7 +808,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -868,6 +868,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `mute-above` | `off` | Mute at start: `2`–`5` mutes that level and the less urgent ones ([Mute](#mute)) |
 | `[capture]` | `folder` | `~/logs/tvterm/capture` | where Capture Desk / Window write their files; created if missing ([Capture](#capture)) |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
+| | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
+| | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
 | | `builtin-highlight` | `yes` | `no`: the highlight sets built into tvterm are not used, only the `[highlight]` sections of `tvterm.ini` ([chapter 10](#colors-highlight)) |
 | `[highlight <name>]` | rules | built-in sets | Log View colors ([chapter 10](#colors-highlight)) |
 | `[transform <name>]` | rules | (none) | Log View transformations: the text shown ([chapter 10](#transformations)) |
@@ -1277,7 +1279,9 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 terminals that send keys with their modifiers; in a plain terminal it arrives as Ctrl-E (new editor): use F9 > To open
 editor there. Until E58 this key was Ctrl-A, which now goes to the next alert, as in the Event Viewer.
 
-**Cursor line** (black on cyan): with the cursor on the last line, new lines are followed; anywhere higher, the view
+**Cursor line** (black on cyan, only in the focused window; selected lines: black on white; both set by `[logview]
+cursor-color` / `selection-color` in `tvterm.ini`, e.g. `cursor-color = black on bright-white`, applied at once; these
+lines are shown without the highlight colors): with the cursor on the last line, new lines are followed; anywhere higher, the view
 stays put and `[+N]` counts the new lines; **End** follows again. The mouse wheel and the scroll bar move only the view;
 at the bottom, following starts again.
 

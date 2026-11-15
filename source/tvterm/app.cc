@@ -314,6 +314,18 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
                     w->frame->drawView();
             }, nullptr);
     }
+    // [logview] cursor-color, selection-color (E80): the Log Views (and the
+    // Event Viewer) keep their drawing in a buffer, so they are drawn again.
+    {
+        static int lastColors = -1;
+        int colors = currentSettings.cursorColor << 8 | currentSettings.selectionColor;
+        if (lastColors != -1 && colors != lastColors && TProgram::deskTop)
+            TProgram::deskTop->forEach([] (TView *v, void *) {
+                if ((v->state & sfVisible) && (dynamic_cast<LogViewWindow *>(v) || dynamic_cast<TEventViewer *>(v)))
+                    v->drawView();
+            }, nullptr);
+        lastColors = colors;
+    }
     // [general] window-shadow: the desktop windows already open.
     applyWindowShadowToAll();
     // [general] editor-selection: the editors already open (the color is

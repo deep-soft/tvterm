@@ -141,8 +141,10 @@ enum : ushort { hiLogList = 77 };    // Never added to: the lists of the other f
 // Colors (background, foreground): like a terminal.
 static const TColorAttr colNormal = 0x07;   // Light gray on black.
 static const TColorAttr colMarker = 0x0E;   // Yellow on black.
-static const TColorAttr colSelected = 0x70; // Black on light gray.
-static const TColorAttr colCursor = 0x30;   // Black on cyan (focused window only).
+// The cursor line (focused window only) and the selection: [logview]
+// cursor-color, selection-color (E80; black on cyan, black on light gray).
+static TColorAttr colSelected() { return TColorAttr(TVTermApp::settings().selectionColor); }
+static TColorAttr colCursor() { return TColorAttr(TVTermApp::settings().cursorColor); }
 static const TColorAttr colMatch = 0xE0;    // Black on yellow.
 static const TColorAttr colChecked = 0x08;  // Dark gray on black (the checked marker).
 static const TColorAttr colWord = 0x1F;     // White on blue (the double-clicked word).
@@ -352,11 +354,16 @@ void LogViewInterior::draw()
             const std::string raw = w.displayText(seq);
             text = expandTabs(raw);
             bool isCursor = (w.state & sfFocused) && w.isCursor(seq);
-            TColorAttr attr = isCursor ? colCursor :
-                              w.isSelected(seq) ? colSelected :
+            bool isSel = !isCursor && w.isSelected(seq);
+            bool isMarker = w.source->line(seq).marker;
+            TColorAttr attr = isCursor ? colCursor() :
+                              isSel ? colSelected() :
                               isMark ? colChecked :
-                              w.source->line(seq).marker ? colMarker : colNormal;
-            if (attr != colNormal && attr != colMarker && attr != colChecked)
+                              isMarker ? colMarker : colNormal;
+            // Only these plain lines get the highlight colors (E80: any
+            // color can be set for the cursor and the selection).
+            bool plain = !isCursor && !isSel && !isMark && !isMarker;
+            if (isCursor || isSel)
                 b.moveChar(0, ' ', attr, size.x);
             int matchB = -1, matchE = -1;
             if (w.hasMatch && w.matchSeq == seq)
@@ -382,7 +389,7 @@ void LogViewInterior::draw()
             }
             // Highlight: not on the cursor line, the selection and the
             // markers; the search match is drawn over it.
-            if (attr == colNormal && w.highlightActive())
+            if (plain && w.highlightActive())
             {
                 auto it = w.hlCache.find(seq);
                 if (it == w.hlCache.end())

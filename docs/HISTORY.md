@@ -179,6 +179,8 @@ E78. Scroll Log Views to last (item 37): More... `t` and Event Viewer Ctrl-L (`k
      its last line, following again (not with a selection or a search match, not fixed lines); Event Viewer F9 menu
 E79. Editor indent / unindent (item 38): Alt-I / Alt-U (`key-editor-indent`, `key-editor-unindent`): one space at the
      start of the line or of the selected lines; empty lines stay; a leading Tab becomes 4 spaces first; one undo step
+E80. `[logview] cursor-color` (black on cyan) and `selection-color` (black on white) (item 40): the cursor line and
+     the selected lines of the Log Views (and of the Event Viewer, E81); applied at once
 
 ---
 
@@ -692,6 +694,14 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   `moveToEnd()` does what End does (pause off, cursor on the last line, `follow`, `scrollToEnd`) unless the window has a
   selection (`hasSel`) or a search match (`hasMatch`); status `N Log View(s) moved to end.` + `; K kept (selection or
   search)` when some were left.
+- **Cursor and selection colors** (E80, item 40, agreed in chat 73): `colCursor()` / `colSelected()` read
+  `Settings::cursorColor` / `selectionColor` (`[logview] cursor-color`, `selection-color`, parsed by `parseColorName`
+  like `editor-selection`; invalid: a note, the previous value). The drawing no longer compares the color with
+  `colNormal` to decide whether a line gets the highlight colors (`plain`: not cursor, not selected, not the checked
+  marker, not a tvterm line), so any color can be set. `reloadSettings` draws the visible Log Views and the Event
+  Viewer again when one of the two changes. The user chose `cursor-color = black on bright-white` with `selection-color
+  = black on cyan` (tried with a `[highlight cursor-test]` set of `line` rules in the real setup); the defaults stay, so
+  terminals without bright backgrounds keep a readable cursor.
 
 ### Log View highlighting — `far2l-extended`
 - E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
@@ -2204,6 +2214,10 @@ examples/profiles/example.ini
   Alt-U → `Nothing to unindent.`. Without a selection: End on ` gamma`, Alt-U, Alt-I ×2, typing `X` → `  gammaX` (the
   cursor kept its place); Alt-U at the start of `\tbeta` → `   beta`, Ctrl-Z → `\tbeta`; Alt-I on the empty line →
   `Nothing to indent: empty line.`; F9 Read only, Alt-I → `Read only.`.
+- E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
+  (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
+  `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
+  `cursor-color = pink` → `invalid cursor-color 'pink' (unknown color 'pink'; …); keeping the previous value`.
 
 ## 6. Known limitations
 
@@ -2310,6 +2324,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Cursor and selection colors (`far2l-extended`) | E80 | `[logview] cursor-color` (default black on cyan) and `selection-color` (black on white): the cursor line and the selected lines of the Log Views and the Event Viewer, any `<color> on <color>`; applied at once |
 | Editor indent / unindent (`far2l-extended`) | E79 | Alt-I / Alt-U (`[keys] key-editor-indent` / `key-editor-unindent`): one space added / removed at the start of the line or of the selected lines (selection kept, repeatable); empty lines untouched; a leading Tab becomes 4 spaces before one is removed; one undo step; read only refused |
 | Scroll Log Views to last (`far2l-extended`) | E78 | More... `t` / Event Viewer Ctrl-L (`[keys] key-logviews-end`) / its F9 menu: every Log View (all desktops) to its last line, following again; not those with a selection or a search match, nor fixed lines; status `N Log View(s) moved to end.`; Event Viewer F9 / right click menu (Scroll Log Views to last, Next Desk, Previous Desk) |
 | Help, Event Viewer Desks, `desktop-main` name (`far2l-extended`) | E77 | F1 (not in terminals), More... > Keys (Help)..., About > Keys...: the keys of every kind of window (configured ones as set), the current section at the top with a yellow title, `[general] help-current-first`; Event Viewer Ctrl-Right / Ctrl-Left: next / previous Desk with windows, the viewer keeps the focus; `desktop-main = <name>`; `tvterm.ini` format 7 |

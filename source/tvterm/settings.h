@@ -31,7 +31,8 @@ const int minFileDialogHeight = 19;
 // notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
 // mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
 // desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77),
-// [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79).
+// [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79),
+// [logview] cursor-color, selection-color (E80).
 const int settingsFormat = 7;
 
 struct Settings
@@ -122,6 +123,11 @@ struct Settings
     // builtin-highlight: the highlight sets built into tvterm (no: only the
     // [highlight] sections of tvterm.ini).
     bool builtinHighlight {true};
+    // cursor-color / selection-color (E80): the cursor line (focused
+    // window) and the selected lines of the Log Views (and of the Event
+    // Viewer, E81), BIOS attributes (black on cyan, black on white).
+    uint8_t cursorColor {0x30};
+    uint8_t selectionColor {0x70};
     // [highlight <name>]: highlight sets for Log View (see highlight.h).
     std::vector<HighlightSection> highlight;
     // [transform <name>]: transformation sets for Log View (see transform.h).

@@ -604,6 +604,18 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseInt(value, 100, 1000000, settings.logViewMaxLines))
                     invalid("100 to 1000000"), settings.logViewMaxLines = previous.logViewMaxLines;
             }
+            else if (key == "cursor-color" || key == "selection-color")
+            {
+                bool cursor = key == "cursor-color";
+                std::string error;
+                int attr = 0;
+                if (parseColorName(value, attr, error))
+                    (cursor ? settings.cursorColor : settings.selectionColor) = (uint8_t) attr;
+                else
+                    invalid(error + "; e.g. black on cyan, black on bright-white"),
+                    (cursor ? settings.cursorColor : settings.selectionColor) =
+                        cursor ? previous.cursorColor : previous.selectionColor;
+            }
             else if (key == "builtin-highlight")
             {
                 if (!parseBool(value, settings.builtinHighlight))
@@ -853,6 +865,12 @@ std::string settingsTemplate()
         "  # The highlight sets built into tvterm (listed below): yes, or no to use only\n"
         "  # the [highlight] sections of this file.\n"
         " #builtin-highlight = " + std::string(d.builtinHighlight ? "yes" : "no") + "\n"
+        "  # Colors of the cursor line (in the focused window) and of the selected\n"
+        "  # lines, in the Log Views and the Event Viewer: <color> on <color> (the\n"
+        "  # highlight colors below), e.g. black on bright-white. Highlight colors\n"
+        "  # are not shown on these lines.\n"
+        " #cursor-color = black on cyan\n"
+        " #selection-color = black on white\n"
         "\n"
         "  # Highlight sets for Log View (F4 > Highlight sets, e.g. 'syslog kv'; H turns\n"
         "  # the colors on/off). Built-in sets: levels timestamps kv syslog nginx\n"
