@@ -212,7 +212,8 @@ shows as UTF-8 text, with the frames and without colors, into the folder `[captu
 (`-2` added for a second file in the same second). The status line shows the path.
 
 - **Desk**: the whole area between the top bar and the status line, every row as wide as the screen, spaces where
-  there is no window, trailing spaces kept (an exact rectangle); a dialog on the screen is included.
+  there is no window (the desktop background `░` and the window shadows are written as spaces), trailing spaces kept
+  (an exact rectangle); a dialog on the screen is included.
 - **Window**: the focused window at its size, with its frame (a window of 80 × 25 gives 25 rows of 80 columns): its
   own content, also where another window covers it. A terminal: its screen, without the history.
 - A wide character (CJK, emoji) takes two columns on the screen and is one character in the file, so its row is one

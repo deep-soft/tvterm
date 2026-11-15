@@ -164,6 +164,8 @@ E71. Capture Desk (Ctrl-F10) / Capture Window (Ctrl-F11), also in More...: the s
      to `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5
 E72. Mute alerts (More... > Mute alerts above level..., Ctrl-B A field, `[alerts] mute-above`): levels n-5 (n = 2-5;
      level 1 never) kept but not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) and skipped by Ctrl-B G / Ctrl-A
+E73. Capture Desk without the desktop background: the background pattern (`░`) and the window shadows are written as
+     spaces; the screen does not change
 
 ---
 
@@ -1213,6 +1215,11 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   - File `<folder>/dsk-YYYY-MM-DD-hhmmss.txt` / `wnd-…` (local time; `-2`, `-3`… in the same second); the folder is
     created; status line `Desk captured: <path>` / `Window captured: <path>` / `Capture failed: …`. `[capture] folder`
     (`tvterm.ini` format 5).
+- **E73** (chat 71, variant a): the desktop background is captured as spaces. In `captureDesk` the pattern of
+  `deskTop->background` is set to `' '` and the background is drawn again (`drawView()`: only its uncovered parts,
+  clipped by the windows), the screen buffer is read, the pattern is set back and drawn again. Both drawings happen
+  before the next `flushScreen`, so the terminal gets no change. Window shadows are colors only (the characters under
+  them are the background's), so they become spaces too. Capture Window is unchanged.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -2091,6 +2098,10 @@ examples/profiles/example.ini
   Viewer A: `--- Active alerts (1; levels 2-5 muted) ---`, `… Log: L5 (muted)`. Mute changed to Off in tvterm, then
   `tvterm.ini` changed only in `seen-color` + reload → still Off; `mute-above = 3` → `(muted 3-5)`; `mute-above = 7`
   → one problem, `(muted 3-5)` kept.
+- E73, tmux 120x40, `LANG=C.UTF-8`, `-p none`, an editor (60x15 at the top left) with `window-shadow = yes`: Ctrl-F10
+  → `dsk-…` has no `░`, the rows outside the editor are spaces (also its shadow), the frame and text are the same as
+  before E73; the screen (`capture-pane`) is the same before and after the capture (`░` still there); a second capture
+  gives the same file.
 
 ## 6. Known limitations
 
@@ -2197,6 +2208,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Capture without background (`far2l-extended`) | E73 | Capture Desk writes the desktop background (`░`) and the window shadows as spaces; the screen does not change |
 | Mute alerts (`far2l-extended`) | E72 | More... > Mute alerts above level... / Ctrl-B A field / `[alerts] mute-above` (off, 2-5): that level and the less urgent ones (level 1 never) keep their title, `A<n>`, log, Event Viewer list `(muted)`, but are not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) nor on the desktop buttons, and Ctrl-B G / Ctrl-A skip them; until changed, restart, Load Profile or a change of `mute-above` |
 | Capture Desk / Window (`far2l-extended`) | E71 | More... > Capture Desk (`d`, Ctrl-F10) / Capture Window (`i`, Ctrl-F11; the keys only when the active window is not a terminal, also in dialogs): the text on the screen with frames, no colors, exact rectangle (Window: its own content even where covered), into `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5 |
 | Menu regrouped (`far2l-extended`) | E70 | Ctrl-B: `Windows ►` (`Z`: Zoom `Z`, Tile Columns `C` / Rows `R`, Tile in N Columns `L` / Rows `S`, Cascade `A`, Grab Input `G`, Resize/Move `M`), `Text ►` (`T`: Select Text `T`, Paste `P`), View file `F`, Load Profile `P` (was `B`); More... keeps Change working dir `w`, Log Views, Clear non-urgent alerts, Edit / Reload settings (`r`), Suspend, About; free B J K R U X |
