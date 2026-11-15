@@ -1059,12 +1059,19 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-A | goes to the next alert (like Ctrl-B G) |
 | F8 | clears the alerts of levels 2-5 (like More... > Clear non-urgent alerts): `Alerts of levels 2-5 cleared: N.` |
 | Ctrl-Right / Ctrl-Left | shows the next / previous desktop (1-9) that has windows, skipping the empty ones; no wrap-around (at the last one: `No Desk with windows after D5.`); the Event Viewer keeps the focus and no window of those desktops gets it (Ctrl-B 1-9 then focuses as usual) |
+| Up / Down, PgUp / PgDn, Home / End | move the cursor line (`cursor-color`, only while the window is focused); on the last line new lines are followed, higher up the view stays |
+| Shift + those keys, click, drag, Shift+click | select lines (`selection-color`); while a selection exists the window does not scroll |
+| Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `tvterm: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
+| Esc | clears the selection; the window goes back to the end and follows the new lines |
 | Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
 | F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk |
 | F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
 
-Ctrl-Right / Ctrl-Left are shown in the window with K+ (unlike the letters above).
+Ctrl-Right / Ctrl-Left are shown in the window with K+; the other keys of the table are not shown while the Event
+Viewer is focused (to see what such a key sends, press it with another window focused). The mouse wheel scrolls the
+view; at the bottom it follows again. The colors of the cursor line and the selection are those of the Log Views
+(`[logview] cursor-color`, `selection-color`).
 
 The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
 counted (`Received event #N` skips numbers). Profiles keep the filters (`[eventviewer]`).

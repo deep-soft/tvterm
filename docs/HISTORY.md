@@ -181,6 +181,8 @@ E79. Editor indent / unindent (item 38): Alt-I / Alt-U (`key-editor-indent`, `ke
      start of the line or of the selected lines; empty lines stay; a leading Tab becomes 4 spaces first; one undo step
 E80. `[logview] cursor-color` (black on cyan) and `selection-color` (black on white) (item 40): the cursor line and
      the selected lines of the Log Views (and of the Event Viewer, E81); applied at once
+E81. Event Viewer: cursor line, selection and copy (item 39), with the keys and the behavior of Log View; while a
+     selection exists the window does not scroll, Esc follows the end again
 
 ---
 
@@ -346,6 +348,18 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
 
 ### Event Viewer filters — `far2l-extended`
+- **Cursor line, selection, copy** (E81, item 39, agreed in chat 72): `EventTerminal` is no longer a `TTerminal` (a
+  ring of bytes without lines) but a `TTextDevice` that keeps `std::deque<std::string>` lines up to the buffer size
+  (64000 bytes, the oldest dropped; no more 16-bit limit), numbered from the first line ever written (`base`), so the
+  cursor and the selection stay on their text while old lines go. Keys (handled before the window's other keys; the
+  scroll bar no longer takes the keyboard): Up / Down / PgUp / PgDn / Home / End (Ctrl-Home / Ctrl-End) move the cursor
+  line, with Shift they select; Ctrl-C / Ctrl-Ins copy the selection or the cursor line exactly as shown, without the
+  last line break (`TClipboard::setText`, status `Copied N line(s) to the clipboard.`); Esc clears the selection and
+  follows the end again (without a selection Esc does what it did before). Mouse: a click selects its line, drag and
+  Shift+click extend, the wheel scrolls (3 lines; at the bottom: following again). `follow` (cursor on the last line)
+  scrolls with new lines only while there is no selection. The cursor line is drawn only while the window is focused
+  (`setState` draws it again), in `cursor-color`; the selection in `selection-color` (E80). These keys are own keys
+  while the viewer is focused (`EventTerminal::isKey`, not printed as events), so moving does not add lines.
 - **Ctrl-L and F9** (E78, item 37): `key-logviews-end` (`[keys]`, default Ctrl-L, `none` possible) sends
   `cmLogViewsToEnd`; F9 or a right click inside it opens `TEventViewer::openMenu`: `Scroll Log Views to las~t~` (with
   the key as set), `~N~ext Desk` (Ctrl-Right), `~P~revious Desk` (Ctrl-Left). Both are own keys (`ownKey`:
@@ -376,7 +390,7 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   `cmShowAlerts` from the viewer); each `AlertTarget` gives an `AlertInfo` (time of the current kind, mark, title, group, line).
   E38: after the time, the desktop of the window, the same text as the Window List column (`desktopColumn`: `*D1` current,
   ` 2:mail` named), padded to the widest one in the list (`strwidth`), so the marks start in one column.
-- Buffer: 64000 bytes (about 220 events with all their lines), instead of 3840; Turbo Vision's `TTerminal` limits it to
+- Buffer (until E81, then lines: see above): 64000 bytes (about 220 events with all their lines), instead of 3840; Turbo Vision's `TTerminal` limits it to
   32000, so tvterm's `EventTerminal` replaces the buffer after construction (positions are 16-bit, up to 65535).
 - Profiles: `[eventviewer]` accepts `mouse-move`, `mouse-clicks`, `keys`, `other`, `tvterm-messages` (yes/no); Save Profile As
   writes all five, with a comment explaining the letters. Missing keys get the defaults; invalid values are reported like
@@ -2218,6 +2232,14 @@ examples/profiles/example.ini
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
   `cursor-color = pink` → `invalid cursor-color 'pink' (unknown color 'pink'; …); keeping the previous value`.
+- E81, tmux 200x45, a full-size Event Viewer (profile): the cursor (`30m 46m`) on the last line; Up ×3, Shift-Up ×2 →
+  three lines black on white with the cursor on the first; Ctrl-C → `Copied 3 line(s) to the clipboard.` and `tmux
+  show-buffer` (OSC 52, `set-clipboard on`) has exactly those three lines, no final line break; Ctrl-Right / Ctrl-Left
+  added two events (`#12`, `#13`) while the screen row of the cursor did not move; Esc → the end, the cursor on the last
+  line. Drag with the mouse (SGR press, move, release through `TIOCSTI`) over rows 10-12 → three lines selected, Ctrl-C
+  copies 3. A terminal and the Event Viewer side by side: 400 key events typed in the terminal (about 6000 lines, far
+  over 64000 bytes): numbers up to `#400`, no crash, no cursor line while the viewer is not focused; a click on it, End,
+  Up, Ctrl-C → 1 line copied.
 
 ## 6. Known limitations
 
@@ -2324,6 +2346,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Event Viewer select and copy (`far2l-extended`) | E81 | Event Viewer: cursor line and selection like Log View (Up / Down / PgUp / PgDn / Home / End, Shift, click, drag, Shift+click, wheel), Ctrl-C / Ctrl-Ins copy exactly what is shown, Esc clears the selection and follows again; no scrolling while a selection exists; lines kept up to 64000 bytes |
 | Cursor and selection colors (`far2l-extended`) | E80 | `[logview] cursor-color` (default black on cyan) and `selection-color` (black on white): the cursor line and the selected lines of the Log Views and the Event Viewer, any `<color> on <color>`; applied at once |
 | Editor indent / unindent (`far2l-extended`) | E79 | Alt-I / Alt-U (`[keys] key-editor-indent` / `key-editor-unindent`): one space added / removed at the start of the line or of the selected lines (selection kept, repeatable); empty lines untouched; a leading Tab becomes 4 spaces before one is removed; one undo step; read only refused |
 | Scroll Log Views to last (`far2l-extended`) | E78 | More... `t` / Event Viewer Ctrl-L (`[keys] key-logviews-end`) / its F9 menu: every Log View (all desktops) to its last line, following again; not those with a selection or a search match, nor fixed lines; status `N Log View(s) moved to end.`; Event Viewer F9 / right click menu (Scroll Log Views to last, Next Desk, Previous Desk) |

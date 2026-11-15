@@ -154,6 +154,10 @@ static std::vector<Entry> entries(help::Section s)
                 {"Ctrl-Right / Ctrl-Left", "show the next / previous Desk with windows"},
                 {keyOf(st.keyLogViewsEnd), "every Log View to its last line (key-logviews-end)"},
                 {"F9, right click", "the window's menu"},
+                {"Up Down PgUp PgDn Home End", "move the cursor line (End: follow new lines)"},
+                {"Shift + those, click, drag", "select lines (no scrolling until Esc)"},
+                {"Ctrl-C or Ctrl-Ins", "copy the selection, or else the cursor line"},
+                {"Esc", "clear the selection, follow new lines again"},
             };
         default:
             return {};

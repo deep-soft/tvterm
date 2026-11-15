@@ -28,6 +28,10 @@
 //               (E77; the viewer keeps the focus; shown with K+)
 //   Ctrl-L      (key-logviews-end, E78) every Log View to its last line
 //   F9          the window's menu (also a right click; E78)
+//   Up Down PgUp PgDn Home End  move the cursor line (Shift: select;
+//               also a click, drag, Shift+click), Ctrl-C / Ctrl-Ins copy
+//               the selection or the cursor line, Esc clear the selection
+//               (E81, like Log View; not shown as events)
 
 class TScrollBar;
 class EventTerminal;
@@ -47,10 +51,11 @@ class TEventViewer : public TWindow
 
 public:
 
-    // 'aBufSize': size of the text kept, in bytes (up to 65000).
+    // 'aBufSize': size of the text kept, in bytes.
     TEventViewer(const TRect &bounds, ushort aBufSize, const EventFilter &aFilter = EventFilter()) noexcept;
 
     void handleEvent(TEvent &ev) override;
+    void setState(ushort aState, Boolean enable) override;
     void shutDown() override;
 
     void toggle();

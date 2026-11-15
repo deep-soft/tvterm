@@ -1,7 +1,9 @@
 #define Uses_TEvent
 #define Uses_TKeys
 #define Uses_TFrame
-#define Uses_TTerminal
+#define Uses_TTextDevice
+#define Uses_TDrawBuffer
+#define Uses_TClipboard
 #define Uses_TScrollBar
 #define Uses_TProgram
 #define Uses_TApplication
@@ -15,7 +17,10 @@
 #include "apputil.h"
 #include "app.h"
 #include "settings.h"
+#include "statline.h"
 
+#include <algorithm>
+#include <deque>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -23,28 +28,289 @@
 #include <string.h>
 #include <utility>
 
-// A TTerminal whose buffer can be larger than the 32000 bytes Turbo Vision
-// allows (its positions are 16-bit, so up to 65535), and can be cleared.
-class EventTerminal : public TTerminal
+// The text of the Event Viewer (E81: was a TTerminal): lines kept up to
+// 'bufSize' bytes (the oldest dropped), a cursor line, a selection of whole
+// lines and copy, with the keys and the behavior of Log View:
+// Up/Down PgUp/PgDn Home/End move the cursor line (Shift: select), a
+// click / drag selects, Shift+click extends, Ctrl-C / Ctrl-Ins copy the
+// selection (or the cursor line), Esc clears the selection. With the
+// cursor on the last line and no selection, new lines are followed; a
+// selection stops the scrolling until Esc (then the end is followed again).
+// Lines are numbered from the first line ever written ('base' is the
+// number of lines[0]), so the cursor and the selection stay on their text
+// when old lines are dropped. Copy takes the text exactly as shown.
+class EventTerminal : public TTextDevice
 {
 public:
 
-    EventTerminal(const TRect &bounds, TScrollBar *vScrollBar, ushort aBufSize) noexcept :
-        TTerminal(bounds, nullptr, vScrollBar, 1024)
+    EventTerminal(const TRect &bounds, TScrollBar *vScrollBar, size_t aBufSize) noexcept :
+        TTextDevice(bounds, nullptr, vScrollBar),
+        bufSize(aBufSize)
     {
-        if (aBufSize > bufSize)
+        growMode = gfGrowHiX + gfGrowHiY;
+        eventMask |= evMouseWheel;
+        lines.push_back(std::string());
+    }
+
+    int do_sputn(const char *s, int count) override
+    {
+        for (int i = 0; i < count; ++i)
         {
-            delete[] buffer;
-            bufSize = aBufSize;
-            buffer = new char[bufSize];
+            if (s[i] == '\n')
+            {
+                lines.push_back(std::string());
+                ++bytes;
+            }
+            else if (s[i] != '\r')
+            {
+                lines.back() += s[i];
+                ++bytes;
+            }
         }
+        while (bytes > bufSize && lines.size() > 1)
+        {
+            bytes -= lines.front().size() + 1;
+            lines.pop_front();
+            ++base;
+            if (delta.y > 0)
+                --delta.y;
+        }
+        changed();
+        return count;
     }
 
     void clear()
     {
-        queFront = queBack = 0;
-        setLimit(0, 1);
-        scrollTo(0, 0);
+        lines.clear();
+        lines.push_back(std::string());
+        base += 1000000; // Old numbers never match new lines.
+        bytes = 0;
+        hasSel = false;
+        follow = true;
+        changed();
+    }
+
+    void draw() override
+    {
+        TColorAttr normal = getColor(1);
+        bool focused = owner && (owner->state & sfFocused);
+        uint64_t cur = cursorNo();
+        for (int y = 0; y < size.y; ++y)
+        {
+            TDrawBuffer b;
+            b.moveChar(0, ' ', normal, size.x);
+            size_t i = (size_t) (delta.y + y);
+            if (i < shownCount())
+            {
+                uint64_t no = base + i;
+                TColorAttr attr = focused && no == cur ? TColorAttr(TVTermApp::settings().cursorColor) :
+                                  isSelected(no) ? TColorAttr(TVTermApp::settings().selectionColor) : normal;
+                if (attr != normal)
+                    b.moveChar(0, ' ', attr, size.x);
+                b.moveStr(0, lines[i], attr, size.x, delta.x);
+            }
+            writeLine(0, y, size.x, 1, b);
+        }
+    }
+
+    // A key of the cursor and the selection (E81); true if it was one.
+    bool handleKey(TEvent &ev)
+    {
+        if (ev.what != evKeyDown)
+            return false;
+        TKey key(ev.keyDown);
+        bool shift = (key.mods & kbShift) != 0;
+        TKey plain(key.code, key.mods & ~kbShift);
+        long n = (long) shownCount();
+        long cur = (long) (cursorNo() - base);
+        long page = std::max(1, size.y - 1);
+        if (plain == TKey(kbUp)) moveCursor(cur - 1, shift);
+        else if (plain == TKey(kbDown)) moveCursor(cur + 1, shift);
+        else if (plain == TKey(kbPgUp)) moveCursor(cur - page, shift);
+        else if (plain == TKey(kbPgDn)) moveCursor(cur + page, shift);
+        else if (plain == TKey(kbHome) || plain == TKey(kbCtrlHome)) moveCursor(0, shift);
+        else if (plain == TKey(kbEnd) || plain == TKey(kbCtrlEnd))
+        {
+            moveCursor(n - 1, shift);
+            if (!shift)
+                follow = true;
+        }
+        else if (key == TKey(kbCtrlC) || key == TKey(kbCtrlIns)) copy();
+        else if (key == TKey(kbEsc))
+        {
+            if (!hasSel)
+                return false;
+            // The scrolling stopped by the selection goes on: to the end.
+            hasSel = false;
+            follow = true;
+            changed();
+        }
+        else
+            return false;
+        clearEvent(ev);
+        return true;
+    }
+
+    // Whether 'ev' would be handled by handleKey (not shown as an event).
+    static bool isKey(const TEvent &ev)
+    {
+        if (ev.what != evKeyDown)
+            return false;
+        TKey key(ev.keyDown);
+        TKey plain(key.code, key.mods & ~kbShift);
+        for (ushort code : {kbUp, kbDown, kbPgUp, kbPgDn, kbHome, kbEnd, kbCtrlHome, kbCtrlEnd})
+            if (plain == TKey(code))
+                return true;
+        return key == TKey(kbCtrlC) || key == TKey(kbCtrlIns) || key == TKey(kbEsc);
+    }
+
+    void handleEvent(TEvent &ev) override
+    {
+        TTextDevice::handleEvent(ev);
+        if (ev.what == evMouseWheel)
+        {
+            int step = ev.mouse.wheel == mwUp ? -3 : ev.mouse.wheel == mwDown ? 3 : 0;
+            if (step)
+            {
+                scrollTo(delta.x, std::max(0, std::min(delta.y + step, maxTop())));
+                // At the bottom, following starts again (no selection).
+                if (!hasSel && delta.y >= maxTop())
+                {
+                    follow = true;
+                    changed();
+                }
+                else
+                    follow = false;
+            }
+            clearEvent(ev);
+        }
+        else if (ev.what == evMouseDown && (ev.mouse.buttons & mbLeftButton))
+        {
+            TPoint p = makeLocal(ev.mouse.where);
+            long i = delta.y + p.y;
+            if (i < 0 || i >= (long) shownCount())
+            {
+                clearEvent(ev);
+                return;
+            }
+            uint64_t no = base + i;
+            if ((ev.mouse.controlKeyState & kbShift) && !hasSel)
+                selAnchor = cursorNo();
+            else if (!(ev.mouse.controlKeyState & kbShift))
+                selAnchor = no;
+            hasSel = true;
+            selCursor = cursor = no;
+            follow = false;
+            drawView();
+            while (mouseEvent(ev, evMouseMove | evMouseAuto))
+            {
+                p = makeLocal(ev.mouse.where);
+                if (p.y < 0)
+                    scrollTo(delta.x, std::max(0, delta.y - 1)), p.y = 0;
+                else if (p.y >= size.y)
+                    scrollTo(delta.x, std::min(maxTop(), delta.y + 1)), p.y = size.y - 1;
+                long j = std::min((long) shownCount() - 1, (long) delta.y + p.y);
+                selCursor = cursor = base + j;
+                drawView();
+            }
+            clearEvent(ev);
+        }
+    }
+
+private:
+
+    size_t bufSize;
+    std::deque<std::string> lines; // The last one: the line being written.
+    size_t bytes {0};
+    uint64_t base {0};
+    uint64_t cursor {0};
+    bool follow {true};
+    bool hasSel {false};
+    uint64_t selAnchor {0}, selCursor {0};
+
+    // The lines shown: the last one only if something is written in it.
+    size_t shownCount() const
+    {
+        return lines.size() - (lines.size() > 1 && lines.back().empty() ? 1 : 0);
+    }
+
+    uint64_t cursorNo() const
+    {
+        uint64_t last = base + shownCount() - 1;
+        if (follow && !hasSel)
+            return last;
+        return std::max(base, std::min(cursor, last));
+    }
+
+    int maxTop() const
+    {
+        return std::max(0, (int) shownCount() - size.y);
+    }
+
+    bool isSelected(uint64_t no) const
+    {
+        if (!hasSel)
+            return false;
+        uint64_t a = std::min(selAnchor, selCursor), b = std::max(selAnchor, selCursor);
+        return no >= a && no <= b;
+    }
+
+    void moveCursor(long index, bool extend)
+    {
+        long n = (long) shownCount();
+        index = std::max(0L, std::min(index, n - 1));
+        uint64_t from = cursorNo();
+        if (extend)
+        {
+            if (!hasSel)
+            {
+                hasSel = true;
+                selAnchor = from;
+            }
+            selCursor = base + index;
+        }
+        else
+            hasSel = false;
+        cursor = base + index;
+        follow = !hasSel && index == n - 1;
+        // The cursor line on the screen.
+        if (index < delta.y)
+            scrollTo(delta.x, (int) index);
+        else if (index >= delta.y + size.y)
+            scrollTo(delta.x, (int) index - size.y + 1);
+        drawView();
+    }
+
+    void copy()
+    {
+        std::string text;
+        size_t count = 0;
+        uint64_t a = cursorNo(), b = a;
+        if (hasSel)
+            a = std::min(selAnchor, selCursor), b = std::max(selAnchor, selCursor);
+        for (uint64_t no = std::max(a, base); no <= b && no - base < shownCount(); ++no)
+        {
+            text += lines[no - base] + "\n";
+            ++count;
+        }
+        if (count == 0)
+        {
+            TVTermStatusLine::showMessage("Nothing to copy: the window is empty.");
+            return;
+        }
+        // Without the last line break (pasting into a shell would run it).
+        text.pop_back();
+        TClipboard::setText(text);
+        TVTermStatusLine::showMessage("Copied " + std::to_string(count) + " line(s) to the clipboard.");
+    }
+
+    // After new text, a clear, Esc: the limits, and the end when following
+    // (not while a selection exists).
+    void changed()
+    {
+        setLimit(1, (int) shownCount());
+        if (follow && !hasSel)
+            scrollTo(0, maxTop());
         drawView();
     }
 };
@@ -57,10 +323,19 @@ TEventViewer::TEventViewer(const TRect &bounds, ushort aBufSize, const EventFilt
     eventMask |= evBroadcast;
     helpCtx = hcEventViewer;
     updateTitle();
-    TScrollBar *scrollBar = standardScrollBar(sbVertical | sbHandleKeyboard);
+    // The keys are the viewer's own (E81): the scroll bar takes none.
+    TScrollBar *scrollBar = standardScrollBar(sbVertical);
     interior = new EventTerminal(getExtent().grow(-1, -1), scrollBar, aBufSize);
     insert(interior);
     out = new std::ostream(interior);
+}
+
+void TEventViewer::setState(ushort aState, Boolean enable)
+{
+    TWindow::setState(aState, enable);
+    // The cursor line is shown only in the focused window.
+    if ((aState & (sfFocused | sfSelected | sfActive)) && interior)
+        interior->drawView();
 }
 
 void TEventViewer::shutDown()
@@ -145,7 +420,7 @@ static char ownKey(const TEvent &ev)
 
 bool TEventViewer::isOwnKey(const TEvent &ev)
 {
-    return (state & sfFocused) && evntview::ownKey(ev);
+    return (state & sfFocused) && (evntview::ownKey(ev) || EventTerminal::isKey(ev));
 }
 
 void TEventViewer::print(const TEvent &ev)
@@ -252,6 +527,9 @@ void TEventViewer::handleEvent(TEvent &ev)
         clearEvent(ev);
         return;
     }
+    // The cursor line, the selection and copy (E81).
+    if ((state & sfFocused) && interior && interior->handleKey(ev))
+        return;
     // Ctrl-Right / Ctrl-Left (E77): the next / previous Desk with windows;
     // the viewer keeps the focus. Not own keys: shown with K+.
     if ( ev.what == evKeyDown && (state & sfFocused) &&
