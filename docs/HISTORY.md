@@ -175,6 +175,8 @@ E76. Version `v0.3.0`: shown with a `v` (`--version`, About, Event Viewer, `## f
 E77. Help (item 31, P2): F1 outside terminals, More... > Keys (Help)..., About > Keys...: every key, by kind of window,
      configured keys as set, the current section on top (yellow title), `help-current-first`; Event Viewer Ctrl-Right /
      Ctrl-Left show the next / previous Desk with windows; `desktop-main = <name>`; `tvterm.ini` format 7
+E78. Scroll Log Views to last (item 37): More... `t` and Event Viewer Ctrl-L (`key-logviews-end`): every Log View to
+     its last line, following again (not with a selection or a search match, not fixed lines); Event Viewer F9 menu
 
 ---
 
@@ -340,6 +342,10 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
 
 ### Event Viewer filters — `far2l-extended`
+- **Ctrl-L and F9** (E78, item 37): `key-logviews-end` (`[keys]`, default Ctrl-L, `none` possible) sends
+  `cmLogViewsToEnd`; F9 or a right click inside it opens `TEventViewer::openMenu`: `Scroll Log Views to las~t~` (with
+  the key as set), `~N~ext Desk` (Ctrl-Right), `~P~revious Desk` (Ctrl-Left). Both are own keys (`ownKey`:
+  `keyLogViewsEnd`, `keyMenu`), not shown as events.
 - **Ctrl-Right / Ctrl-Left** (E77, item 31): `cmNextDesk` / `cmPrevDesk` to `TVTermApp::showNextDesk(+1 / -1)`: the next /
   previous desktop 1-9 with windows (`windowCounts`), empty ones skipped, no wrap-around, never Desk 0; status `Desk D3
   shown.` / `No Desk with windows after D5.`. `desktops::switchTo(desk, n, keepGlobal)`: when the Event Viewer has the
@@ -679,6 +685,11 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   Save; not counted in the title (`lineCount()`) or in `[+N]` (`newLineCount`). With the cursor on the last line (or
   following), the cursor goes onto the marker and `follow` stays on; otherwise the view and the cursor stay. The pause
   now sets `newAfterSeq` from `nextSeq` (`shown.back()` may be the marker). Not in D, Find > New window, profiles.
+- **Scroll Log Views to last** (E78, item 37, agreed in chat 72): `TVTermApp::logViewsToEnd` (More... `t`, above Log
+  Views as table; Event Viewer Ctrl-L / F9): for every `LogViewWindow` of every desktop without fixed lines,
+  `moveToEnd()` does what End does (pause off, cursor on the last line, `follow`, `scrollToEnd`) unless the window has a
+  selection (`hasSel`) or a search match (`hasMatch`); status `N Log View(s) moved to end.` + `; K kept (selection or
+  search)` when some were left.
 
 ### Log View highlighting — `far2l-extended`
 - E14: colors in Log View windows (only there, not in terminals), only when drawing: filters, search, F2 and copy keep the
@@ -2170,6 +2181,12 @@ examples/profiles/example.ini
   Desk with windows after D5.`; Ctrl-Left back to D1 and `No Desk with windows before D1.`; one double frame (the Event
   Viewer kept the focus). Profiles: `desktop-main = MAIL` with `desktop-name-3 = mail` → D3 shown; Save Profile As
   writes `desktop-main = MAIL`; `nosuch` → note, D1; `3` → D3; `12` → `invalid desktop-main '12'`.
+- E78, tmux 160x45, a profile with three Log Views (`gen.sh`: 300 lines, then one every 0.5 s): L1 paused (D1), L3
+  scrolled up with PgUp (`[+7]`), L2 with a Shift-Up selection (D2); Event Viewer Ctrl-L → `2 Log View(s) moved to end;
+  1 kept (selection or search).`, L1 and L3 follow again, L2 still `[+N]`. More... shows `Scroll Log Views to last`,
+  `t` works the same. Event Viewer F9 → the three items with their keys; `p` → `No Desk with windows before D1.`, `n` →
+  `Desk D2 shown.`, `t` → `3 Log View(s) moved to end.`; a right click (SGR through `TIOCSTI`) opens the same menu.
+  `key-logviews-end = Alt-E`: Ctrl-L does nothing, Alt-E works, the menu and the Help show `Alt-E`.
 
 ## 6. Known limitations
 
@@ -2276,6 +2293,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Scroll Log Views to last (`far2l-extended`) | E78 | More... `t` / Event Viewer Ctrl-L (`[keys] key-logviews-end`) / its F9 menu: every Log View (all desktops) to its last line, following again; not those with a selection or a search match, nor fixed lines; status `N Log View(s) moved to end.`; Event Viewer F9 / right click menu (Scroll Log Views to last, Next Desk, Previous Desk) |
 | Help, Event Viewer Desks, `desktop-main` name (`far2l-extended`) | E77 | F1 (not in terminals), More... > Keys (Help)..., About > Keys...: the keys of every kind of window (configured ones as set), the current section at the top with a yellow title, `[general] help-current-first`; Event Viewer Ctrl-Right / Ctrl-Left: next / previous Desk with windows, the viewer keeps the focus; `desktop-main = <name>`; `tvterm.ini` format 7 |
 | Version 0.3.0 (`far2l-extended`) | E76 | version `v0.3.0`, shown with the `v` as the tags (`--version`, About, Event Viewer, `tvterm.ini` format line); one digit per part; signed tag `v0.3.0` and GitHub Release |
 | README, COPYRIGHT, English only (`far2l-extended`) | E75 | README: section about the fork (branches, additions, build, versions, license) above magiblot's text; COPYRIGHT: `Copyright (c) 2026 deep-soft …` under magiblot's line, license unchanged; HISTORY-ro / MANUAL-ro removed |

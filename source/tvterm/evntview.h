@@ -26,6 +26,8 @@
 //   X           clear
 //   Ctrl-Right / Ctrl-Left  show the next / previous Desk with windows
 //               (E77; the viewer keeps the focus; shown with K+)
+//   Ctrl-L      (key-logviews-end, E78) every Log View to its last line
+//   F9          the window's menu (also a right click; E78)
 
 class TScrollBar;
 class EventTerminal;
@@ -61,6 +63,9 @@ public:
     // list, key A).
     void printText(const std::string &text);
     void clear();
+    // F9 or a right click (E78): Scroll Log Views to last, Next / Previous
+    // Desk.
+    void openMenu(TPoint where);
 
     const EventFilter &getFilter() const { return filter; }
 };

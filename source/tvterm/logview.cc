@@ -2139,6 +2139,20 @@ void LogViewWindow::showAt(size_t topIndex, size_t cursorIndex)
     redraw();
 }
 
+bool LogViewWindow::moveToEnd()
+{
+    using namespace logview;
+    if (fixedSource || hasSel || hasMatch)
+        return false;
+    paused = false;
+    if (!shown.empty())
+        cursorSeq = shown.back();
+    follow = true;
+    scrollToEnd();
+    redraw();
+    return true;
+}
+
 void LogViewWindow::moveCursorTo(long index, bool extend)
 // Up/Down, PgUp/PgDn, Home/End; with Shift ('extend'), the selection
 // grows from the cursor line.

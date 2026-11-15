@@ -721,6 +721,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmAbout: about(); break;
                 case cmHelpKeys: help::open(dynamic_cast<TWindow *>(deskTop->current)); break;
                 case cmNextDesk: showNextDesk(1); break;
+                case cmLogViewsToEnd: logViewsToEnd(); break;
                 case cmPrevDesk: showNextDesk(-1); break;
                 case cmSwitchDesktop: switchDesktop(event.message.infoInt); break;
                 case cmDesktopMenu: desktopMenu(); break;
@@ -903,6 +904,7 @@ void TVTermApp::openMenu()
             *new TMenuItem("Capture ~D~esk", cmCaptureDesk, kbNoKey, hcNoContext, "Ctrl-F10") +
             *new TMenuItem("Capture W~i~ndow", cmCaptureWindow, kbNoKey, hcNoContext, "Ctrl-F11") +
             newLine() +
+            *new TMenuItem("Scroll Log Views to las~t~", cmLogViewsToEnd, kbNoKey) +
             *new TMenuItem("~L~og Views as table", cmLogViewsTable, kbNoKey) +
             *new TMenuItem("Log Views as li~s~t", cmLogViewsList, kbNoKey) +
             *new TMenuItem("Clear ~n~on-urgent alerts (levels 2-5)", cmClearLowAlerts, kbNoKey) +
@@ -1920,6 +1922,25 @@ void TVTermApp::switchDesktop(int n)
         desktops::switchToPrevious(*deskTop);
     else if (n >= 1 && n <= desktops::count)
         desktops::switchTo(*deskTop, n);
+}
+
+void TVTermApp::logViewsToEnd()
+{
+    size_t moved = 0, kept = 0;
+    for (TWindow *w : getDeskTopWindows(*deskTop))
+        if (auto *lw = dynamic_cast<LogViewWindow *>(w))
+        {
+            if (lw->hasFixedLines())
+                continue;
+            if (lw->moveToEnd())
+                ++moved;
+            else
+                ++kept;
+        }
+    std::string text = std::to_string(moved) + " Log View(s) moved to end";
+    if (kept)
+        text += "; " + std::to_string(kept) + " kept (selection or search)";
+    appsettings::showStatus(text + ".");
 }
 
 void TVTermApp::showNextDesk(int direction)

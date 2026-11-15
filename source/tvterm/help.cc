@@ -150,6 +150,8 @@ static std::vector<Entry> entries(help::Section s)
                 {"Ctrl-A", "go to the next alert"},
                 {"F8", "clear the alerts of levels 2-5"},
                 {"Ctrl-Right / Ctrl-Left", "show the next / previous Desk with windows"},
+                {keyOf(st.keyLogViewsEnd), "every Log View to its last line (key-logviews-end)"},
+                {"F9, right click", "the window's menu"},
             };
         default:
             return {};

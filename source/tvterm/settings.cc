@@ -633,12 +633,14 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "history-page-down" ? &settings.keyPageDown :
                            key == "history-top" ? &settings.keyTop :
                            key == "history-bottom" ? &settings.keyBottom :
-                           key == "key-editor-comment" ? &settings.keyEditorComment : nullptr;
+                           key == "key-editor-comment" ? &settings.keyEditorComment :
+                           key == "key-logviews-end" ? &settings.keyLogViewsEnd : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
                                key == "history-bottom" ? &previous.keyBottom :
-                               key == "key-editor-comment" ? &previous.keyEditorComment : nullptr;
+                               key == "key-editor-comment" ? &previous.keyEditorComment :
+                               key == "key-logviews-end" ? &previous.keyLogViewsEnd : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -911,6 +913,9 @@ std::string settingsTemplate()
         "  # Key that inserts the comment line in an editor (comment-template in\n"
         "  # [general]), e.g. Alt-C, Ctrl-F5 or none.\n"
         " #key-editor-comment = " + keyName(d.keyEditorComment) + "\n"
+        "  # Key that, in the Event Viewer, moves every Log View (all the desktops) to\n"
+        "  # its last line, following again (also More... Scroll Log Views to last).\n"
+        " #key-logviews-end = " + keyName(d.keyLogViewsEnd) + "\n"
         "  # Global keys: they work in every window (not in dialogs, menus or Grab\n"
         "  # Input). A comma separates several keys; modifiers Ctrl-, Alt-, Shift-;\n"
         "  # keys F1-F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, with Ctrl\n"

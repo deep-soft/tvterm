@@ -131,6 +131,10 @@ public:
     // The view from line 'topIndex' (index in the lines shown), the cursor
     // on line 'cursorIndex', no selection (Help: the current section).
     void showAt(size_t topIndex, size_t cursorIndex);
+    // Scroll Log Views to last (E78): to the last line, following again
+    // (like End; a pause ends). Not with fixed lines (nothing new comes), a
+    // selection or a search match shown: false.
+    bool moveToEnd();
 
     // AlertTarget.
     const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }

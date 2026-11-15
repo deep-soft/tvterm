@@ -5,11 +5,16 @@
 #define Uses_TScrollBar
 #define Uses_TProgram
 #define Uses_TApplication
+#define Uses_TMenuItem
+#define Uses_TSubMenu
+#define Uses_TMenu
 #include <tvision/tv.h>
 
 #include "cmds.h"
 #include "evntview.h"
 #include "apputil.h"
+#include "app.h"
+#include "settings.h"
 
 #include <iomanip>
 #include <ostream>
@@ -108,9 +113,10 @@ static bool shown(const EventFilter &filter, const TEvent &ev)
     return filter.other;
 }
 
-// Ctrl-A (Go to Next Alert) and F8 (Clear non-urgent alerts, E69), as
+// Ctrl-A (Go to Next Alert), F8 (Clear non-urgent alerts, E69),
+// key-logviews-end (Ctrl-L, E78) and F9 (the window's menu, E78), as
 // returned by ownKey.
-enum : char { keyNextAlert = 1, keyClearLowAlerts = 2 };
+enum : char { keyNextAlert = 1, keyClearLowAlerts = 2, keyLogViewsEnd = 3, keyMenu = 4 };
 
 static char ownKey(const TEvent &ev)
 // The letter of a filter key (lowercase), ' ' (Space: pause / resume),
@@ -122,6 +128,11 @@ static char ownKey(const TEvent &ev)
         return keyNextAlert;
     if (TKey(ev.keyDown) == TKey(kbF8))
         return keyClearLowAlerts;
+    if (TKey(ev.keyDown) == TKey(kbF9))
+        return keyMenu;
+    TKey toEnd = TVTermApp::settings().keyLogViewsEnd;
+    if (toEnd.code != 0 && TKey(ev.keyDown) == toEnd)
+        return keyLogViewsEnd;
     if (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift))
         return 0;
     char c = ev.keyDown.charScan.charCode;
@@ -178,6 +189,19 @@ void TEventViewer::printText(const std::string &text)
     }
 }
 
+void TEventViewer::openMenu(TPoint where)
+{
+    std::string toEnd = keyName(TVTermApp::settings().keyLogViewsEnd);
+    TMenuItem &items =
+        *new TMenuItem("Scroll Log Views to las~t~", cmLogViewsToEnd, kbNoKey, hcNoContext,
+                       TVTermApp::settings().keyLogViewsEnd.code ? toEnd.c_str() : nullptr) +
+        newLine() +
+        *new TMenuItem("~N~ext Desk", cmNextDesk, kbNoKey, hcNoContext, "Ctrl-Right") +
+        *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left");
+    if (ushort cmd = popupMenu(where, items, nullptr))
+        message(TProgram::application, evCommand, cmd, this);
+}
+
 void TEventViewer::clear()
 {
     if (interior)
@@ -216,6 +240,13 @@ void TEventViewer::handleEvent(TEvent &ev)
                 // Like More... > Clear non-urgent alerts (levels 2-5).
                 message(TProgram::application, evCommand, cmClearLowAlerts, this);
                 break;
+            case evntview::keyLogViewsEnd:
+                // Like More... > Scroll Log Views to last.
+                message(TProgram::application, evCommand, cmLogViewsToEnd, this);
+                break;
+            case evntview::keyMenu:
+                openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);
+                break;
         }
         updateTitle();
         clearEvent(ev);
@@ -229,6 +260,14 @@ void TEventViewer::handleEvent(TEvent &ev)
         message( TProgram::application, evCommand,
                  TKey(ev.keyDown) == TKey(kbCtrlRight) ? cmNextDesk : cmPrevDesk, this );
         clearEvent(ev);
+        return;
+    }
+    // A right click: the window's menu (E78).
+    if ( ev.what == evMouseDown && (ev.mouse.buttons & mbRightButton) &&
+         interior && interior->mouseInView(ev.mouse.where) )
+    {
+        clearEvent(ev);
+        openMenu(ev.mouse.where);
         return;
     }
     TWindow::handleEvent(ev);

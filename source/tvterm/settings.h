@@ -30,7 +30,8 @@ const int minFileDialogHeight = 19;
 // key-editor-comment (E66); 4: [alerts] action, action-interval, log,
 // notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
 // mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
-// desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77).
+// desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77),
+// [keys] key-logviews-end (E78).
 const int settingsFormat = 7;
 
 struct Settings
@@ -132,6 +133,9 @@ struct Settings
     TKey keyBottom {kbEnd, kbShift | kbAltShift};
     // key-editor-comment: inserts the comment line in an editor (E66).
     TKey keyEditorComment {'C', kbAltShift};
+    // key-logviews-end (E78): in the Event Viewer, every Log View to its
+    // last line (More... > Scroll Log Views to last).
+    TKey keyLogViewsEnd {kbCtrlL};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

@@ -88,6 +88,9 @@ struct TVTermApp : public TApplication
     // (1-9) with windows ('direction' +1 / -1), the Event Viewer keeping the
     // focus; none: a status message.
     void showNextDesk(int direction);
+    // More... > Scroll Log Views to last, Event Viewer Ctrl-L (E78): every
+    // Log View (all the desktops) to its last line; a status message.
+    void logViewsToEnd();
     void desktopMenu();
     void moveWindowMenu();
     // A menu of the desktops 1-9; returns the chosen one, or 0.

@@ -201,7 +201,7 @@ Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z
 **Text ►** (`T`): `T` Select Text (selection mode in a terminal, [chapter 3](#3-terminals-and-the-clipboard)) · `P`
 Paste (pastes the clipboard into the terminal; Shift-Ins does the same).
 
-**More... ►** (`M`): `w` Change working dir · `d` Capture Desk · `i` Capture Window ([Capture](#capture)) · `l` Log Views as table · `s` Log Views as list
+**More... ►** (`M`): `w` Change working dir · `d` Capture Desk · `i` Capture Window ([Capture](#capture)) · `t` Scroll Log Views to last ([below](#scroll-log-views-to-last)) · `l` Log Views as table · `s` Log Views as list
 ([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `m` Mute alerts above level... ([Mute](#mute)) · `e` Edit
 settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `k` Keys (Help)... ([Help](#help-f1)) · `a` About tvterm. Until E69 More... also held Tile,
 Cascade, Grab Input and View file, and Load Profile was Ctrl-B `B` (E70 moved them).
@@ -795,7 +795,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -863,6 +863,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `history-top` | `Alt-Shift-Home` | |
 | | `history-bottom` | `Alt-Shift-End` | |
 | | `key-editor-comment` | `Alt-C` | inserts the comment line in an editor (`comment-template`); `none`: no key |
+| | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
 | | `key-window-left`, `-right`, `-up`, `-down` | (none) | keys that go to the neighbouring window |
@@ -1042,6 +1043,8 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-A | goes to the next alert (like Ctrl-B G) |
 | F8 | clears the alerts of levels 2-5 (like More... > Clear non-urgent alerts): `Alerts of levels 2-5 cleared: N.` |
 | Ctrl-Right / Ctrl-Left | shows the next / previous desktop (1-9) that has windows, skipping the empty ones; no wrap-around (at the last one: `No Desk with windows after D5.`); the Event Viewer keeps the focus and no window of those desktops gets it (Ctrl-B 1-9 then focuses as usual) |
+| Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
+| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk |
 | F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
 
@@ -1461,6 +1464,14 @@ fields-format = values
 
 The last set shows `2026-11-01 08:00:01        10.0.0.5         8.8.8.8 53    accept  37`. With
 `fields-format = pairs` the same line would be `date=2026-11-01 … srcip=       10.0.0.5 …`.
+
+### Scroll Log Views to last
+
+**More... > Scroll Log Views to last** (`t`), or **Ctrl-L** in the Event Viewer (`key-logviews-end`; also its F9
+menu): every Log View, on every desktop, goes to its last line and follows the new lines again, like End (a pause
+ends). Not moved: a Log View with a selection or a search match shown (Esc clears them), and the windows with fixed
+lines (View file, Search > New window, Help: nothing new comes). Status line: `3 Log View(s) moved to end.`, or `2 Log
+View(s) moved to end; 1 kept (selection or search).`
 
 ### Search: New window
 
