@@ -170,6 +170,8 @@ E74. `[general]` `desktop-pattern` (any one-column character, `space`), `desktop
      character, `same`), `auto-reload-check` (1-60 s, 2 while the Settings editor is open); `tvterm.ini` format 6
 E75. README: a section about this fork above the original text; COPYRIGHT: a line for deep-soft under magiblot's;
      `docs/HISTORY-ro.md` and `docs/MANUAL-ro.md` removed (English only)
+E76. Version `v0.3.0`: shown with a `v` (`--version`, About, Event Viewer, `## format 6, created by tvterm v0.3.0`);
+     signed tag `v0.3.0` and GitHub Release
 
 ---
 
@@ -307,8 +309,12 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   (`F3/Shift-F3 Next/Prev` was split in two); the scrolling keys stay a hint.
 
 ### Version and About — `far2l-extended`
-- Version number `0.1.0` (E2), **`0.2.0` since E53** (item 47, chat 54), set in `CMakeLists.txt` (`TVTERM_VERSION`) and
-  changed only by hand. E53 also got the first tag, `v0.2.0` (signed with the SSH key, like the commits), and a GitHub
+- Version number `0.1.0` (E2), `0.2.0` since E53 (item 47, chat 54), **`v0.3.0` since E76** (chat 72), set in
+  `CMakeLists.txt` (`TVTERM_VERSION`) and changed only by hand. Since E76 the version is shown with a `v`, as the tags
+  (`-DVERSION=v${TVTERM_VERSION}` for `scripts/buildinfo.cmake`, so `buildinfo::version` is `v0.3.0` in `--version`,
+  About, the Event Viewer and the format line `## format 6, created by tvterm v0.3.0 (…)`; `parseFormatLine` reads
+  only the number, the user's `tvt-ini-merge` does not read that text); one digit per part (`0.3.9` → `0.4.0`); a
+  new version only on request, not at every patch (agreed in chat 72). E53 also got the first tag, `v0.2.0` (signed with the SSH key, like the commits), and a GitHub
   Release with notes (no executables). Everything else is added
   automatically at **every build** by `scripts/buildinfo.cmake`: the commit (`git describe --always --dirty`: short hash,
   `-dirty` with uncommitted changes), the branch, the build date as local time of the build machine with its time zone
@@ -323,7 +329,7 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   `glibc X.Y` (the version of the headers the build used; for a dynamic build, the oldest glibc it needs is at most that),
   `uClibc`, `bionic`; any other C library on Linux is `musl` (musl has no macro of its own, on purpose); on other systems it is not shown.
 - `tvterm --version` (or `-V`) prints it and exits, without starting the interface.
-- The first two lines in the Event Viewer: `tvterm 0.2.0 (deep-soft), <branch> <commit>` and
+- The first two lines in the Event Viewer: `tvterm v0.3.0 (deep-soft), <branch> <commit>` and
   `built <date>, <type>, <architecture>, <C library>`.
 - **More... > About tvterm...**: version, commit and branch, build date, type, architecture and C library, tvision/libvterm commits, the settings file
   (`(not found)` if it does not exist), the last profile loaded (`(none)`), uptime (`2d 03:14`: days, hours, minutes),
@@ -2232,6 +2238,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Version 0.3.0 (`far2l-extended`) | E76 | version `v0.3.0`, shown with the `v` as the tags (`--version`, About, Event Viewer, `tvterm.ini` format line); one digit per part; signed tag `v0.3.0` and GitHub Release |
 | README, COPYRIGHT, English only (`far2l-extended`) | E75 | README: section about the fork (branches, additions, build, versions, license) above magiblot's text; COPYRIGHT: `Copyright (c) 2026 deep-soft …` under magiblot's line, license unchanged; HISTORY-ro / MANUAL-ro removed |
 | Desktop pattern, check interval (`far2l-extended`) | E74 | `[general] desktop-pattern` (any one-column character, `space`; applies at once), `desktop-pattern-on-capture` (`space`, a character, `same`), `auto-reload-check` (1-60 s; 2 while the Settings editor is open); `tvterm.ini` format 6 |
 | Capture without background (`far2l-extended`) | E73 | Capture Desk writes the desktop background (`░`) and the window shadows as spaces; the screen does not change |

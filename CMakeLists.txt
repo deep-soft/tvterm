@@ -8,9 +8,11 @@ option(TVTERM_STATIC "Build a fully static executable (Linux only)" OFF)
 
 project(tvterm)
 
-# Version shown by 'tvterm --version' and in More... > About. The commit,
-# branch and build date are added automatically (scripts/buildinfo.cmake).
-set(TVTERM_VERSION "0.2.0")
+# Version shown by 'tvterm --version' and in More... > About, with a 'v'
+# in front (v0.3.0, as the tags); one digit per part (0.3.9 -> 0.4.0). The
+# commit, branch and build date are added automatically
+# (scripts/buildinfo.cmake).
+set(TVTERM_VERSION "0.3.0")
 
 if (TVTERM_STATIC)
     # Make every find_library() call (here and in Turbo Vision) pick static
@@ -81,7 +83,7 @@ if (TVTERM_BUILD_APP)
         COMMAND "${CMAKE_COMMAND}"
             "-DSRC=${CMAKE_CURRENT_LIST_DIR}"
             "-DOUT=${TVTERM_BUILDINFO}"
-            "-DVERSION=${TVTERM_VERSION}"
+            "-DVERSION=v${TVTERM_VERSION}"
             "-DSTATIC=${TVTERM_STATIC}"
             "-DSYSTEM_TVISION=${TVTERM_USE_SYSTEM_TVISION}"
             "-DSYSTEM_LIBVTERM=${TVTERM_USE_SYSTEM_LIBVTERM}"

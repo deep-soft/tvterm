@@ -109,11 +109,11 @@ still has it in its list writes it again.
 
 ### Version
 
-`tvterm --version` prints the version (`0.2.0`), the branch and commit, the build date, type (`static` / `dynamic`),
+`tvterm --version` prints the version (`v0.3.0`), the branch and commit, the build date, type (`static` / `dynamic`),
 architecture and C library, and the commits of the bundled tvision and libvterm. For example:
 
 ```
-tvterm 0.2.0 (deep-soft)
+tvterm v0.3.0 (deep-soft)
 commit:   1a2b3c4 (far2l-extended)
 built:    2026-10-30 17:20 EET, static, armv7l, glibc 2.28
 tvision:  6402631
@@ -125,7 +125,9 @@ The architecture uses the names of `uname -m` (`x86_64`, `armv7l`, `aarch64`) an
 on a server is the right one. The same information is in **Ctrl-B More... > About tvterm...**,
 together with the settings file, the last profile loaded, the uptime and the number of terminals.
 
-Versions are tagged on GitHub (`v0.2.0`, signed); the release page of a tag lists what the version contains.
+Versions are tagged on GitHub (`v0.2.0`, `v0.3.0`, signed); the release page of a tag lists what the version contains.
+Since `v0.3.0` the version is shown with the `v`, as the tags, and each part has one digit (`v0.3.9` is followed by
+`v0.4.0`).
 
 ---
 
@@ -773,7 +775,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 6, created by tvterm 0.2.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
+  `## format 6, created by tvterm v0.3.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,

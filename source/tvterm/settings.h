@@ -22,7 +22,7 @@ const int minFileDialogWidth = 49;
 const int minFileDialogHeight = 19;
 
 // Format of tvterm.ini written by this tvterm: the number in the template's
-// first line ('## format 2, created by tvterm 0.2.0 (...)'). It goes up by
+// first line ('## format 6, created by tvterm v0.3.0 (...)'). It goes up by
 // one when a version adds, renames or changes the meaning of keys, so that
 // an older file can be recognized (a note in the Event Viewer; the file is
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
