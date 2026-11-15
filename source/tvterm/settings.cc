@@ -634,13 +634,17 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "history-top" ? &settings.keyTop :
                            key == "history-bottom" ? &settings.keyBottom :
                            key == "key-editor-comment" ? &settings.keyEditorComment :
-                           key == "key-logviews-end" ? &settings.keyLogViewsEnd : nullptr;
+                           key == "key-logviews-end" ? &settings.keyLogViewsEnd :
+                           key == "key-editor-indent" ? &settings.keyEditorIndent :
+                           key == "key-editor-unindent" ? &settings.keyEditorUnindent : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
                                key == "history-bottom" ? &previous.keyBottom :
                                key == "key-editor-comment" ? &previous.keyEditorComment :
-                               key == "key-logviews-end" ? &previous.keyLogViewsEnd : nullptr;
+                               key == "key-logviews-end" ? &previous.keyLogViewsEnd :
+                               key == "key-editor-indent" ? &previous.keyEditorIndent :
+                               key == "key-editor-unindent" ? &previous.keyEditorUnindent : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -913,6 +917,11 @@ std::string settingsTemplate()
         "  # Key that inserts the comment line in an editor (comment-template in\n"
         "  # [general]), e.g. Alt-C, Ctrl-F5 or none.\n"
         " #key-editor-comment = " + keyName(d.keyEditorComment) + "\n"
+        "  # Keys that add / remove one space at the start of the current line or of\n"
+        "  # every selected line in an editor (empty lines stay; a Tab at the start\n"
+        "  # becomes 4 spaces before one is removed), e.g. Alt-I, Alt-U or none.\n"
+        " #key-editor-indent = " + keyName(d.keyEditorIndent) + "\n"
+        " #key-editor-unindent = " + keyName(d.keyEditorUnindent) + "\n"
         "  # Key that, in the Event Viewer, moves every Log View (all the desktops) to\n"
         "  # its last line, following again (also More... Scroll Log Views to last).\n"
         " #key-logviews-end = " + keyName(d.keyLogViewsEnd) + "\n"

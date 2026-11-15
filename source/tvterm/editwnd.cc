@@ -569,6 +569,104 @@ static void duplicateLines(TEditor &e)
     e.unlock();
 }
 
+// key-editor-indent / -unindent (E79, Alt-I / Alt-U): one space added at /
+// removed from the start of the current line, or of every line of the
+// selection (a selection ending at the start of a line leaves that line
+// out). Empty lines stay as they are; unindent on a line starting with a
+// Tab makes the Tab 4 spaces, then removes one (3 left). The selection
+// (or the cursor) stays on the same text, so the key can be repeated; a
+// position at the start of a line stays there. One undo step (the window
+// records every key event as one).
+static void indentLines(TEditor &e, bool unindent)
+{
+    uint selA = e.selStart, selB = e.selEnd;
+    bool sel = selA < selB;
+    uint first = e.lineStart(sel ? selA : e.curPtr);
+    uint lastPtr = sel ? selB : e.curPtr;
+    if (sel && lastPtr > first && e.lineStart(lastPtr) == lastPtr)
+        lastPtr = e.prevChar(lastPtr);
+    uint last = e.lineStart(lastPtr);
+    std::vector<uint> starts;
+    for (uint l = first;;)
+    {
+        starts.push_back(l);
+        uint end = e.lineEnd(l);
+        if (l >= last || end >= e.bufLen)
+            break;
+        l = e.nextChar(end);
+    }
+    // The change of each line: +1 (a space added), -1 (one removed), +2
+    // (a Tab made 3 spaces), 0.
+    std::vector<int> delta(starts.size(), 0);
+    for (size_t i = 0; i < starts.size(); ++i)
+    {
+        uint l = starts[i];
+        if (e.lineEnd(l) == l)
+            continue; // Empty.
+        char c = e.bufChar(l);
+        if (!unindent)
+            delta[i] = 1;
+        else if (c == ' ')
+            delta[i] = -1;
+        else if (c == '\t')
+            delta[i] = 2;
+    }
+    if (std::all_of(delta.begin(), delta.end(), [] (int d) { return d == 0; }))
+    {
+        showStatus(unindent ? "Nothing to unindent." : "Nothing to indent: empty line.");
+        return;
+    }
+    // The positions to restore: line (from 'first'; the line after the
+    // block for a selection ending at its start) and byte column.
+    struct Mark { size_t line; uint col; };
+    auto markOf = [&] (uint p) {
+        size_t i = starts.size() - 1;
+        while (i > 0 && starts[i] > p)
+            --i;
+        if (i == starts.size() - 1 && p > e.lineEnd(starts[i]))
+            return Mark {starts.size(), 0};
+        return Mark {i, p - starts[i]};
+    };
+    bool curAtStart = sel && e.curPtr == selA;
+    Mark a = markOf(sel ? selA : e.curPtr), b = markOf(sel ? selB : e.curPtr);
+    e.lock();
+    for (size_t i = starts.size(); i-- > 0;)
+    {
+        uint l = starts[i];
+        if (delta[i] == 1)
+        {
+            e.setCurPtr(l, 0);
+            e.insertText(" ", 1, False);
+        }
+        else if (delta[i] != 0)
+        {
+            e.setSelect(l, e.nextChar(l), False);
+            e.deleteSelect();
+            if (delta[i] == 2)
+            {
+                e.setCurPtr(l, 0);
+                e.insertText("   ", 3, False);
+            }
+        }
+    }
+    auto ptrOf = [&] (const Mark &m) {
+        uint line = nextLines(e, first, (uint) m.line);
+        int d = m.line < delta.size() ? delta[m.line] : 0;
+        uint col = m.col == 0 ? 0 : (uint) std::max(0, (int) m.col + d);
+        return std::min(line + col, e.lineEnd(line));
+    };
+    if (sel)
+    {
+        uint na = ptrOf(a), nb = ptrOf(b);
+        e.setCurPtr(curAtStart ? nb : na, 0);
+        e.setCurPtr(curAtStart ? na : nb, smExtend);
+    }
+    else
+        e.setCurPtr(ptrOf(a), 0);
+    e.trackCursor(Boolean(!e.cursorVisible()));
+    e.unlock();
+}
+
 // Parses "line" or "line:column" (1-based, spaces around allowed). Values
 // too large become the largest int.
 static bool parseLineColumn(const char *s, long &line, long &col)
@@ -949,7 +1047,8 @@ static bool isEditingCommand(ushort cmd)
     return false;
 }
 
-enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment };
+enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment,
+                 ekIndent, ekUnindent };
 
 // The keys of 45 (not while the editor waits for the second key of
 // Ctrl-Q / Ctrl-K). 'extend': with Shift (Ctrl-Shift-Down / Up).
@@ -979,6 +1078,13 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
     TKey comment = TVTermApp::settings().keyEditorComment;
     if (comment.code != 0 && k == comment)
         return ekComment;
+    // key-editor-indent / -unindent (E79; Alt-I / Alt-U).
+    TKey indent = TVTermApp::settings().keyEditorIndent;
+    if (indent.code != 0 && k == indent)
+        return ekIndent;
+    TKey unindent = TVTermApp::settings().keyEditorUnindent;
+    if (unindent.code != 0 && k == unindent)
+        return ekUnindent;
     return ekNone;
 }
 
@@ -1055,7 +1161,8 @@ bool TVTermEditWindow::isEditingEvent(const TEvent &ev)
     bool extend;
     editwnd::EditorKey ek = editwnd::editorKey(editor, ev, extend);
     if (ek != editwnd::ekNone)
-        return ek == editwnd::ekDuplicate || ek == editwnd::ekComment;
+        return ek == editwnd::ekDuplicate || ek == editwnd::ekComment ||
+               ek == editwnd::ekIndent || ek == editwnd::ekUnindent;
     if (editwnd::undoRedoKey(editor, ev) != editwnd::noUndoKey)
         return true;
     if (ushort cmd = editwnd::searchKeyCommand(editor, ev.keyDown.keyCode))
@@ -1343,6 +1450,10 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
             break;
         case editwnd::ekComment:
             editwnd::insertComment(e);
+            break;
+        case editwnd::ekIndent:
+        case editwnd::ekUnindent:
+            editwnd::indentLines(e, key == editwnd::ekUnindent);
             break;
         default:
             break;

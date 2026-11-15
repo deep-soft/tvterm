@@ -31,7 +31,7 @@ const int minFileDialogHeight = 19;
 // notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
 // mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
 // desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77),
-// [keys] key-logviews-end (E78).
+// [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79).
 const int settingsFormat = 7;
 
 struct Settings
@@ -136,6 +136,10 @@ struct Settings
     // key-logviews-end (E78): in the Event Viewer, every Log View to its
     // last line (More... > Scroll Log Views to last).
     TKey keyLogViewsEnd {kbCtrlL};
+    // key-editor-indent / key-editor-unindent (E79): one space added at /
+    // removed from the start of the current or selected lines of an editor.
+    TKey keyEditorIndent {'I', kbAltShift};
+    TKey keyEditorUnindent {'U', kbAltShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

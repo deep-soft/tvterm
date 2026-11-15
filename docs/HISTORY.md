@@ -177,6 +177,8 @@ E77. Help (item 31, P2): F1 outside terminals, More... > Keys (Help)..., About >
      Ctrl-Left show the next / previous Desk with windows; `desktop-main = <name>`; `tvterm.ini` format 7
 E78. Scroll Log Views to last (item 37): More... `t` and Event Viewer Ctrl-L (`key-logviews-end`): every Log View to
      its last line, following again (not with a selection or a search match, not fixed lines); Event Viewer F9 menu
+E79. Editor indent / unindent (item 38): Alt-I / Alt-U (`key-editor-indent`, `key-editor-unindent`): one space at the
+     start of the line or of the selected lines; empty lines stay; a leading Tab becomes 4 spaces first; one undo step
 
 ---
 
@@ -1246,6 +1248,15 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   comment-template` (quotes stripped when the value starts and ends with `"`; 1–200 characters, else invalid and the
   previous value) and `comment-width` (0–1000); `settingsFormat` = 3 (`examples/tvterm.ini` `## format 3`). Default
   width 79: the user's own separator lines (`# 2026-11-10 10:06:43 ` + 57 `-`).
+- **Indent / unindent** (E79, item 38, agreed in chat 72): `editwnd::indentLines`, keys `ekIndent` / `ekUnindent` in
+  `editorKey` after `key-editor-comment` (`[keys] key-editor-indent` Alt-I, `key-editor-unindent` Alt-U; `none`
+  possible; Alt-I / Alt-U were free in tvision's editor and in tvterm). The lines as in Alt-D (a selection ending at
+  column 0 leaves that line out). A change per line (+1 a space, -1 a space removed, +2 a Tab replaced by 3 spaces, 0
+  empty line or nothing to remove), made from the last line to the first (the earlier positions stay valid). The
+  selection ends and the cursor are kept as line (from the first line; or the line after the block) and byte column; a
+  column > 0 moves by the line's change, column 0 stays (so the new space is inside a selection that started at a line
+  start, and the key repeats). One event, so one undo step; an editing key for Read only (`isEditingEvent`). Nothing to
+  change: `Nothing to unindent.` / `Nothing to indent: empty line.`.
 
 ### Capture (Desk / Window) — `far2l-extended`
 - **E71** (item 30, P1, agreed in chat 69): replaces the Shift+mouse captures of putty4far2l. `capture.cc`:
@@ -2187,6 +2198,12 @@ examples/profiles/example.ini
   `t` works the same. Event Viewer F9 → the three items with their keys; `p` → `No Desk with windows before D1.`, `n` →
   `Desk D2 shown.`, `t` → `3 Log View(s) moved to end.`; a right click (SGR through `TIOCSTI`) opens the same menu.
   `key-logviews-end = Alt-E`: Ctrl-L does nothing, Alt-E works, the menu and the Help show `Alt-E`.
+- E79, tmux, `/tmp/ind.txt` = `alpha`, empty, `\tbeta`, ` gamma`, `delta` opened with Ctrl-B O: Shift-Down ×4 from the
+  top (ends at the start of `delta`), Alt-I ×2, F2 → `  alpha`, empty, `  \tbeta`, `   gamma`, `delta` (`cat -A`); Alt-U
+  ×3 → `alpha`, empty, `   beta`, `gamma`; Ctrl-Z once → the state before the third Alt-U (`\tbeta`, ` gamma`); more
+  Alt-U → `Nothing to unindent.`. Without a selection: End on ` gamma`, Alt-U, Alt-I ×2, typing `X` → `  gammaX` (the
+  cursor kept its place); Alt-U at the start of `\tbeta` → `   beta`, Ctrl-Z → `\tbeta`; Alt-I on the empty line →
+  `Nothing to indent: empty line.`; F9 Read only, Alt-I → `Read only.`.
 
 ## 6. Known limitations
 
@@ -2293,6 +2310,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Editor indent / unindent (`far2l-extended`) | E79 | Alt-I / Alt-U (`[keys] key-editor-indent` / `key-editor-unindent`): one space added / removed at the start of the line or of the selected lines (selection kept, repeatable); empty lines untouched; a leading Tab becomes 4 spaces before one is removed; one undo step; read only refused |
 | Scroll Log Views to last (`far2l-extended`) | E78 | More... `t` / Event Viewer Ctrl-L (`[keys] key-logviews-end`) / its F9 menu: every Log View (all desktops) to its last line, following again; not those with a selection or a search match, nor fixed lines; status `N Log View(s) moved to end.`; Event Viewer F9 / right click menu (Scroll Log Views to last, Next Desk, Previous Desk) |
 | Help, Event Viewer Desks, `desktop-main` name (`far2l-extended`) | E77 | F1 (not in terminals), More... > Keys (Help)..., About > Keys...: the keys of every kind of window (configured ones as set), the current section at the top with a yellow title, `[general] help-current-first`; Event Viewer Ctrl-Right / Ctrl-Left: next / previous Desk with windows, the viewer keeps the focus; `desktop-main = <name>`; `tvterm.ini` format 7 |
 | Version 0.3.0 (`far2l-extended`) | E76 | version `v0.3.0`, shown with the `v` as the tags (`--version`, About, Event Viewer, `tvterm.ini` format line); one digit per part; signed tag `v0.3.0` and GitHub Release |

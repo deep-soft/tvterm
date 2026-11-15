@@ -568,6 +568,7 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 **Ctrl-Shift-Z** redoes, many steps ([Undo and Redo](#undo-and-redo)). **Ctrl-Down / Ctrl-Up**, **Alt-F8** (Go to
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
 **Alt-C** inserts a comment line with the date and time ([Comment line](#comment-line)).
+**Alt-I / Alt-U** indent / unindent the line or the selected lines by one space ([Indent and unindent](#indent-and-unindent)).
 **F9** opens the editor's menu: Read only, Save, Save as (**F12**), Open (**Ctrl-F12**), Reload, Find, Replace, Go
 to line ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
@@ -743,6 +744,18 @@ line; `0`: not filled; a longer text is not cut). `key-editor-comment` (`[keys]`
 of tvterm's own editor keys (Alt-D, Alt-W, Alt-F8, Ctrl-Down / Ctrl-Up) keeps its action, any other key (also one of
 tvision's editor keys) does the comment instead. Alt-C arrives through putty4far2l / far2l like the other Alt keys.
 
+### Indent and unindent
+
+**Alt-I** adds one space at the start of the current line, or of every line of the selection; **Alt-U** removes one.
+A selection that ends at the start of a line leaves that line out (as Alt-D). Empty lines stay as they are. On a line
+that starts with a Tab, Alt-U makes the Tab 4 spaces and removes one (3 left). The selection stays on the same text,
+so the key can be pressed again (Alt-I Alt-I: two spaces); the cursor keeps its place in the text (at the start of a
+line it stays there). One undo step per press. Nothing to change: `Nothing to unindent.` / `Nothing to indent: empty
+line.` in the status line. In a read only editor: `Read only.`.
+
+The keys are `key-editor-indent` and `key-editor-unindent` in `[keys]` (`none`: no key). tvterm's own editor keys
+(Alt-D, Alt-W, Alt-F8, Ctrl-Down / Ctrl-Up) and `key-editor-comment` come first when the same key is set.
+
 ### Opening and viewing files
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
@@ -795,7 +808,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -863,6 +876,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `history-top` | `Alt-Shift-Home` | |
 | | `history-bottom` | `Alt-Shift-End` | |
 | | `key-editor-comment` | `Alt-C` | inserts the comment line in an editor (`comment-template`); `none`: no key |
+| | `key-editor-indent` / `key-editor-unindent` | `Alt-I` / `Alt-U` | one space more / less at the start of the line or of the selected lines in an editor ([Indent and unindent](#indent-and-unindent)); `none`: no key |
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
