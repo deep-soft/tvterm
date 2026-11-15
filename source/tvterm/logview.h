@@ -125,6 +125,12 @@ public:
     // A file shown with fixed lines (View file, Save > Open after saving >
     // Viewer): title "View: <file>" instead of "Log: ...".
     void setFileView(bool on) noexcept { fileView = on; updateTitle(); }
+    // The Help window (E77, help.h): fixed lines, title "Help: ...".
+    void setHelpView(bool on) noexcept { helpView = on; updateTitle(); }
+    bool isHelpView() const noexcept { return helpView; }
+    // The view from line 'topIndex' (index in the lines shown), the cursor
+    // on line 'cursorIndex', no selection (Help: the current section).
+    void showAt(size_t topIndex, size_t cursorIndex);
 
     // AlertTarget.
     const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }
@@ -150,6 +156,7 @@ private:
     // Windows with fixed lines: their source (kept by D and setOptions).
     std::shared_ptr<LogSource> fixedSource;
     bool fileView {false};
+    bool helpView {false};
     std::unique_ptr<LogRegex> includeRe, excludeRe;
     // The words of options.includeAnd (split at " && ").
     std::vector<std::string> includeAndWords;

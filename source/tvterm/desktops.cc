@@ -123,15 +123,18 @@ static void focusAfterSwitch(TDeskTop &desk, int n)
         focusWindow(desk, global);
 }
 
-void switchTo(TDeskTop &desk, int n)
+void switchTo(TDeskTop &desk, int n, bool keepGlobal)
 {
     if (n < 1 || n > count || n == currentDesktop)
         return;
     prune(desk);
     // The Event Viewer is on every desktop: when it has the focus, the
-    // frontmost window gets it on return.
+    // frontmost window gets it on return (keepGlobal: the window focused
+    // before stays recorded).
     auto *cur = dynamic_cast<TWindow *>(desk.current);
-    lastFocus[currentDesktop] = cur && !isGlobal(cur) ? cur : nullptr;
+    TWindow *global = cur && isGlobal(cur) ? cur : nullptr;
+    if (!(keepGlobal && global))
+        lastFocus[currentDesktop] = cur && !isGlobal(cur) ? cur : nullptr;
     desk.lock();
     TWindow *focused = nullptr;
     for (TWindow *w : windows(desk))
@@ -156,7 +159,10 @@ void switchTo(TDeskTop &desk, int n)
             setVisible(w, true);
         }
     }
-    focusAfterSwitch(desk, n);
+    if (keepGlobal && global)
+        focusWindow(desk, global);
+    else
+        focusAfterSwitch(desk, n);
     desk.unlock();
 }
 

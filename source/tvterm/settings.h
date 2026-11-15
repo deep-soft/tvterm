@@ -22,7 +22,7 @@ const int minFileDialogWidth = 49;
 const int minFileDialogHeight = 19;
 
 // Format of tvterm.ini written by this tvterm: the number in the template's
-// first line ('## format 6, created by tvterm v0.3.0 (...)'). It goes up by
+// first line ('## format 7, created by tvterm v0.3.0 (...)'). It goes up by
 // one when a version adds, renames or changes the meaning of keys, so that
 // an older file can be recognized (a note in the Event Viewer; the file is
 // never rewritten). 1: tvterm 0.2.0 (E53); 2: file-backups and
@@ -30,8 +30,8 @@ const int minFileDialogHeight = 19;
 // key-editor-comment (E66); 4: [alerts] action, action-interval, log,
 // notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
 // mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
-// desktop-pattern-on-capture (E74).
-const int settingsFormat = 6;
+// desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77).
+const int settingsFormat = 7;
 
 struct Settings
 {
@@ -68,6 +68,10 @@ struct Settings
     // window-shadow: the shadow of the desktop windows (terminals, Log View,
     // editors, Event Viewer); menus and dialogs always keep theirs.
     bool windowShadow {false};
+    // help-current-first (E77): the Help window shows the section of the
+    // window it was opened from first (yes) or the sections in their fixed
+    // order, that one at the top of the window (no).
+    bool helpCurrentFirst {false};
     // desktop-pattern: the character of the desktop background (one
     // character of one column, UTF-8; 'space' in the file: a space).
     // desktop-pattern-on-capture: the one Capture Desk writes there (E74);

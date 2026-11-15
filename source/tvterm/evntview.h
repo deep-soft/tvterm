@@ -24,6 +24,8 @@
 //   N           clear, then show again the messages kept by tvterm
 //   A           list the active alerts (oldest first)
 //   X           clear
+//   Ctrl-Right / Ctrl-Left  show the next / previous Desk with windows
+//               (E77; the viewer keeps the focus; shown with K+)
 
 class TScrollBar;
 class EventTerminal;

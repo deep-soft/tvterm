@@ -260,12 +260,24 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 parseCount(1, 9, profile.desktop, "1-9");
             else if (key == "desktop-main")
             {
-                int n = -1;
-                parseCount(0, 9, n, "0-9, 0: off");
-                if (n >= 0)
+                // A number (0-9) or a desktop name (E77).
+                std::string v = trim(unquote(value));
+                bool number = !v.empty() && v.find_first_not_of("0123456789") == std::string::npos;
+                if (number || v.empty())
+                {
+                    int n = -1;
+                    parseCount(0, 9, n, "0-9, 0: off, or a desktop name");
+                    if (n >= 0)
+                    {
+                        profile.hasDesktopMain = true;
+                        profile.desktopMain = n;
+                    }
+                }
+                else
                 {
                     profile.hasDesktopMain = true;
-                    profile.desktopMain = n;
+                    profile.desktopMain = 0;
+                    profile.desktopMainName = v;
                 }
             }
             else if ( key.size() == 14 && key.compare(0, 13, "desktop-name-") == 0 &&
@@ -495,7 +507,9 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
         file << "focus = " << profile.focus << "\n";
     if (profile.desktop != 1)
         file << "desktop = " << profile.desktop << "\n";
-    if (profile.hasDesktopMain && profile.desktopMain > 0)
+    if (profile.hasDesktopMain && !profile.desktopMainName.empty())
+        file << "desktop-main = " << profile.desktopMainName << "\n";
+    else if (profile.hasDesktopMain && profile.desktopMain > 0)
         file << "desktop-main = " << profile.desktopMain << "\n";
     for (const auto &dn : profile.desktopNames)
         if (!dn.second.empty())

@@ -1923,7 +1923,7 @@ const char *LogViewWindow::getTitle(short)
 std::string LogViewWindow::plainTitle() const
 {
     using namespace logview;
-    return (fileView ? "View: " : "Log: ") + titleText();
+    return (helpView ? "Help: " : fileView ? "View: " : "Log: ") + titleText();
 }
 
 std::string LogViewWindow::titleText() const
@@ -2115,6 +2115,28 @@ void LogViewWindow::showCursorLine(size_t index)
     // Back by two rows (wrapped lines count by rows); scrollRows also keeps
     // the view from going past the end.
     scrollRows(interior->size.y > 5 ? -2 : 0);
+}
+
+void LogViewWindow::showAt(size_t topIndex, size_t cursorIndex)
+{
+    using namespace logview;
+    if (shown.empty() || !interior)
+        return;
+    cursorIndex = std::min(cursorIndex, shown.size() - 1);
+    topIndex = std::min(topIndex, cursorIndex);
+    hasSel = false;
+    cursorSeq = shown[cursorIndex];
+    follow = false;
+    top = topIndex;
+    topRow = 0;
+    size_t endIndex;
+    int endRow;
+    endPosition(endIndex, endRow);
+    if (top > endIndex || (top == endIndex && topRow > endRow))
+        top = endIndex, topRow = endRow;
+    ensureVisible(cursorIndex);
+    followFromCursor();
+    redraw();
 }
 
 void LogViewWindow::moveCursorTo(long index, bool extend)

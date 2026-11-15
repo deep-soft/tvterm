@@ -96,7 +96,7 @@ static std::string fitWidth(const std::string &text, int maxWidth)
 
 } // namespace aboutdlg
 
-void showAbout(const AboutInfo &info)
+bool showAbout(const AboutInfo &info)
 {
     using namespace aboutdlg;
     TRect ext = TProgram::deskTop->getExtent();
@@ -162,8 +162,11 @@ void showAbout(const AboutInfo &info)
     TDialog *d = new TDialog(TRect(0, 0, width + 6, height), "About");
     d->options |= ofCentered;
     d->insert(new TStaticText(TRect(3, 2, 3 + width, 2 + textHeight), text));
-    int bx = (width + 6 - 10) / 2;
+    // OK and Keys... (E77: the Help window, after the dialog closes; cmYes
+    // because a dialog closes itself only with the standard commands).
+    int bx = (width + 6 - 25) / 2;
     d->insert(new TButton(TRect(bx, height - 3, bx + 10, height - 1), "~O~K", cmOK, bfDefault));
+    d->insert(new TButton(TRect(bx + 12, height - 3, bx + 25, height - 1), "~K~eys...", cmYes, bfNormal));
     d->selectNext(False);
-    execDialog(d);
+    return execDialog(d) == cmYes;
 }

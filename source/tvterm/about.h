@@ -46,6 +46,7 @@ struct AboutInfo
     size_t terminals {0};         // terminal windows, running or not
 };
 
-void showAbout(const AboutInfo &info);
+// Returns true when the dialog was closed with Keys... (E77: the Help).
+bool showAbout(const AboutInfo &info);
 
 #endif // TVTERM_ABOUT_H

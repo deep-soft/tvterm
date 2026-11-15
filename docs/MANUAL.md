@@ -203,7 +203,7 @@ Paste (pastes the clipboard into the terminal; Shift-Ins does the same).
 
 **More... ►** (`M`): `w` Change working dir · `d` Capture Desk · `i` Capture Window ([Capture](#capture)) · `l` Log Views as table · `s` Log Views as list
 ([chapter 10](#log-views-as-table--list)) · `n` Clear non-urgent alerts (levels 2-5, [Levels](#levels)) · `m` Mute alerts above level... ([Mute](#mute)) · `e` Edit
-settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `a` About tvterm. Until E69 More... also held Tile,
+settings (tvterm.ini) · `r` Reload settings · `u` Suspend... · `k` Keys (Help)... ([Help](#help-f1)) · `a` About tvterm. Until E69 More... also held Tile,
 Cascade, Grab Input and View file, and Load Profile was Ctrl-B `B` (E70 moved them).
 
 ### Capture
@@ -371,6 +371,21 @@ key-window-right = Alt-Right:not-far2l, Shift-Alt-Right
 key-window-up = Alt-Up:not-far2l, Shift-Alt-Up
 key-window-down = Alt-Down:not-far2l, Shift-Alt-Down
 ```
+
+### Help (F1)
+
+**F1** in a window that is not a terminal (Log View, a viewer, an editor, the Event Viewer; in a terminal the program
+gets F1), **More... > Keys (Help)...** (`k`) and the **Keys...** button of About open the Help window: the keys of every
+kind of window, in sections: Global keys, Terminal, Log View, Viewer, Editor, Event Viewer. The keys set in
+`tvterm.ini` (`menu-key`, `key-zoom`, `key-window-*`, `history-*`, `key-editor-comment`...) are shown as they are set
+when the window opens.
+
+The section of the window you came from is marked `(this window)`, its title in yellow: the window opens with that
+section at the top and the cursor line on its first key. With `[general] help-current-first = yes` that section also
+comes first in the text (the window then starts at the first line); `no` (the default) keeps the fixed order.
+
+The Help window is a viewer (title `Help: tvterm keys`, like View file): `/` and F3 search, Ctrl-C copies, Ctrl-W
+closes. There is one at a time: F1 again (also inside it) replaces it.
 
 ### Quitting
 
@@ -775,12 +790,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 6, created by tvterm v0.3.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
+  `## format 7, created by tvterm v0.3.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -819,6 +834,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `file-backups-number` | `5` | backups kept per file, 1–99; the oldest are deleted after each new one; invalid: a note in the Event Viewer and `5` ([Backups](#backups)) |
 | | `comment-template` | `"# %Y-%m-%d %H:%M:%S "` | the comment line of `key-editor-comment` (Alt-C) in an editor: text with `strftime` codes (local time), 1–200 characters; quotes keep spaces at the start or end ([Comment line](#comment-line)) |
 | | `comment-width` | `79` | the comment line filled with `-` up to this many columns, 0–1000; `0`: not filled |
+| | `help-current-first` | `no` | the Help window (F1): `yes` puts the section of the window it was opened from first; `no` keeps the fixed order, with that section at the top of the window ([Help](#help-f1)) |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
 | | `desktop-pattern` | `░` | the character of the desktop background: one character of one column, written as it is (`▒`, `▓`, `·`, `.`, any UTF-8 character the screen shows in one column), or `space`; no quotes; applies at once; invalid: a note and the default |
 | | `desktop-pattern-on-capture` | `space` | what Capture Desk writes for the background (also under the window shadows): one character as above, `space`, or `same` (the `desktop-pattern`) ([Capture](#capture)) |
@@ -917,7 +933,7 @@ in Editor...) opens a profile file of the same directory in a tvterm editor, to 
 | `layout` | `auto` | `auto` (`manual` if any window has `pos`, otherwise `tile-columns`), `manual`, `tile-columns`, `tile-rows`, `cascade`, `columns N`, `rows N` (N = 1–20, as Tile in N Columns / Rows, [Tile and Cascade](#tile-and-cascade)) |
 | `focus` | last window | window focused at start, 1 = the first window section |
 | `desktop` | `1` | desktop shown after loading (1–9) |
-| `desktop-main` | (none) | written by hand: the desktop always shown after loading (1–9), instead of `desktop` (which Save Profile As sets to the desktop shown at that moment); the focus goes to the `focus` window if it is on that desktop, otherwise to that desktop's front window; `0` or missing: `desktop` and `focus` as saved. Never set by tvterm; kept by Save Profile As (like `window-list-size`, a profile without it keeps the value of the profile loaded before) |
+| `desktop-main` | (none) | written by hand: the desktop always shown after loading (1–9, or a desktop name: the first desktop with that name, A–Z without case, after the profile's `desktop-name-N`; an unknown name: a note in the Event Viewer, as without it), instead of `desktop` (which Save Profile As sets to the desktop shown at that moment); the focus goes to the `focus` window if it is on that desktop, otherwise to that desktop's front window; `0` or missing: `desktop` and `focus` as saved. Never set by tvterm; kept by Save Profile As (like `window-list-size`, a profile without it keeps the value of the profile loaded before) |
 | `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
 | `window-list-size` | `90x20` | size of the Window List, columns x rows (at least `50x10`) |
 | `window-list-columns` | `auto auto auto *` | widths of the Window List columns Alert, Desk and Name: a number of columns (0–200; `0` hides the column) or `auto`; Command always gets the rest (the final `*` may be left out), e.g. `window-list-columns = auto auto 30 *`; kept until tvterm exits and saved by Save Profile As |
@@ -1025,7 +1041,11 @@ Keys, while it is focused (each one is also a status line item):
 | Space | pauses / resumes it (like Ctrl-B V) |
 | Ctrl-A | goes to the next alert (like Ctrl-B G) |
 | F8 | clears the alerts of levels 2-5 (like More... > Clear non-urgent alerts): `Alerts of levels 2-5 cleared: N.` |
+| Ctrl-Right / Ctrl-Left | shows the next / previous desktop (1-9) that has windows, skipping the empty ones; no wrap-around (at the last one: `No Desk with windows after D5.`); the Event Viewer keeps the focus and no window of those desktops gets it (Ctrl-B 1-9 then focuses as usual) |
+| F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
+
+Ctrl-Right / Ctrl-Left are shown in the window with K+ (unlike the letters above).
 
 The title shows the filters and the A key: `Event Viewer [M- C+ K+ O+ T+] A: alerts`. They apply to new events only; hidden events are still
 counted (`Received event #N` skips numbers). Profiles keep the filters (`[eventviewer]`).

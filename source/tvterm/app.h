@@ -84,6 +84,10 @@ struct TVTermApp : public TApplication
     void about();
     // Desktops (see desktops.h).
     void switchDesktop(int n);
+    // Event Viewer Ctrl-Right / Ctrl-Left (E77): the next / previous desktop
+    // (1-9) with windows ('direction' +1 / -1), the Event Viewer keeping the
+    // focus; none: a status message.
+    void showNextDesk(int direction);
     void desktopMenu();
     void moveWindowMenu();
     // A menu of the desktops 1-9; returns the chosen one, or 0.
@@ -112,6 +116,8 @@ private:
     // [profile] desktop-main of the profiles loaded (E62; 0: none), written
     // again by Save Profile As.
     int keptDesktopMain {0};
+    // The same as a desktop name (E77: 'desktop-main = mail'), as written.
+    std::string keptDesktopMainName;
 
     void checkSettingsFile();
 

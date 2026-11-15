@@ -221,6 +221,16 @@ void TEventViewer::handleEvent(TEvent &ev)
         clearEvent(ev);
         return;
     }
+    // Ctrl-Right / Ctrl-Left (E77): the next / previous Desk with windows;
+    // the viewer keeps the focus. Not own keys: shown with K+.
+    if ( ev.what == evKeyDown && (state & sfFocused) &&
+         (TKey(ev.keyDown) == TKey(kbCtrlRight) || TKey(ev.keyDown) == TKey(kbCtrlLeft)) )
+    {
+        message( TProgram::application, evCommand,
+                 TKey(ev.keyDown) == TKey(kbCtrlRight) ? cmNextDesk : cmPrevDesk, this );
+        clearEvent(ev);
+        return;
+    }
     TWindow::handleEvent(ev);
     // Answer to "is there an Event Viewer?" broadcasts (see TVTermApp).
     if (ev.what == evBroadcast && ev.message.command == cmFindEventViewer)

@@ -81,6 +81,10 @@ struct Profile
     // 0: as without it. Kept by Save Profile As.
     bool hasDesktopMain {false};
     int desktopMain {0};
+    // desktop-main = <name> (E77): the first desktop with that name (A-Z
+    // without case), looked up after the desktop-name-N of the profile; an
+    // unknown name: a note, as without desktop-main. desktopMain is then 0.
+    std::string desktopMainName;
     // desktop-name-N: names of desktops (1-9); only those in the file.
     std::map<int, std::string> desktopNames;
     // window-list-size = WxH (the Window List, see winlist.h).

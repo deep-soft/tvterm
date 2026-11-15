@@ -48,6 +48,9 @@ enum : ushort
     cmCaptureDesk,    // More... > Capture Desk, Ctrl-F10 (E71).
     cmCaptureWindow,  // More... > Capture Window, Ctrl-F11 (E71).
     cmMuteAlerts,     // More... > Mute alerts above level... (E72).
+    cmHelpKeys,       // F1, More... > Keys, About > Keys... (E77): the Help window.
+    cmNextDesk,       // Event Viewer Ctrl-Right (E77): the next Desk with windows.
+    cmPrevDesk,       // Event Viewer Ctrl-Left (E77): the previous one.
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };

@@ -391,6 +391,11 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseInt(value, 1, 2, settings.fileListColumns))
                     invalid("1 or 2"), settings.fileListColumns = previous.fileListColumns;
             }
+            else if (key == "help-current-first")
+            {
+                if (!parseBool(value, settings.helpCurrentFirst))
+                    invalid("use yes or no"), settings.helpCurrentFirst = previous.helpCurrentFirst;
+            }
             else if (key == "window-shadow")
             {
                 if (!parseBool(value, settings.windowShadow))
@@ -736,6 +741,11 @@ std::string settingsTemplate()
         "  # Viewer): yes or no. With Tile, the shadow of a window falls on the title\n"
         "  # of the window below it. Menus and dialogs always have a shadow.\n"
         " #window-shadow = " + std::string(d.windowShadow ? "yes" : "no") + "\n"
+        "  # Help (F1 in a window that is not a terminal, More... Keys): the keys of\n"
+        "  # every kind of window; the section of the window it was opened from is\n"
+        "  # shown at the top, its title in yellow. yes: that section also comes first\n"
+        "  # in the text; no: the sections in their fixed order.\n"
+        " #help-current-first = " + std::string(d.helpCurrentFirst ? "yes" : "no") + "\n"
         "  # The character of the desktop background (where there is no window): one\n"
         "  # character of one column, written as it is (e.g. \u2592 \u2593 \u00b7 .), or space.\n"
         "  # desktop-pattern-on-capture: the one Capture Desk writes there (also\n"

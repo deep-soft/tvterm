@@ -35,7 +35,10 @@ int of(TWindow *w);
 
 // Shows desktop 'n' (1-9): hides the windows of the current one and shows
 // those of 'n', focusing the window that was focused there last.
-void switchTo(TDeskTop &desk, int n);
+// 'keepGlobal' (E77, Event Viewer Ctrl-Right / Ctrl-Left): when the Event
+// Viewer has the focus, it keeps it (in front); no window of 'n' gets it,
+// and the window focused last on each desktop is not forgotten.
+void switchTo(TDeskTop &desk, int n, bool keepGlobal = false);
 
 // Moves 'w' to desktop 'n' (hidden if 'n' is not the current desktop).
 // Returns false for the Event Viewer.

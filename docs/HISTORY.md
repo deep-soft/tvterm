@@ -172,6 +172,9 @@ E75. README: a section about this fork above the original text; COPYRIGHT: a lin
      `docs/HISTORY-ro.md` and `docs/MANUAL-ro.md` removed (English only)
 E76. Version `v0.3.0`: shown with a `v` (`--version`, About, Event Viewer, `## format 6, created by tvterm v0.3.0`);
      signed tag `v0.3.0` and GitHub Release
+E77. Help (item 31, P2): F1 outside terminals, More... > Keys (Help)..., About > Keys...: every key, by kind of window,
+     configured keys as set, the current section on top (yellow title), `help-current-first`; Event Viewer Ctrl-Right /
+     Ctrl-Left show the next / previous Desk with windows; `desktop-main = <name>`; `tvterm.ini` format 7
 
 ---
 
@@ -337,6 +340,12 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   The values are read when the dialog opens. Long paths are shortened at the beginning (`...`) on narrow screens.
 
 ### Event Viewer filters — `far2l-extended`
+- **Ctrl-Right / Ctrl-Left** (E77, item 31): `cmNextDesk` / `cmPrevDesk` to `TVTermApp::showNextDesk(+1 / -1)`: the next /
+  previous desktop 1-9 with windows (`windowCounts`), empty ones skipped, no wrap-around, never Desk 0; status `Desk D3
+  shown.` / `No Desk with windows after D5.`. `desktops::switchTo(desk, n, keepGlobal)`: when the Event Viewer has the
+  focus it keeps it (`focusWindow`, so it comes to the front) instead of `focusAfterSwitch`, and the window focused last
+  on the desktop left is not forgotten (`lastFocus` kept), so Ctrl-B 1-9 later focuses it as before. Not own keys: shown
+  with K+.
 - Keys, when the Event Viewer window is focused (they are not shown as events): **M** mouse movements, **C** mouse buttons,
   wheel and auto-repeat, **K** keys, **O** other events (commands etc.), **T** tvterm's messages — each one shows/hides
   that kind; **N** clears the window and shows again the messages kept by tvterm (the last 200, the two version lines
@@ -949,6 +958,10 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   load), then all windows close and the profile opens; No = the profile's windows are added to the open ones (as before);
   Cancel = nothing is loaded. `confirmQuit(deskTop, closing)` in `quitdlg.cc`, `TVTermApp::closeWindowsBeforeLoad` in `app.cc`.
 - Full documentation: `examples/profiles/example.ini`.
+- **`desktop-main = <name>`** (E77, item 31): a value that is not a number is kept in `Profile::desktopMainName`;
+  `openProfile` looks it up after the profile's `desktop-name-N` were set: the first desktop 1-9 whose name equals it
+  (A-Z without case); none: a note `profile …: desktop-main 'x': no desktop has that name; not used` and the profile
+  loads as without it. Save Profile As writes the name as it was read (`keptDesktopMainName`); a number works as before.
 - **`desktop-main`** (E62, item 16, chat 59): `desktop` is rewritten by every Save Profile As (the desktop shown then),
   so a profile could not always open on the same desktop. `[profile] desktop-main = N` (0–9; `Profile::hasDesktopMain` /
   `desktopMain`) is written by hand and never set by tvterm. `openProfile`: the target desktop (layouts applied last to
@@ -956,6 +969,23 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   (or is the Event Viewer), else the frontmost visible selectable window of that desktop (`deskTop->first()` onward);
   none: the desktop shown as it is. `TVTermApp::keptDesktopMain`: set by each profile that has the key (like
   `window-list-size`), written by `saveProfile` when > 0; invalid values → the usual warning.
+
+### Help (F1) — `far2l-extended`
+- **E77** (item 31, P2, agreed in chat 69): `help.cc` / `help.h`. `help::text` builds the text from the tables of
+  `entries()` (one per section: Global keys, Terminal, Log View, Viewer, Editor, Event Viewer) and from the keys of
+  the current `Settings` (`menu-key`, `key-zoom`, `key-window-*` with `GlobalKey::name`; `history-*`,
+  `key-editor-comment` with `keyName`; `(not set)` when empty), so a key changed in `tvterm.ini` appears as set when the
+  window opens. Lines: two spaces, the keys in 30 columns, the action.
+- `help::open(from)`: the section of `from` (`sectionOf`: Log View / Viewer by `hasFixedLines`, editor, Event Viewer,
+  terminal; else none); its title gets `  (this window)` and is a `LogLine` with `marker = true` (drawn yellow,
+  `colMarker`, never filtered). The window is a Log View with fixed lines (`LogSource::createFixed`), the size of the
+  desktop, `setHelpView` (title `Help: tvterm keys N/N`); `LogViewWindow::showAt(top, cursor)` puts that section at the
+  top and the cursor on its first key (with `help-current-first = yes`, `top` = 0: the section is first in the text).
+  One Help window: an open one is closed first (opened from inside it: section Viewer).
+- F1: `TVTermApp::handleEvent`, `evKeyDown` left over by the windows (a terminal sends F1 to its program, so only the
+  other windows reach it); More... `~K~eys (Help)...` (shown key F1) and About `~K~eys...` (`cmYes`, opened after the
+  dialog closes; `showAbout` returns whether it was used) send `cmHelpKeys`.
+- `[general] help-current-first` (yes / no, default no); `tvterm.ini` format 7.
 
 ### Manual — `far2l-extended`
 - `docs/MANUAL.md` (English; `docs/MANUAL-ro.md`, Romanian, from E12 until E75): how to use tvterm as it is now —
@@ -2132,6 +2162,14 @@ examples/profiles/example.ini
   (`… using ░`, `… using space`, `… using 2`), defaults used; `é` accepted. Latency of five changes to the file:
   `auto-reload-check = 5` → 0.8 / 3.7 s (all ≤ 5), default → ≤ 1.9 s. `auto-reload = no`: not applied, More... `r`
   applies it. `auto-reload-check = 30` with the Settings editor open: a change on disk shown in it after 0.4 s.
+- E77, tmux 160x45, `-p none`: F1 in a terminal goes to the shell (`^[OP`); F1 in an editor / Event Viewer opens
+  `Help: tvterm keys` with that section at the top, its title yellow in `capture-pane -e` (`93m`), the cursor (black on
+  cyan) on its first key; `help-current-first = yes` → the editor section right after the first line; About → `Keys...`
+  button → Help with the Terminal section; F1 inside Help → still one Help window (Window List); More... shows
+  `Keys (Help)... F1`. Event Viewer with terminals on D3 and D5: Ctrl-Right → `Desk D3 shown.`, `Desk D5 shown.`, `No
+  Desk with windows after D5.`; Ctrl-Left back to D1 and `No Desk with windows before D1.`; one double frame (the Event
+  Viewer kept the focus). Profiles: `desktop-main = MAIL` with `desktop-name-3 = mail` → D3 shown; Save Profile As
+  writes `desktop-main = MAIL`; `nosuch` → note, D1; `3` → D3; `12` → `invalid desktop-main '12'`.
 
 ## 6. Known limitations
 
@@ -2238,6 +2276,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Help, Event Viewer Desks, `desktop-main` name (`far2l-extended`) | E77 | F1 (not in terminals), More... > Keys (Help)..., About > Keys...: the keys of every kind of window (configured ones as set), the current section at the top with a yellow title, `[general] help-current-first`; Event Viewer Ctrl-Right / Ctrl-Left: next / previous Desk with windows, the viewer keeps the focus; `desktop-main = <name>`; `tvterm.ini` format 7 |
 | Version 0.3.0 (`far2l-extended`) | E76 | version `v0.3.0`, shown with the `v` as the tags (`--version`, About, Event Viewer, `tvterm.ini` format line); one digit per part; signed tag `v0.3.0` and GitHub Release |
 | README, COPYRIGHT, English only (`far2l-extended`) | E75 | README: section about the fork (branches, additions, build, versions, license) above magiblot's text; COPYRIGHT: `Copyright (c) 2026 deep-soft …` under magiblot's line, license unchanged; HISTORY-ro / MANUAL-ro removed |
 | Desktop pattern, check interval (`far2l-extended`) | E74 | `[general] desktop-pattern` (any one-column character, `space`; applies at once), `desktop-pattern-on-capture` (`space`, a character, `same`), `auto-reload-check` (1-60 s; 2 while the Settings editor is open); `tvterm.ini` format 6 |

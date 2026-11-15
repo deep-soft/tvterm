@@ -39,6 +39,7 @@
 #include "topbar.h"
 #include "histdlg.h"
 #include "about.h"
+#include "help.h"
 #include "alerts.h"
 #include "capture.h"
 #include "logview.h"
@@ -718,6 +719,9 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmEditSettings: editSettings(); break;
                 case cmReloadSettings: reloadSettings(true); break;
                 case cmAbout: about(); break;
+                case cmHelpKeys: help::open(dynamic_cast<TWindow *>(deskTop->current)); break;
+                case cmNextDesk: showNextDesk(1); break;
+                case cmPrevDesk: showNextDesk(-1); break;
                 case cmSwitchDesktop: switchDesktop(event.message.infoInt); break;
                 case cmDesktopMenu: desktopMenu(); break;
                 case cmMoveWindowMenu: moveWindowMenu(); break;
@@ -739,6 +743,14 @@ void TVTermApp::handleEvent(TEvent &event)
                     handled = false;
                     break;
             }
+            break;
+        case evKeyDown:
+            // F1 (E77): the Help window. A terminal keeps the key (its
+            // program gets it), so only the other windows get here.
+            if (event.keyDown.keyCode == kbF1)
+                help::open(dynamic_cast<TWindow *>(deskTop->current));
+            else
+                handled = false;
             break;
         default:
             handled = false;
@@ -902,6 +914,7 @@ void TVTermApp::openMenu()
             // Only here since E67 (was Ctrl-B U): not chosen by a stray click.
             *new TMenuItem("S~u~spend...", cmDosShell, kbNoKey) +
             newLine() +
+            *new TMenuItem("~K~eys (Help)...", cmHelpKeys, kbNoKey, hcNoContext, "F1") +
             *new TMenuItem("~A~bout tvterm...", cmAbout, kbNoKey)
         ) +
         ( *new TSubMenu("~T~ext: Select/Paste", kbNoKey, hcMenu) +
@@ -1313,7 +1326,29 @@ void TVTermApp::openProfile(const Profile &profile)
         setWindowListSize(TPoint {profile.windowListWidth, profile.windowListHeight});
     // desktop-main: kept for Save Profile As, like window-list-size.
     if (profile.hasDesktopMain)
+    {
         keptDesktopMain = profile.desktopMain;
+        keptDesktopMainName = profile.desktopMainName;
+    }
+    // desktop-main = <name> (E77): the first desktop with that name (the
+    // names just set included), A-Z without case.
+    int mainDesk = profile.desktopMain;
+    if (!profile.desktopMainName.empty())
+    {
+        auto lowerAscii = [] (std::string t) {
+            for (char &c : t)
+                if (c >= 'A' && c <= 'Z')
+                    c += 'a' - 'A';
+            return t;
+        };
+        std::string wanted = lowerAscii(profile.desktopMainName);
+        for (int n = 1; n <= desktops::count && mainDesk == 0; ++n)
+            if (!desktops::name(n).empty() && lowerAscii(desktops::name(n)) == wanted)
+                mainDesk = n;
+        if (mainDesk == 0)
+            note("profile " + profile.path + ": desktop-main '" + profile.desktopMainName +
+                 "': no desktop has that name; not used");
+    }
     if (profile.hasWindowListColumns)
         setWindowListColumns(profile.windowListColumns);
 
@@ -1428,7 +1463,7 @@ void TVTermApp::openProfile(const Profile &profile)
     // Each window on its desktop (the Event Viewer: on all of them). The
     // layout is applied to each desktop that got windows, the one to show
     // last.
-    int target = profile.desktopMain > 0 ? profile.desktopMain : profile.desktop;
+    int target = mainDesk > 0 ? mainDesk : profile.desktop;
     std::vector<int> used;
     for (size_t i = 0; i < windows.size(); ++i)
     {
@@ -1465,7 +1500,7 @@ void TVTermApp::openProfile(const Profile &profile)
 
     TWindow *focusWin = profile.focus > 0 && (size_t) profile.focus <= windows.size() ?
                         windows[profile.focus - 1] : nullptr;
-    if (profile.desktopMain > 0)
+    if (mainDesk > 0)
     {
         // desktop-main: that desktop stays shown; the 'focus' window only if
         // it is there, else the front window of that desktop.
@@ -1718,8 +1753,9 @@ void TVTermApp::saveProfile()
     std::vector<TWindow *> windows = getDeskTopWindows(*deskTop);
     Profile profile;
     profile.desktop = desktops::current();
-    profile.hasDesktopMain = keptDesktopMain > 0;
+    profile.hasDesktopMain = keptDesktopMain > 0 || !keptDesktopMainName.empty();
     profile.desktopMain = keptDesktopMain;
+    profile.desktopMainName = keptDesktopMainName;
     for (int n = 1; n <= desktops::count; ++n)
         if (!desktops::name(n).empty())
             profile.desktopNames[n] = desktops::name(n);
@@ -1871,7 +1907,8 @@ void TVTermApp::about()
     for (TWindow *w : getDeskTopWindows(*deskTop))
         if (dynamic_cast<TerminalWindow *>(w))
             ++info.terminals;
-    showAbout(info);
+    if (showAbout(info))
+        help::open(dynamic_cast<TWindow *>(deskTop->current));
 }
 
 // Desktops (see desktops.h).
@@ -1883,6 +1920,21 @@ void TVTermApp::switchDesktop(int n)
         desktops::switchToPrevious(*deskTop);
     else if (n >= 1 && n <= desktops::count)
         desktops::switchTo(*deskTop, n);
+}
+
+void TVTermApp::showNextDesk(int direction)
+{
+    auto counts = desktops::windowCounts(*deskTop);
+    int cur = desktops::current();
+    for (int n = cur + direction; n >= 1 && n <= desktops::count; n += direction)
+        if (counts[n] > 0)
+        {
+            desktops::switchTo(*deskTop, n, true);
+            appsettings::showStatus("Desk " + desktops::label(n) + " shown.");
+            return;
+        }
+    appsettings::showStatus( std::string(direction > 0 ? "No Desk with windows after " : "No Desk with windows before ") +
+                             desktops::label(cur) + "." );
 }
 
 namespace desktopmenu
