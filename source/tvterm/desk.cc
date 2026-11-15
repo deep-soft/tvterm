@@ -1,4 +1,5 @@
 #define Uses_TEditWindow
+#define Uses_TDrawBuffer
 #include <tvision/tv.h>
 
 #include "desk.h"
@@ -6,10 +7,48 @@
 
 #include <algorithm>
 
+TVTermBackground::TVTermBackground(const TRect &bounds) noexcept :
+    TBackground(bounds, ' ')
+{
+}
+
+void TVTermBackground::draw()
+{
+    TDrawBuffer b;
+    TColorAttr color = getColor(0x01);
+    for (int x = 0; x < size.x; ++x)
+        b.moveStr(x, cell, color);
+    writeLine(0, 0, size.x, size.y, b);
+}
+
 TVTermDesk::TVTermDesk(const TRect &bounds) :
-    TDeskInit(&TDeskTop::initBackground),
+    TDeskInit(&TVTermDesk::initBackground),
     TDeskTop(bounds)
 {
+}
+
+TBackground *TVTermDesk::initBackground(TRect r)
+{
+    return new TVTermBackground(r);
+}
+
+void TVTermDesk::setPatterns(const std::string &shown, const std::string &onCapture)
+{
+    capturedPattern = onCapture;
+    if (shown != shownPattern)
+    {
+        shownPattern = shown;
+        drawBackground(shownPattern);
+    }
+}
+
+void TVTermDesk::drawBackground(const std::string &cell)
+{
+    if (auto *bg = dynamic_cast<TVTermBackground *>(background))
+    {
+        bg->cell = cell;
+        bg->drawView();
+    }
 }
 
 namespace tvtermdesk

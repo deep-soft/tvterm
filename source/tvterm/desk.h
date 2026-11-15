@@ -2,9 +2,24 @@
 #define TVTERM_DESK_H
 
 #define Uses_TDeskTop
+#define Uses_TBackground
 #include <tvision/tv.h>
 
+#include <string>
 #include <vector>
+
+// The desktop background (E74): 'cell' (one character of one column, UTF-8)
+// repeated, so that [general] desktop-pattern can be any such character, not
+// only one of tvision's codepage (CP437).
+class TVTermBackground : public TBackground
+{
+public:
+
+    TVTermBackground(const TRect &bounds) noexcept;
+    void draw() override;
+
+    std::string cell {"\u2591"}; // '░'
+};
 
 // Tile and Cascade arrange the terminals (and the other tileable windows),
 // but the Event Viewer and the editor windows stay where they are: the
@@ -23,6 +38,18 @@ class TVTermDesk : public TDeskTop
 public:
 
     TVTermDesk(const TRect &bounds);
+    static TBackground *initBackground(TRect r);
+
+    // [general] desktop-pattern and desktop-pattern-on-capture (E74): the
+    // background shown, and the one Capture Desk writes ('onCapture' is
+    // 'shown' for 'same'). Redraws the background when 'shown' changes.
+    void setPatterns(const std::string &shown, const std::string &onCapture);
+    const std::string &pattern() const { return shownPattern; }
+    const std::string &capturePattern() const { return capturedPattern; }
+    // Draws the background with 'cell' (only its uncovered parts), without
+    // changing the pattern of the settings: Capture Desk draws the capture
+    // pattern, reads the screen, then draws pattern() back.
+    void drawBackground(const std::string &cell);
 
     void tileVertical(const TRect &bounds);
     void tileHorizontal(const TRect &bounds);
@@ -56,6 +83,11 @@ public:
     // Set by the last Tile or Cascade: the fixed windows left no room, so the
     // whole desktop was used.
     bool noFreeArea {false};
+
+private:
+
+    std::string shownPattern {"\u2591"};
+    std::string capturedPattern {" "};
 
 };
 

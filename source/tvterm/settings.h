@@ -29,8 +29,9 @@ const int minFileDialogHeight = 19;
 // file-backups-number (E64); 3: comment-template, comment-width and
 // key-editor-comment (E66); 4: [alerts] action, action-interval, log,
 // notify, notify-repeat (E68); 5: [capture] folder (E71), [alerts]
-// mute-above (E72).
-const int settingsFormat = 5;
+// mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
+// desktop-pattern-on-capture (E74).
+const int settingsFormat = 6;
 
 struct Settings
 {
@@ -40,6 +41,9 @@ struct Settings
     // [general]
     std::string profile;    // Profile opened when tvterm starts without -p.
     bool autoReload {true}; // Reload the file when it changes.
+    // auto-reload-check: seconds between the checks of the file (auto-reload
+    // and the Settings editor), 1-60; 2 while the Settings editor is open.
+    int autoReloadCheck {2};
     // reload-message: "Settings reloaded." in the status line (status) or
     // nothing (none) after an automatic reload.
     bool reloadMessage {true};
@@ -64,6 +68,12 @@ struct Settings
     // window-shadow: the shadow of the desktop windows (terminals, Log View,
     // editors, Event Viewer); menus and dialogs always keep theirs.
     bool windowShadow {false};
+    // desktop-pattern: the character of the desktop background (one
+    // character of one column, UTF-8; 'space' in the file: a space).
+    // desktop-pattern-on-capture: the one Capture Desk writes there (E74);
+    // empty: 'same', the desktop-pattern.
+    std::string desktopPattern {"\u2591"};
+    std::string desktopPatternOnCapture {" "};
     // editor-selection: color of the selected text in the editors (also the
     // text found by Find), a BIOS attribute; -1: tvision's color.
     int editorSelection {-1};

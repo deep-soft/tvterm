@@ -1,3 +1,6 @@
+#define Uses_TText
+#include <tvision/tv.h>
+
 #include "settings.h"
 #include "profile.h"
 #include "highlight.h"
@@ -41,6 +44,29 @@ static bool parseBool(const std::string &value, bool &out)
     if (v == "no" || v == "false" || v == "off" || v == "0")
         return out = false, true;
     return false;
+}
+
+// desktop-pattern (E74): 'space', or one character of one column (printable
+// ASCII, or one valid UTF-8 character that the screen shows in one column).
+static bool parsePattern(const std::string &value, std::string &out)
+{
+    if (lower(value) == "space")
+        return out = " ", true;
+    if (value.empty())
+        return false;
+    unsigned char c = value[0];
+    size_t len = c < 0x80 ? 1 : (c >> 5) == 6 ? 2 : (c >> 4) == 14 ? 3 : (c >> 3) == 30 ? 4 : 0;
+    if (len == 0 || value.size() != len)
+        return false;
+    if (len == 1 && (c <= ' ' || c >= 0x7F))
+        return false;
+    for (size_t i = 1; i < len; ++i)
+        if (((unsigned char) value[i] & 0xC0) != 0x80)
+            return false;
+    if (TText::width(value) != 1)
+        return false;
+    out = value;
+    return true;
 }
 
 static bool parseInt(const std::string &value, int min, int max, int &out)
@@ -294,6 +320,16 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseBool(value, settings.autoReload))
                     invalid("use yes or no"), settings.autoReload = previous.autoReload;
             }
+            else if (key == "auto-reload-check")
+            {
+                // Invalid: the default (not the previous value).
+                if (!parseInt(value, 1, 60, settings.autoReloadCheck))
+                {
+                    settings.autoReloadCheck = Settings().autoReloadCheck;
+                    warn( "invalid " + key + " '" + value + "' (1 to 60 seconds); using " +
+                          std::to_string(settings.autoReloadCheck) );
+                }
+            }
             else if (key == "reload-message")
             {
                 std::string v = lower(value);
@@ -359,6 +395,21 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             {
                 if (!parseBool(value, settings.windowShadow))
                     invalid("use yes or no"), settings.windowShadow = previous.windowShadow;
+            }
+            else if (key == "desktop-pattern" || key == "desktop-pattern-on-capture")
+            {
+                // Invalid: the default (not the previous value).
+                bool capture = key == "desktop-pattern-on-capture";
+                std::string &out = capture ? settings.desktopPatternOnCapture : settings.desktopPattern;
+                if (capture && lower(value) == "same")
+                    out.clear();
+                else if (!parsePattern(value, out))
+                {
+                    out = capture ? Settings().desktopPatternOnCapture : Settings().desktopPattern;
+                    warn( "invalid " + key + " '" + value + "' (one character of one column, or space" +
+                          (capture ? ", or same" : "") + "); using " +
+                          (out == " " ? std::string("space") : out) );
+                }
             }
             else if (key == "editor-selection")
             {
@@ -647,8 +698,11 @@ std::string settingsTemplate()
         "  # Profile opened when tvterm starts without -p (name or path, see\n"
         "  # examples/profiles/example.ini). 'tvterm -p none' starts without it.\n"
         " #profile = server-mail\n"
-        "  # Reload this file automatically when it changes (checked every 2 seconds).\n"
+        "  # Reload this file automatically when it changes. auto-reload-check: the\n"
+        "  # seconds between the checks of this file, 1 to 60 (2 while the Settings\n"
+        "  # editor is open).\n"
         " #auto-reload = yes\n"
+        " #auto-reload-check = " + std::to_string(d.autoReloadCheck) + "\n"
         "  # After an automatic reload: status (\"Settings reloaded.\" in the status line\n"
         "  # for 5 seconds) or none. Problems in this file always go to the Event Viewer.\n"
         " #reload-message = status\n"
@@ -682,6 +736,13 @@ std::string settingsTemplate()
         "  # Viewer): yes or no. With Tile, the shadow of a window falls on the title\n"
         "  # of the window below it. Menus and dialogs always have a shadow.\n"
         " #window-shadow = " + std::string(d.windowShadow ? "yes" : "no") + "\n"
+        "  # The character of the desktop background (where there is no window): one\n"
+        "  # character of one column, written as it is (e.g. \u2592 \u2593 \u00b7 .), or space.\n"
+        "  # desktop-pattern-on-capture: the one Capture Desk writes there (also\n"
+        "  # under the window shadows): one character, space, or same (the\n"
+        "  # desktop-pattern).\n"
+        " #desktop-pattern = " + d.desktopPattern + "\n"
+        " #desktop-pattern-on-capture = space\n"
         "  # Color of the selected text in the editors, also the text found by Find:\n"
         "  # <color> on <color> (black red green yellow blue magenta cyan white,\n"
         "  # bright-<color>), e.g. black on bright-green; default: tvision's color.\n"

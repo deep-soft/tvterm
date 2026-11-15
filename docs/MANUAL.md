@@ -212,8 +212,9 @@ shows as UTF-8 text, with the frames and without colors, into the folder `[captu
 (`-2` added for a second file in the same second). The status line shows the path.
 
 - **Desk**: the whole area between the top bar and the status line, every row as wide as the screen, spaces where
-  there is no window (the desktop background `░` and the window shadows are written as spaces), trailing spaces kept
-  (an exact rectangle); a dialog on the screen is included.
+  there is no window (the desktop background and the window shadows are written as spaces, or as
+  `desktop-pattern-on-capture`; `same`: as on the screen), trailing spaces kept (an exact rectangle); a dialog on the
+  screen is included. The screen itself does not change.
 - **Window**: the focused window at its size, with its frame (a window of 80 × 25 gives 25 rows of 80 columns): its
   own content, also where another window covers it. A terminal: its screen, without the history.
 - A wide character (CJK, emoji) takes two columns on the screen and is one character in the file, so its row is one
@@ -772,11 +773,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 5, created by tvterm 0.2.0 (b440528, built 2026-11-09 10:00 EET)`: the format of the file, then the
+  `## format 6, created by tvterm 0.2.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
-  `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
+  `desktop-pattern`, `desktop-pattern-on-capture`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -788,7 +790,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   the header with `##` and the sections at the margin, the explanations indented by 2 spaces (`  # ...`), the keys by 1
   (` #lines = 10000`). To change a value, remove only the `#`: ` lines = 500` stays indented by 1 space, so the active
   values stand out among the comments.
-- Changes apply when the file is saved (checked every 2 seconds), or with **More... > Reload settings**.
+- Changes apply when the file is saved (checked every `auto-reload-check` seconds, 2 by default; every 2 seconds while
+  the Settings editor is open), or with **More... > Reload settings**.
 - An invalid value keeps the previous one; a removed key (or file) goes back to the default.
   Problems are reported in the Event Viewer, with a summary in the status line. After a reload without problems only
   the status line says "Settings reloaded." for 5 seconds (`reload-message = none`: nothing; Reload settings always
@@ -798,6 +801,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 |---|---|---|---|
 | `[general]` | `profile` | (none) | profile opened at startup without `-p` (name or path); only read at startup |
 | | `auto-reload` | `yes` | reload the file when it changes |
+| | `auto-reload-check` | `2` | seconds between the checks of the file (auto-reload and the Settings editor), 1 to 60; every 2 seconds while the Settings editor is open (its marker for the other tvterm instances must stay fresh); invalid: a note and `2` |
 | | `reload-message` | `status` | after an automatic reload: `status` ("Settings reloaded." in the status line) or `none`; problems always go to the Event Viewer |
 | | `large-file` | `5M` | files larger than this ask before they open in tvterm; `K`, `M`, `G` (×1024) or bytes; `0`: never ask ([chapter 5](#opening-and-viewing-files)) |
 | | `external-viewer` | (none) | program for View file and large files, e.g. `far2l --mortal -v %f` |
@@ -814,6 +818,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `comment-template` | `"# %Y-%m-%d %H:%M:%S "` | the comment line of `key-editor-comment` (Alt-C) in an editor: text with `strftime` codes (local time), 1–200 characters; quotes keep spaces at the start or end ([Comment line](#comment-line)) |
 | | `comment-width` | `79` | the comment line filled with `-` up to this many columns, 0–1000; `0`: not filled |
 | | `window-shadow` | `no` | shadow under the desktop windows (terminals, Log Views, editors, Event Viewer): `yes` or `no`; applies at once to the open windows too; menus and dialogs always have one ([Tile and Cascade](#tile-and-cascade)) |
+| | `desktop-pattern` | `░` | the character of the desktop background: one character of one column, written as it is (`▒`, `▓`, `·`, `.`, any UTF-8 character the screen shows in one column), or `space`; no quotes; applies at once; invalid: a note and the default |
+| | `desktop-pattern-on-capture` | `space` | what Capture Desk writes for the background (also under the window shadows): one character as above, `space`, or `same` (the `desktop-pattern`) ([Capture](#capture)) |
 | `[scrollback]` | `lines` | `10000` | history lines per terminal, 0–100000 (about 4 KB per line of 100 columns) |
 | | `wheel-lines` | `3` | lines per mouse wheel step, 1–100 (also in Log Views) |
 | | `word-chars` | `-._/@:~+%=` | characters that belong to a word on double click, besides letters and digits |
@@ -856,7 +862,8 @@ fewer keys ([Global keys](#global-keys)).
   room below it (at least 6 lines and 24 columns), on the right like the other editors. If the Settings editor is already
   open, Edit settings brings it to the front (where it is); from another desktop it is moved to the current one, in the
   place above.
-- **Changed outside** (another tvterm, another program; checked every 2 seconds, also with `auto-reload = no`): without
+- **Changed outside** (another tvterm, another program; checked every 2 seconds while it is open, also with
+  `auto-reload = no`): without
   changes in the editor, the file is reloaded into it ("Settings editor: tvterm.ini changed on disk, reloaded.", replaced
   at once by the result of the settings reload: "Settings reloaded." or the problems); with
   unsaved changes it asks **Reload** (take the file from disk, the changes are lost) or **Keep** (Esc). Saving (F2, or

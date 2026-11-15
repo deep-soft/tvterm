@@ -1,13 +1,13 @@
 #define Uses_TScreen
 #define Uses_TGroup
 #define Uses_TDeskTop
-#define Uses_TBackground
 #define Uses_TWindow
 #include <tvision/tv.h>
 
 #include <tvision/internal/codepage.h>
 
 #include "capture.h"
+#include "desk.h"
 #include "profile.h"
 
 #include <errno.h>
@@ -117,25 +117,19 @@ std::string captureDesk(TDeskTop &deskTop)
     int y0 = max<int>(r.a.y, 0), y1 = min<int>(r.b.y, TScreen::screenHeight);
     if (y1 <= y0)
         return "Capture failed: no desktop area.";
-    // The desktop background (its pattern, '\xB0' = ░) is captured as
-    // spaces (E73): the background is drawn again with spaces (only its
-    // uncovered parts; the window shadows are colors only, so they become
-    // spaces too), the screen is read, and the pattern is drawn back. Both
-    // drawings happen before the screen is next sent to the terminal, which
-    // shows no change.
-    TBackground *bg = deskTop.background;
-    char pattern = bg ? bg->pattern : ' ';
-    if (bg && pattern != ' ')
-    {
-        bg->pattern = ' ';
-        bg->drawView();
-    }
+    // The desktop background is captured with [general]
+    // desktop-pattern-on-capture (E73 / E74; a space by default): the
+    // background is drawn again with it (only its uncovered parts; the
+    // window shadows are colors only, so they take it too), the screen is
+    // read, and the shown pattern is drawn back. Both drawings happen before
+    // the screen is next sent to the terminal, which shows no change.
+    auto *desk = dynamic_cast<TVTermDesk *>(&deskTop);
+    bool swap = desk && desk->capturePattern() != desk->pattern();
+    if (swap)
+        desk->drawBackground(desk->capturePattern());
     std::string text = cellsToText(cells, width, 0, y0, width, y1 - y0);
-    if (bg && pattern != ' ')
-    {
-        bg->pattern = pattern;
-        bg->drawView();
-    }
+    if (swap)
+        desk->drawBackground(desk->pattern());
     return save("dsk", "Desk", text);
 }
 

@@ -71,8 +71,10 @@ namespace appsettings
 
 static Settings currentSettings;
 static FileStamp stamp;
+// The next check of tvterm.ini (auto-reload and the Settings editor), every
+// [general] auto-reload-check seconds (E74; before: 2 seconds); every 2
+// seconds while the Settings editor is open.
 static std::chrono::steady_clock::time_point nextCheck;
-enum { checkIntervalMs = 2000 };
 // The format of tvterm.ini last reported in the Event Viewer (-2: none):
 // a file of another format is reported once, not at every reload.
 static int reportedFormat = -2;
@@ -275,9 +277,10 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     using namespace appsettings;
     std::string path = settingsPath();
     stamp = FileStamp::of(path);
-    nextCheck = std::chrono::steady_clock::now() + std::chrono::milliseconds(checkIntervalMs);
     std::string warnings;
     bool existed = loadSettings(path, currentSettings, warnings);
+    // The next check with the interval just read.
+    nextCheck = std::chrono::steady_clock::now() + std::chrono::seconds(currentSettings.autoReloadCheck);
     applySettings(currentSettings);
     // [alerts] level 1 action, log, notification (E68).
     alertConfig = currentSettings.alertConfig;
@@ -290,6 +293,12 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     }
     // [capture] folder (E71).
     capture::setFolder(currentSettings.captureFolder);
+    // [general] desktop-pattern, desktop-pattern-on-capture (E74; empty:
+    // same).
+    if (auto *desk = dynamic_cast<TVTermDesk *>(TProgram::deskTop))
+        desk->setPatterns( currentSettings.desktopPattern,
+                           currentSettings.desktopPatternOnCapture.empty() ?
+                           currentSettings.desktopPattern : currentSettings.desktopPatternOnCapture );
     // [alerts] title-color, seen-color: the frames are drawn again (the windows keep
     // their drawing in a buffer, so redrawing the desktop is not enough).
     if ( alertTitleColor != currentSettings.alertTitleRed ||
@@ -410,9 +419,15 @@ void TVTermApp::checkSettingsFile()
 {
     using namespace appsettings;
     auto now = std::chrono::steady_clock::now();
+    // While the Settings editor is open, every 2 seconds: its marker
+    // (tvterm.ini.editing) must stay fresh for the other tvterm instances,
+    // which take one older than 10 seconds as stale (setedit.cc).
+    auto interval = std::chrono::seconds(SettingsEditWindow::instance ? 2 : currentSettings.autoReloadCheck);
+    if (nextCheck > now + interval)
+        nextCheck = now + interval;
     if (now < nextCheck)
         return;
-    nextCheck = now + std::chrono::milliseconds(checkIntervalMs);
+    nextCheck = now + interval;
     // The Settings editor: changes on disk and the editing marker (also
     // without 'auto-reload').
     if (SettingsEditWindow::instance)

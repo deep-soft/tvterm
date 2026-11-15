@@ -166,6 +166,8 @@ E72. Mute alerts (More... > Mute alerts above level..., Ctrl-B A field, `[alerts
      level 1 never) kept but not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) and skipped by Ctrl-B G / Ctrl-A
 E73. Capture Desk without the desktop background: the background pattern (`░`) and the window shadows are written as
      spaces; the screen does not change
+E74. `[general]` `desktop-pattern` (any one-column character, `space`), `desktop-pattern-on-capture` (`space`, a
+     character, `same`), `auto-reload-check` (1-60 s, 2 while the Settings editor is open); `tvterm.ini` format 6
 
 ---
 
@@ -391,7 +393,7 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   `examples/tvterm.ini` (a `##` inside a section) became an ordinary explanation (`  # …`), as in the template.
   `tvt-ini-merge` (the user's script, chat 48) expects `#key` at the margin: to be updated separately.
 - **Format line** (E53, item 47): `settingsTemplate()` starts with `## format N, created by tvterm <version> (<commit>,
-  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; 3 since E66; 4 since E68; `buildinfo::version`, `commit`, `date`), so the file made by
+  built <date>)` (`settingsFormat` in `settings.h`, 1; 2 since E64; 3 since E66; 4 since E68; 5 since E71; 6 since E74; `buildinfo::version`, `commit`, `date`), so the file made by
   Edit settings and `--print-settings` say which tvterm made them. The number goes up when a version adds, renames or
   changes the meaning of keys. `loadSettings` reads it (`parseFormatLine`: `##`, more `#` or spaces, `format `, 1–6
   digits, then the end, `,`, space or tab) only before the first section, the first such line; `Settings::fileFormat`,
@@ -1220,6 +1222,19 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   clipped by the windows), the screen buffer is read, the pattern is set back and drawn again. Both drawings happen
   before the next `flushScreen`, so the terminal gets no change. Window shadows are colors only (the characters under
   them are the background's), so they become spaces too. Capture Window is unchanged.
+- **E74** (item 36, agreed in chat 71 / 72; generalizes E73): `[general] desktop-pattern` (default `░`) and
+  `desktop-pattern-on-capture` (default `space`; `same` = the desktop-pattern, stored as an empty string). tvision's
+  `TBackground` draws one CP437 `char`, so `desk.cc` has `TVTermBackground` (`cell`: one UTF-8 character of one
+  column, drawn with `TDrawBuffer::moveStr` at every column) made by `TVTermDesk::initBackground`.
+  `TVTermDesk::setPatterns` (from `reloadSettings`, so a reload applies at once; redraws only when the shown pattern
+  changes) and `drawBackground(cell)` (used by `captureDesk`, only when the two patterns differ). Values: `space`, or
+  one printable ASCII character, or one valid UTF-8 sequence of 2-4 bytes with `TText::width` 1 (a wide character,
+  two characters, an empty value: invalid, a note, the default; no quotes).
+- **auto-reload-check** (E74, chat 72): `checkSettingsFile` checks `tvterm.ini` every `auto-reload-check` seconds
+  (1-60, default 2; invalid: a note and 2), both the auto-reload and the Settings editor's `tick`; while the Settings
+  editor is open the interval stays 2 seconds, because its marker `tvterm.ini.editing` is refreshed by `tick` and the
+  other instances take a marker older than 10 seconds (`staleSeconds`) as stale. `reloadSettings` sets the next check
+  with the interval just read.
 
 ### Other
 - **Status line names** (E10): `Ctrl-B Open Menu` → `Ctrl-B Menu`, `Window List` → `WinList` (7 columns less, so the
@@ -1370,7 +1385,8 @@ source/tvterm/             the application
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
                            previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
-  capture.cc/.h            Capture Desk / Window (E71): screen or window buffer as text, [capture] folder
+  capture.cc/.h            Capture Desk / Window (E71): screen or window buffer as text, [capture] folder;
+                           Desk with desktop-pattern-on-capture (E73 / E74)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
                            AlertTarget (interface of windows with alerts); logic in wnd.cc (TerminalWindow::checkAlerts)
                            and logview.cc (LogViewWindow::checkAlerts); AlertTitleFrame / drawAlertTitle: the title
@@ -2102,6 +2118,12 @@ examples/profiles/example.ini
   → `dsk-…` has no `░`, the rows outside the editor are spaces (also its shadow), the frame and text are the same as
   before E73; the screen (`capture-pane`) is the same before and after the capture (`░` still there); a second capture
   gives the same file.
+- E74, the same setup (`t74.py`, 15 checks; Event Viewer read in a 250-column window with a full-width Event Viewer
+  profile): `desktop-pattern = ◇` (not in CP437) on the screen, captured as spaces, screen unchanged; `same` → `◇` in
+  the file; `space` → blank background, `on-capture = .` → dots; `ab`, `日`, `auto-reload-check = 0` → three notes
+  (`… using ░`, `… using space`, `… using 2`), defaults used; `é` accepted. Latency of five changes to the file:
+  `auto-reload-check = 5` → 0.8 / 3.7 s (all ≤ 5), default → ≤ 1.9 s. `auto-reload = no`: not applied, More... `r`
+  applies it. `auto-reload-check = 30` with the Settings editor open: a change on disk shown in it after 0.4 s.
 
 ## 6. Known limitations
 
@@ -2208,6 +2230,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Desktop pattern, check interval (`far2l-extended`) | E74 | `[general] desktop-pattern` (any one-column character, `space`; applies at once), `desktop-pattern-on-capture` (`space`, a character, `same`), `auto-reload-check` (1-60 s; 2 while the Settings editor is open); `tvterm.ini` format 6 |
 | Capture without background (`far2l-extended`) | E73 | Capture Desk writes the desktop background (`░`) and the window shadows as spaces; the screen does not change |
 | Mute alerts (`far2l-extended`) | E72 | More... > Mute alerts above level... / Ctrl-B A field / `[alerts] mute-above` (off, 2-5): that level and the less urgent ones (level 1 never) keep their title, `A<n>`, log, Event Viewer list `(muted)`, but are not counted in the top bar (`Alerts: 1+2 (muted 3-5)`) nor on the desktop buttons, and Ctrl-B G / Ctrl-A skip them; until changed, restart, Load Profile or a change of `mute-above` |
 | Capture Desk / Window (`far2l-extended`) | E71 | More... > Capture Desk (`d`, Ctrl-F10) / Capture Window (`i`, Ctrl-F11; the keys only when the active window is not a terminal, also in dialogs): the text on the screen with frames, no colors, exact rectangle (Window: its own content even where covered), into `[capture] folder` (`~/logs/tvterm/capture`) as `dsk-` / `wnd-YYYY-MM-DD-hhmmss.txt`; `tvterm.ini` format 5 |
