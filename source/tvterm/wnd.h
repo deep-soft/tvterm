@@ -33,6 +33,11 @@ public:
     bool closeWhenDone {false};
     // Whether the program of the terminal has ended.
     bool programEnded() const noexcept { return isDisconnected(); }
+    // Pin (E84, see pin.h): " [P]" in the title; not closed by the user.
+    bool isPinned() const noexcept { return pinned; }
+    void setPinned(bool on) noexcept;
+    // The title without the marks (for messages).
+    std::string messageTitle() { return plainTitle(); }
 
     enum class Alert { None, Activity, Silence, Keyword };
 
@@ -59,6 +64,7 @@ private:
 
     AlertSettings alertSettings;
     Alert alert {Alert::None};
+    bool pinned {false};
     // Alert::Keyword: the group found and the line.
     std::string alertKeyword, alertGroup, alertLine;
     uint64_t alertOrder {0}; // New when the alert gets a more urgent level.

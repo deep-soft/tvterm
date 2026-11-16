@@ -25,6 +25,7 @@
 #include "procinfo.h"
 #include "alerts.h"
 #include "histfile.h"
+#include "pin.h"
 #include <tvterm/termview.h>
 #include <tvterm/termctrl.h>
 
@@ -42,10 +43,10 @@ enum : ushort
     cmWinListColumns,  // Broadcast: the rows of the list changed.
 };
 
-// One line of the list: four columns.
+// One line of the list: five columns (P: pinned, E84).
 struct Row
 {
-    std::string alert, desktop, title, command;
+    std::string pinned, alert, desktop, title, command;
 };
 
 // Column widths chosen in the profile (window-list-columns): Alert, Desk,
@@ -53,7 +54,7 @@ struct Row
 static bool columnsSet = false;
 static int columnSpec[3] = {-1, -1, -1};
 
-const char *const columnNames[4] = {"Alert", "Desk", "Name", "Command"};
+const char *const columnNames[5] = {"P", "Alert", "Desk", "Name", "Command"};
 const int columnGap = 2;   // Spaces between two columns.
 const int nameShare = 40;  // Automatic Name: at most this % of the line.
 
@@ -70,13 +71,13 @@ static std::string fitColumn(const std::string &text, int width)
     return w < width ? s + std::string(width - w, ' ') : s;
 }
 
-// The four columns of a row (or of the header), cut and padded to
+// The five columns of a row (or of the header), cut and padded to
 // 'widths'; hidden columns (width 0) are left out with their gap.
-static std::string joinColumns(const std::string (&cells)[4], const int (&widths)[4])
+static std::string joinColumns(const std::string (&cells)[5], const int (&widths)[5])
 {
     std::string text;
     bool first = true;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         if (widths[i] <= 0)
             continue;
@@ -94,7 +95,7 @@ public:
 
     std::vector<Row> rows;
     // The longest text of each column, at least its name (for 'auto').
-    int longest[4] {0, 0, 0, 0};
+    int longest[5] {0, 0, 0, 0, 0};
 
     WindowListViewer(const TRect &bounds, TScrollBar *vScrollBar) noexcept :
         TListViewer(bounds, 1, nullptr, vScrollBar)
@@ -104,14 +105,14 @@ public:
     void setRows(std::vector<Row> aRows)
     {
         rows = std::move(aRows);
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 5; ++i)
             longest[i] = (int) strlen(columnNames[i]);
         for (const Row &r : rows)
         {
-            longest[0] = std::max(longest[0], (int) TText::width(r.alert));
-            longest[1] = std::max(longest[1], (int) TText::width(r.desktop));
-            longest[2] = std::max(longest[2], (int) TText::width(r.title));
-            longest[3] = std::max(longest[3], (int) TText::width(r.command));
+            longest[1] = std::max(longest[1], (int) TText::width(r.alert));
+            longest[2] = std::max(longest[2], (int) TText::width(r.desktop));
+            longest[3] = std::max(longest[3], (int) TText::width(r.title));
+            longest[4] = std::max(longest[4], (int) TText::width(r.command));
         }
         setRange((short) rows.size());
         drawView();
@@ -120,23 +121,24 @@ public:
     }
 
     // The widths of the columns for the current width of the list (the
-    // text starts one column in): Alert, Desk and Name as chosen in the
+    // text starts one column in): P (E84) always one column; Alert, Desk
+    // and Name as chosen in the
     // profile or automatic (the longest text, at least the column name;
     // Name at most nameShare % of the line), Command the rest. Columns that
     // do not fit are cut, from the right.
-    void columnWidths(int (&widths)[4]) const
+    void columnWidths(int (&widths)[5]) const
     {
         int total = size.x - 1;
         int left = total;
         bool any = false;
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 4; ++i)
         {
-            int w = columnSpec[i];
+            int w = i == 0 ? 1 : columnSpec[i - 1];
             if (w < 0)
             {
                 w = longest[i];
-                if (i == 2)
-                    w = std::min(w, std::max((int) strlen(columnNames[2]), total * nameShare / 100));
+                if (i == 3)
+                    w = std::min(w, std::max((int) strlen(columnNames[3]), total * nameShare / 100));
             }
             int gap = (any && w > 0) ? columnGap : 0;
             w = std::max(0, std::min(w, left - gap));
@@ -147,7 +149,7 @@ public:
                 any = true;
             }
         }
-        widths[3] = std::max(0, left - (any ? columnGap : 0));
+        widths[4] = std::max(0, left - (any ? columnGap : 0));
     }
 
     void getText(char *dest, short item, short maxChars) override
@@ -156,9 +158,9 @@ public:
         if (item >= 0 && (size_t) item < rows.size())
         {
             const Row &r = rows[item];
-            int widths[4];
+            int widths[5];
             columnWidths(widths);
-            const std::string cells[4] = {r.alert, r.desktop, r.title, r.command};
+            const std::string cells[5] = {r.pinned, r.alert, r.desktop, r.title, r.command};
             text = joinColumns(cells, widths);
         }
         strncpy(dest, text.c_str(), maxChars);
@@ -188,9 +190,10 @@ public:
         b.moveChar(0, ' ', color, size.x);
         if (list)
         {
-            int widths[4];
+            int widths[5];
             list->columnWidths(widths);
-            const std::string cells[4] = {columnNames[0], columnNames[1], columnNames[2], columnNames[3]};
+            const std::string cells[5] = {columnNames[0], columnNames[1], columnNames[2], columnNames[3],
+                                          columnNames[4]};
             // TListViewer draws its text one column in.
             b.moveStr(1, joinColumns(cells, widths), color);
         }
@@ -505,6 +508,9 @@ static std::string commandOf(TWindow *w)
 static Row describe(TWindow *w)
 {
     Row row;
+    // Pin (E84).
+    if (pin::isPinned(w))
+        row.pinned = "P";
     // The level of the alert (E68).
     if (auto *target = dynamic_cast<AlertTarget *>(w))
         if (target->hasAlert())

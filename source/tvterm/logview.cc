@@ -39,6 +39,7 @@
 #include "statline.h"
 #include "winlist.h"
 #include "desktops.h"
+#include "pin.h"
 #include <tvterm/termopts.h>
 
 #include <regex.h>
@@ -131,6 +132,7 @@ enum : ushort
     cmLogTransform,
     cmLogMarkChecked,
     cmLogDuplicateWord,
+    cmLogPin,             // Pin / Unpin (E84).
     // Button of the search dialog.
     cmLogFindNew,
 };
@@ -1889,6 +1891,9 @@ const char *LogViewWindow::getTitle(short)
 {
     using namespace logview;
     std::string text = alertMark((int) alert, alertKeyword) + plainTitle();
+    // Pin (E84): the first mark.
+    if (pinned)
+        text += " [P]";
     bool anyFilter = !options.include.empty() || !options.exclude.empty() ||
                      !options.includeAnd.empty();
     if (anyFilter && !options.filters)
@@ -1937,6 +1942,12 @@ std::string LogViewWindow::titleText() const
 {
     using namespace logview;
     return options.title.empty() ? options.command : options.title;
+}
+
+void LogViewWindow::setPinned(bool on)
+{
+    pinned = on;
+    updateTitle();
 }
 
 void LogViewWindow::updateTitle()
@@ -2324,6 +2335,8 @@ std::string LogViewWindow::shownText() const
 void LogViewWindow::openMenu(TPoint where)
 {
     using namespace logview;
+    TKey pinCode = TVTermApp::settings().keyLogViewPin;
+    std::string pinKey = pinCode.code ? keyName(pinCode) : std::string();
     TMenuItem &items =
         *new TMenuItem("~S~ettings...", cmLogSettings, kbNoKey, hcNoContext, "F4") +
         *new TMenuItem("~I~nclude filter...", cmLogInclude, kbNoKey, hcNoContext, "I") +
@@ -2353,6 +2366,10 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
         newLine() +
         *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, "F5");
+    // E84: no letter (the good ones are taken); F6 by default. Not in Help.
+    if (!helpView)
+        items + *new TMenuItem(pinned ? "Unpin" : "Pin (not closed by Ctrl-W)", cmLogPin, kbNoKey,
+                               hcNoContext, pinKey.empty() ? nullptr : pinKey.c_str());
     ushort cmd = popupMenu(where, items, nullptr);
     if (cmd)
         runCommand(cmd);
@@ -2396,6 +2413,7 @@ void LogViewWindow::runCommand(ushort cmd)
         case cmLogAlerts:
             message(TProgram::application, evCommand, cmAlertSettings, nullptr);
             break;
+        case cmLogPin: pin::toggle(this); break;
     }
 }
 
@@ -3116,6 +3134,9 @@ void LogViewWindow::handleEvent(TEvent &ev)
     }
     // Ctrl-W: closes the window (see apputil.h).
     closeKeyToCommand(*this, ev);
+    // Pin (E84): Ctrl-W, the close button, Window List > Close.
+    if (!helpView && pin::refuseClose(*this, ev))
+        return;
     if (ev.what == evKeyDown && (state & sfFocused))
     {
         TKey key(ev.keyDown);
@@ -3127,6 +3148,9 @@ void LogViewWindow::handleEvent(TEvent &ev)
         else if (key == TKey(kbEnter)) markChecked();
         // E69: F5 opens Alerts... (like Ctrl-B A).
         else if (key == TKey(kbF5)) runCommand(cmLogAlerts);
+        // E84: Pin / Unpin (key-logview-pin, F6); not the Help window.
+        else if ( !helpView && TVTermApp::settings().keyLogViewPin.code &&
+                  key == TVTermApp::settings().keyLogViewPin ) runCommand(cmLogPin);
         else if (key == TKey(kbF9)) openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);
         else if (key == TKey(kbF2)) save();
         else if (key == TKey(kbF3)) findNext(true);
@@ -3254,9 +3278,9 @@ static std::string alertCell(const AlertSettings &a)
 void showLogViewsTable(TDeskTop &deskTop, bool list)
 {
     using namespace logview;
-    // The table has '#' first; the list has only the 16 fields.
+    // The table has '#' first; the list has only the 17 fields.
     static const char *const names[] = {
-        "#", "Name", "Alert", "Desk", "Command", "Include", "And include", "Exclude", "Ignore case", "Wrap",
+        "#", "P", "Name", "Alert", "Desk", "Command", "Include", "And include", "Exclude", "Ignore case", "Wrap",
         "Filters on", "Highlight Type", "Highlight Sets", "Highlight Words", "Transform", "Max lines",
         "Restart after",
     };
@@ -3271,6 +3295,7 @@ void showLogViewsTable(TDeskTop &deskTop, bool list)
         auto yesNo = [] (bool b) { return std::string(b ? "yes" : "no"); };
         rows.push_back({
             std::to_string(rows.size() + 1),
+            log->isPinned() ? "P" : "",
             o.title,
             alertCell(log->getAlertSettings()),
             desktops::label(desktops::of(w)),

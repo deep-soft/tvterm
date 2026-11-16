@@ -699,7 +699,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "key-logviews-end" ? &settings.keyLogViewsEnd :
                            key == "key-editor-indent" ? &settings.keyEditorIndent :
                            key == "key-editor-unindent" ? &settings.keyEditorUnindent :
-                           key == "key-editor-whitespace" ? &settings.keyEditorWhitespace : nullptr;
+                           key == "key-editor-whitespace" ? &settings.keyEditorWhitespace :
+                           key == "key-logview-pin" ? &settings.keyLogViewPin : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
@@ -708,7 +709,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                                key == "key-logviews-end" ? &previous.keyLogViewsEnd :
                                key == "key-editor-indent" ? &previous.keyEditorIndent :
                                key == "key-editor-unindent" ? &previous.keyEditorUnindent :
-                               key == "key-editor-whitespace" ? &previous.keyEditorWhitespace : nullptr;
+                               key == "key-editor-whitespace" ? &previous.keyEditorWhitespace :
+                               key == "key-logview-pin" ? &previous.keyLogViewPin : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -1027,6 +1029,9 @@ std::string settingsTemplate()
         "  # Key that, in the Event Viewer, moves every Log View (all the desktops) to\n"
         "  # its last line, following again (also More... Scroll Log Views to last).\n"
         " #key-logviews-end = " + keyName(d.keyLogViewsEnd) + "\n"
+        "  # Key that pins / unpins a Log View: a pinned one is not closed by Ctrl-W or\n"
+        "  # Close (also F9 > Pin, and Windows > Pin for terminals), e.g. F6 or none.\n"
+        " #key-logview-pin = " + keyName(d.keyLogViewPin) + "\n"
         "  # Global keys: they work in every window (not in dialogs, menus or Grab\n"
         "  # Input). A comma separates several keys; modifiers Ctrl-, Alt-, Shift-;\n"
         "  # keys F1-F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, with Ctrl\n"

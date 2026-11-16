@@ -13,6 +13,7 @@ enum : ushort
     cmHistoryMode,
     cmTileNCols, // Windows > Tile in N Columns...
     cmTileNRows, // Windows > Tile in N Rows...
+    cmPinWindow, // Windows > Pin / Unpin (E84): disabled when the window cannot be pinned.
     // Commands that cannot be deactivated.
     cmNewTerm = 2000,
     cmCheckTerminalUpdates,

@@ -60,8 +60,14 @@ struct TVTermApp : public TApplication
     void loadProfileInEditor();
     void editorSaveAs();
     // Asks whether to close the open windows before loading a profile.
-    // Returns false if the profile should not be loaded.
+    // Returns false if the profile should not be loaded. Pinned windows
+    // (E84) that stay open go to 'keptPinned'.
     bool closeWindowsBeforeLoad();
+    // Load Profile (E84): the pinned windows kept open; a profile window
+    // with the same title and command as one of them is skipped.
+    std::vector<TWindow *> keptPinned;
+    // Windows > Pin / Unpin (E84).
+    void pinWindow();
     // After Tile / Cascade: a note if the fixed windows left no room.
     void noteNoFreeArea();
     // Windows > Tile in N Columns / Rows: asks for N (1-20; the last value

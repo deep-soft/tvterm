@@ -135,6 +135,11 @@ public:
     // (like End; a pause ends). Not with fixed lines (nothing new comes), a
     // selection or a search match shown: false.
     bool moveToEnd();
+    // Pin (E84, see pin.h): " [P]" in the title; not closed by the user.
+    bool isPinned() const noexcept { return pinned; }
+    void setPinned(bool on);
+    // The title without the marks ("Log: ...", for messages).
+    std::string messageTitle() const { return plainTitle(); }
 
     // AlertTarget.
     const AlertSettings &getAlertSettings() const noexcept override { return alertSettings; }
@@ -161,6 +166,7 @@ private:
     std::shared_ptr<LogSource> fixedSource;
     bool fileView {false};
     bool helpView {false};
+    bool pinned {false};
     std::unique_ptr<LogRegex> includeRe, excludeRe;
     // The words of options.includeAnd (split at " && ").
     std::vector<std::string> includeAndWords;
@@ -363,9 +369,9 @@ size_t countRunningLogViews(TDeskTop &deskTop);
 
 // More... > Log Views as table / as list: the settings of every Log View
 // (all the desktops, in the order of the Window List) in a new editor:
-// a markdown table with aligned columns, or ('list') the 16 field names,
-// one per line, then for each Log View its 16 values, one per line, each
-// block after an empty line. Shows a status message when there is none.
+// a markdown table with aligned columns, or ('list') the 17 field names,
+// one per line, then for each Log View its 17 values, one per line, each
+// block after an empty line. P (E84): 'P' for a pinned Log View. Shows a status message when there is none.
 void showLogViewsTable(TDeskTop &deskTop, bool list = false);
 
 // Splits an And include value at " && " (each part trimmed, empty parts

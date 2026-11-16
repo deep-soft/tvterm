@@ -409,6 +409,11 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else
                     win.alertActivityLevel = level;
             }
+            else if (hasAlerts && key == "pinned")
+            {
+                if (!parseBool(value, win.pinned))
+                    warn("invalid pinned '" + value + "' (use yes or no)");
+            }
             else if (hasAlerts && key == "alert-action")
                 win.alertAction = value;
             else if (hasAlerts && key == "alert-keywords")
@@ -542,6 +547,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     if (!win.keepOpen)
                         file << "keep-open = no\n";
                 }
+                if (win.pinned)
+                    file << "pinned = yes\n";
                 if (win.alertActivity)
                     file << "alert-activity = " << alertLevelPrefix(win.alertActivityLevel) << "yes\n";
                 if (!win.alertKeywords.empty())
@@ -595,6 +602,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 // Off (key T): only with sets.
                 if (!win.logTransform.empty() && !win.logTransformOn)
                     file << "transform-on = no\n";
+                if (win.pinned)
+                    file << "pinned = yes\n";
                 if (win.alertActivity)
                     file << "alert-activity = " << alertLevelPrefix(win.alertActivityLevel) << "yes\n";
                 if (!win.alertKeywords.empty())

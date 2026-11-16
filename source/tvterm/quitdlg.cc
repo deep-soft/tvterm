@@ -295,14 +295,16 @@ static std::string padRight(const std::string &text, int width)
 
 } // namespace quitdlg
 
-bool confirmQuit(TDeskTop &deskTop, bool closing)
+bool confirmQuit(TDeskTop &deskTop, bool closing, const std::vector<TWindow *> *only)
 {
     using namespace quitdlg;
     std::vector<TermItem> terms;
     size_t logs = 0;
     // In the order of the Window List (by desktop).
     for (TWindow *w : getSortedWindows(deskTop))
-        if (auto *term = dynamic_cast<TerminalWindow *>(w))
+        if (only && std::find(only->begin(), only->end(), w) == only->end())
+            continue;
+        else if (auto *term = dynamic_cast<TerminalWindow *>(w))
         {
             if (isConnected(term))
                 terms.push_back(describe(*term));

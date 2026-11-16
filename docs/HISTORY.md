@@ -188,6 +188,10 @@ E82. Editor: Alt-U on a line whose leading blanks hold a Tab makes them spaces a
 E83. Editor whitespace view (item 32): Ctrl-Space (`key-editor-whitespace`) / F9 > Whitespace shows spaces `·`, tabs
      `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color`); `[WS]` in the
      title; `[editor] show-whitespace`; profiles `whitespace = yes`; `tvterm.ini` format 8
+E84. Pin (item 33): a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List
+     > Close; Log View F6 (`key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for both; `[P]` in the title, P
+     in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile Keep / Close all / Cancel,
+     the same window (title + command) not opened twice; `tvterm.ini` format 9
 
 ---
 
@@ -1318,6 +1322,30 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `whitespace-color` with `parseColorName`), `[keys] key-editor-whitespace`; `settingsFormat` = 8. Profiles:
   `WindowProfile::whitespace` (-1 / 0 / 1); Save Profile As writes `yes` when on, `no` when off and
   `show-whitespace = yes`. Settings reload: the open editors are already drawn again (E79 code).
+- **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
+  (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
+  message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
+  `TerminalWindow::pinned`, `setPinned` redraws the frame); ` [P]` is added by `getTitle` (Log View: right after the
+  title, before `[I]`…; terminal: after the title), not by `plainTitle`, so alerts, messages and the quit list keep the
+  bare title. Every user close reaches the window as `evCommand cmClose` (Ctrl-W turned into it by
+  `closeKeyToCommand`, the frame's close button, Ctrl-B Close Term, Window List Close through `handleEvent`):
+  `refuseClose` is checked first in both `handleEvent`s (`infoPtr` null or the window) and clears the event, with the
+  status line text and an Event Viewer note `not closed: <title>: …`. `close()` called directly is not refused: the
+  end of a terminal's program (`keep-open = no`, `closeWhenDone`), Load Profile, Quit (which never asks the windows to
+  close) behave as before. Keys: Log View `key-logview-pin` (`[keys]`, F6; `settingsFormat` = 9), F9 item `Pin (not
+  closed by Ctrl-W)` / `Unpin` with the key, no letter (the good ones are taken), not in Help; Ctrl-B Windows ►
+  `~P~in (not closed by mistake)` / `Un~p~in` above Resize/Move, command `cmPinWindow` = 108 (below 256, so it can be
+  disabled: `openMenu` enables it only when `canPin(deskTop->current)`). Window List: a fifth column `P` (always one
+  column, before Alert; `window-list-columns` unchanged: Alert, Desk, Name). Log Views table / list: column `P` after
+  `#` (17 fields). Profiles: `WindowProfile::pinned`, `pinned = yes` in `[terminal]` / `[logview]` (read and written
+  only when yes). Load Profile (`closeWindowsBeforeLoad`): after Yes, with pinned windows, `pinload::askKeepPinned`
+  (Keep = cmYes, Close all = cmNo, Cancel); `confirmQuit(deskTop, true, &toClose)` lists only the windows that close
+  (new optional argument `only`); the pinned windows that stay (Keep, or all of them after No) go to
+  `TVTermApp::keptPinned`, cleared after `openProfile`. `openProfile` skips a `[logview]` with the title and command of
+  a kept Log View (fixed lines never match) and a `[terminal]` with the title and command that `describeTerminal` gives
+  for a kept terminal (what Save Profile As would write: the profile's command or the foreground command), with a note
+  `profile <path>: [logview] '<name>' skipped: the same as a pinned window kept open`. Kept windows are not moved; a
+  `layout` of the profile still arranges them with the new ones, as before for windows kept by No.
 
 ### Capture (Desk / Window) — `far2l-extended`
 - **E71** (item 30, P1, agreed in chat 69): replaces the Shift+mouse captures of putty4far2l. `capture.cc`:
@@ -1505,7 +1533,8 @@ source/tvterm/             the application
   winlist.cc/.h            Window List dialog (columns and header, E55), renameTerminal, getDeskTopWindows (with the windows of other desktops)
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
                            previous desktop, names, order in which windows were opened (E35)
-  quitdlg.cc/.h            quit confirmation dialog (confirmQuit)
+  quitdlg.cc/.h            quit confirmation dialog (confirmQuit; `only`: Load Profile with pinned windows kept, E84)
+  pin.cc/.h                Pin (E84): pinned Log Views and terminals refuse Ctrl-W / Close; toggle, refuseClose
   capture.cc/.h            Capture Desk / Window (E71): screen or window buffer as text, [capture] folder;
                            Desk with desktop-pattern-on-capture (E73 / E74)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
@@ -2286,6 +2315,24 @@ examples/profiles/example.ini
   Whitespace worked); the Event Viewer showed `keyCode = 0x3900`, `charCode = 0`, `scanCode = 57`, `kbLeftCtrl`. A
   small program linked with tvision (the same `isCtrlSpace`) on that event, Ctrl-@, Ctrl + ' ' → yes (the first one no
   with the old test); Space, Ctrl-Shift-Space, Alt-Space, Ctrl-A → no.
+- E84, tmux 160x45, `-p p1` (two Log Views `L1` / `L2` with `seq … ; sleep 1000`, two terminals `T1` / `T2`, `layout =
+  columns 2`), windows chosen through the Window List (Ctrl-B W, Home, Down, Enter), 38 checks: F6 → `Log: L1 [P] 5/5`
+  and `Pinned: Log: L1 …`; Ctrl-W → still open, `Log View is pinned (F9 > Unpin).`; F9 → `Unpin  F6`; Ctrl-B Z → `Pin
+  (not closed by mistake)` right above Resize/Move; Ctrl-B Z P on T1 → `T1 [P]`; Ctrl-B Close Term (Home, Down ×8,
+  Enter) → refused, `Term is pinned (Ctrl-B Z P to unpin).`; Window List: header `P  Alert  Desk  Name`, `P` on L1 and
+  T1 only, Alt-C on L1 refused; L2 (not pinned) closes with Ctrl-W; F6 again → `Unpinned: …`, then Ctrl-W closes;
+  Event Viewer notes `not closed: T1: …` / `not closed: Log: L1: …`. Ctrl-B C `s1` → `pinned = yes` exactly in the L1
+  and T1 sections; More... `l` → table `| # | P | Name |`, `P` on L1, empty on L2. Load `s1.ini`: Yes → `2 pinned
+  window(s):` with Keep / Close all / Cancel; Keep → the close list shows only L2 and T2, after Close: L1 [P] and T1
+  [P] once (same Desk and place, L1's lines kept) plus new L2 and T2, `2 pinned window(s) kept.`, notes `[logview]
+  'L1' skipped …` / `[terminal] 'T1' skipped …`; again, Close all → the list has the pinned ones too, after loading
+  L1 and T1 pinned again from the profile; Cancel in the second question → nothing changes; No → L2 and T2 added a
+  second time, L1 and T1 not (Window List: 6 rows). Help (F1 from a Log View): the F6 line, F6 does nothing, F9
+  without Pin; an editor: Ctrl-B Z P does nothing (item gray); pinned T2, `exit` and a key → closed as before; Quit
+  with pinned windows → the usual question, tvterm ends. `tvterm.ini` from Edit settings → `## format 9`, ` #key-
+  logview-pin = F6`; `key-logview-pin = F7` → F6 nothing, F7 pins, F9 `Unpin  F7`; `none` → F6 / F7 nothing, F9 `Pin
+  (not closed by Ctrl-W)` without a key and End + Enter pins; profile `pinned = maybe` → `invalid pinned 'maybe' (use
+  yes or no)`. A name without `.ini` in Load Profile still fails (known, not changed).
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2404,6 +2451,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |
 | Event Viewer select and copy (`far2l-extended`) | E81 | Event Viewer: cursor line and selection like Log View (Up / Down / PgUp / PgDn / Home / End, Shift, click, drag, Shift+click, wheel), Ctrl-C / Ctrl-Ins copy exactly what is shown, Esc clears the selection and follows again; no scrolling while a selection exists; lines kept up to 64000 bytes |

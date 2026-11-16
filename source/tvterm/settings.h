@@ -34,8 +34,8 @@ const int minFileDialogHeight = 19;
 // [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79),
 // [logview] cursor-color, selection-color (E80); 8: [editor]
 // show-whitespace, whitespace-symbols, whitespace-color, [keys]
-// key-editor-whitespace (E83).
-const int settingsFormat = 8;
+// key-editor-whitespace (E83); 9: [keys] key-logview-pin (E84).
+const int settingsFormat = 9;
 
 struct Settings
 {
@@ -160,6 +160,8 @@ struct Settings
     TKey keyEditorUnindent {'U', kbAltShift};
     // key-editor-whitespace (E83): the whitespace view of an editor on/off.
     TKey keyEditorWhitespace {' ', kbCtrlShift};
+    // key-logview-pin (E84): Pin / Unpin of a Log View (see pin.h).
+    TKey keyLogViewPin {kbF6};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

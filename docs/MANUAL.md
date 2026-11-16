@@ -167,12 +167,12 @@ writes Ctrl-B.
 | `0` | Desktop... | shows the previous desktop (again: back) |
 | `Y` | Move Window to Desktop... | moves the focused window to another desktop |
 | `W` | Window List... | list of all windows, with their desktop and command: Go, Rename, Close |
-| `Z` | Windows ► | submenu: Zoom, Tile, Cascade, Grab Input, Resize/Move (see below) |
+| `Z` | Windows ► | submenu: Zoom, Tile, Cascade, Grab Input, Pin, Resize/Move (see below) |
 | `L` | Log View... | new Log View ([chapter 10](#10-log-view)) |
 | `A` | Alerts... | alerts of the focused terminal or Log View ([chapter 9](#9-alerts)) |
 | `G` | Go to Next Alert | goes to the window with the most urgent alert, the oldest of that level; with none left, back to the window where you started ([Going through the alerts](#going-through-the-alerts)) |
 | `N` | New Term | new terminal with your shell (`$SHELL`) |
-| (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake) |
+| (none) | Close Term | closes the focused window: choose it with the arrows + Enter, or click it (no key, so that it is not chosen by mistake); not a [pinned](#pin) one |
 | (none) | Rename Term... | fixed title for a terminal or Log View (empty: the automatic one); arrows + Enter, or click it |
 | `Tab` / `Shift-Tab` | Next / Previous Term | next / previous window |
 | `H` | History | history mode in a terminal ([chapter 4](#4-history-scrollback)) |
@@ -194,7 +194,8 @@ submenu its own letters work; a letter it does not have goes to the main menu (C
 
 **Windows ►** (`Z`): `Z` Zoom (Maximize/Restore: maximizes the focused window; again: back to its size) · `C` Tile
 (Columns First) · `R` Tile (Rows First) · `L` Tile in N Columns... · `S` Tile in N Rows... · `A` Cascade
-([Tile and Cascade](#tile-and-cascade)) · `G` Grab Input ([Grab Input](#grab-input)) · `M` Resize/Move (arrows move,
+([Tile and Cascade](#tile-and-cascade)) · `G` Grab Input ([Grab Input](#grab-input)) · `P` Pin / Unpin the focused
+Log View or terminal ([Pin](#pin)) · `M` Resize/Move (arrows move,
 Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z Z** and Resize/Move **Ctrl-B Z M**
 (`key-zoom` in [Global keys](#global-keys) gives Zoom a direct key).
 
@@ -265,9 +266,10 @@ terminals); menus and dialogs always have one.
 
 ### Window List
 
-**Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in four columns, with
+**Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in five columns, with
 their names on the row above the list:
 
+- **P**: `P` for a pinned window ([Pin](#pin)), else empty; always one column.
 - **Alert**: `A1`…`A5`, the level of the window's alert ([Levels](#levels)), empty without an alert.
 - **Desk**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
 - **Name**: the title, with the alert mark if any.
@@ -290,6 +292,32 @@ longest text (at least their name), Name as wide as the longest name of the rows
 and Command gets the rest; a cut text ends with `…`. A short name leaves the room to the command. Fixed widths:
 `window-list-columns` in profiles ([Profiles](#format)). **Alt-W** moves to the list. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,
 [Profiles](#format)); without it the list opens at 90×20 (smaller on a small screen).
+
+### Pin
+
+A **pinned** Log View or terminal is protected from being closed by mistake: **Ctrl-W**, the close button `[■]`,
+**Ctrl-B Close Term** and **Close** in the Window List refuse it, with `Log View is pinned (F9 > Unpin).` / `Term is
+pinned (Ctrl-B Z P to unpin).` in the status line and a note in the Event Viewer. Pin / Unpin:
+
+- a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**;
+- the focused Log View or terminal: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a terminal
+  this is the only way, because F6 goes to its program.
+
+The title shows ` [P]` (in a Log View before the other marks), the Window List and the Log Views table / list a `P`.
+Nothing else changes: the window can be moved, resized, zoomed, tiled, renamed, filtered and moved to another desktop;
+**Quit** closes it as before; when its program ends a terminal behaves as before (with `keep-open = no` it stays
+`(Disconnected)` and closes on a key) and a Log View keeps its lines. The Help window cannot be pinned.
+
+Profiles: Save Profile As writes `pinned = yes` for a pinned terminal or Log View; a profile window with it opens pinned.
+**Load Profile** with pinned windows open: after **Yes** to *Close the current windows first?*, a second question lists
+them: **Keep** (they stay, on their desktop and in their place, with their lines and running programs; the others
+close), **Close all** (the pinned ones close too) or **Cancel** (nothing is closed or loaded). The list of what runs
+(as when quitting) then shows only the windows that close; the status line says `2 pinned window(s) kept.`. A
+`[terminal]` or `[logview]` of the profile with the same title and the same command as a pinned window kept open (also
+after **No**, which keeps every window) is not opened again; the Event Viewer gets a note (`… [logview] 'mail'
+skipped: the same as a pinned window kept open`). The same title with another command, or the same command with
+another title, opens. For a terminal the command compared is the one Save Profile As would write (the profile's
+command, or else the command running in its foreground).
 
 ### Desktops
 
@@ -402,7 +430,8 @@ The dialog opens large enough to show every line whole (when the screen allows) 
 - It never leaves the screen; if the screen gets smaller while it is open, it is moved and shrunk to fit.
 - The size you choose and the zoomed state are kept until tvterm exits (the dialog always opens centered). On a smaller
   screen it opens shrunk; the size you chose comes back on a larger one.
-- The same holds for the "Close windows" question of Load Profile.
+- The same holds for the "Close windows" question of Load Profile (with pinned windows kept, it lists only the windows
+  that close, [Pin](#pin)).
 
 ### File dialogs
 
@@ -834,12 +863,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 8, created by tvterm v0.3.0 (b440528, built 2026-11-16 10:00 EET)`: the format of the file, then the
+  `## format 9, created by tvterm v0.3.0 (b440528, built 2026-11-17 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -915,6 +944,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `key-editor-indent` / `key-editor-unindent` | `Alt-I` / `Alt-U` | one space more / less at the start of the line or of the selected lines in an editor ([Indent and unindent](#indent-and-unindent)); `none`: no key |
 | | `key-editor-whitespace` | `Ctrl-Space` | shows / hides the spaces, tabs and line ends of an editor ([Whitespace](#whitespace)); `none`: no key |
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
+| | `key-logview-pin` | `F6` | in a Log View: Pin / Unpin ([Pin](#pin)); `none`: no key (F9 > Pin still works) |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
 | | `key-window-left`, `-right`, `-up`, `-down` | (none) | keys that go to the neighbouring window |
@@ -1003,6 +1033,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `dir` | current directory | working directory (`~` = home) |
 | `command` | interactive shell | command, run as `$SHELL -c "command"` |
 | `keep-open` | `yes` | `yes`: when the command ends (or Ctrl-C), a shell starts in the same terminal; `no`: the terminal stays `(Disconnected)` with its output |
+| `pinned` | `no` | `yes`: the terminal opens pinned ([Pin](#pin)) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts ([chapter 9](#9-alerts)); `N:` before a value = level N ([Levels](#levels)) |
 | `alert-action` | (none) | command for the level 1 alerts of this window (else `[alerts] action`) |
 
@@ -1026,6 +1057,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 | `highlight-on` | `yes` | `no`: colors off (as after the H key) |
 | `transform` | (none) | transformation sets, e.g. `show-tls` ([chapter 10](#transformations)) |
 | `transform-on` | `yes` | `no`: the original lines shown (as after the T key) |
+| `pinned` | `no` | `yes`: the Log View opens pinned ([Pin](#pin)) |
 | `alert-activity`, `alert-keywords`, `alert-silence` | off | alerts, on the lines shown; `N:` before a value = level N ([Levels](#levels)) |
 | `alert-action` | (none) | command for the level 1 alerts of this window (else `[alerts] action`) |
 
@@ -1061,8 +1093,8 @@ Saves every window of every desktop with its position (inside the desktop, one d
 the stacking order, the focused window and the current desktop; the desktop names and the size of the Window List
 (when you changed it, or a profile set it).
 For a terminal: the fixed title, the current directory of the program running in it, the command from the profile or
-else the command running in the foreground (e.g. `tail -f ...`, saved with `keep-open = yes`), the alerts.
-For a Log View: all its settings. The text of untitled editors is not saved, and editors with unsaved changes keep only
+else the command running in the foreground (e.g. `tail -f ...`, saved with `keep-open = yes`), the alerts, `pinned =
+yes` when pinned. For a Log View: all its settings (`pinned = yes` when pinned). The text of untitled editors is not saved, and editors with unsaved changes keep only
 their file name; tvterm says so after saving. The dialog proposes the profiles directory; `.ini` is added if missing.
 
 ---
@@ -1279,7 +1311,7 @@ escape sequences are removed; tabs are kept. Use `tail -F` (not `-f`), so that l
 
 ### Title
 
-`[!keyword] Log: <title> [I] [I+] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[I]` / `[E]` when include / exclude
+`[!keyword] Log: <title> [P] [I] [I+] [E] shown/total (ended) [PAUSE +N]`: the alert mark, `[P]` when [pinned](#pin), `[I]` / `[E]` when include / exclude
 are set, `[I+]` when And include is set, `[F-]` when the filters are off, `[W]` when the colors come from words, `[H-]` when the colors are off,
 `[T-]` when the [transformation](#transformations) is off, lines shown / lines in the buffer, `(ended)` when the command has ended,
 `[PAUSE +N]` while paused, `[+N]` new lines below the view.
@@ -1315,7 +1347,8 @@ Also in the window's menu (**F9** or right click); the main ones are in the stat
 | Esc | clears the selection, then the search match and the double-clicked word |
 | double click | copies a word and keeps it, shown selected (white on blue), for `+` |
 | F5 or Ctrl-B A | alerts ([chapter 9](#9-alerts)) |
-| Ctrl-W | closes the window |
+| F6 | Pin / Unpin (`key-logview-pin`): a pinned window is not closed by Ctrl-W or Close ([Pin](#pin)) |
+| Ctrl-W | closes the window (not when pinned) |
 
 **Ctrl-Shift-E** arrives as a key of its own only through far2l's extensions (putty4far2l → far2l → tvterm) or
 terminals that send keys with their modifiers; in a plain terminal it arrives as Ctrl-E (new editor): use F9 > To open
@@ -1594,12 +1627,12 @@ order of the Window List, as a markdown table into a new editor (untitled; F2 sa
 longest value (or its name):
 
 ```
-| #   | Name    | Alert                         | Desk | Command                          | Include          | ...
-|-----|---------|-------------------------------|------|----------------------------------|------------------| ...
-| 1   | maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
+| #   | P   | Name    | Alert                         | Desk | Command                          | Include          | ...
+|-----|-----|---------|-------------------------------|------|----------------------------------|------------------| ...
+| 1   | P   | maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
 ```
 
-The columns: `#`, Name, Alert, Desk, Command, Include, And include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
+The columns: `#`, P (`P` when [pinned](#pin), else empty), Name, Alert, Desk, Command, Include, And include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
 Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
 
 - **Name**: the Title field (empty: none); **Command**: `(fixed lines)` for the windows of Search > New window and View file.
@@ -1609,8 +1642,8 @@ Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
   the default / no restart).
 - A `|` in a value is written `\|`, so the table keeps its columns.
 
-**More... > Log Views as list** (key `s`) writes the same values as lines: first the 16 names (Name … Restart after,
-one per line), then, after an empty line, the 16 values of the first Log View in the same order, one per line, and so
+**More... > Log Views as list** (key `s`) writes the same values as lines: first the 17 names (P, Name … Restart after,
+one per line), then, after an empty line, the 17 values of the first Log View in the same order, one per line, and so
 on, an empty line before each Log View. An empty value is an empty line; `|` stays as it is.
 
 ```

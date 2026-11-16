@@ -1,5 +1,6 @@
 #include "wnd.h"
 #include "cmds.h"
+#include "pin.h"
 
 #define Uses_TEvent
 #define Uses_TFrame
@@ -32,6 +33,9 @@ TFrame *TerminalWindow::initFrame(TRect bounds)
 
 void TerminalWindow::handleEvent(TEvent &ev)
 {
+    // Pin (E84): Close Term, the close button, Window List > Close.
+    if (pin::refuseClose(*this, ev))
+        return;
     bool checkUpdates = ev.what == evBroadcast && ev.message.command == cmCheckTerminalUpdates;
     if ( ev.what == evBroadcast &&
          ev.message.command == cmGetOpenTerms && !isDisconnected() )
@@ -90,13 +94,25 @@ void TerminalWindow::setState(ushort aState, Boolean enable)
 const char *TerminalWindow::getTitle(short maxSize)
 {
     const char *title = Super::getTitle(maxSize);
-    if (alert == Alert::None)
+    if (alert == Alert::None && !pinned)
         return title;
-    titleBuf = alertMark((int) alert == (int) Alert::Keyword ? 3 :
-                         (int) alert == (int) Alert::Silence ? 2 : 1, alertKeyword);
+    titleBuf.clear();
+    if (alert != Alert::None)
+        titleBuf = alertMark((int) alert == (int) Alert::Keyword ? 3 :
+                             (int) alert == (int) Alert::Silence ? 2 : 1, alertKeyword);
     if (title)
         titleBuf += title;
+    // Pin (E84).
+    if (pinned)
+        titleBuf += " [P]";
     return titleBuf.c_str();
+}
+
+void TerminalWindow::setPinned(bool on) noexcept
+{
+    pinned = on;
+    if (frame)
+        frame->drawView();
 }
 
 void TerminalWindow::setAlertSettings(AlertSettings settings) noexcept

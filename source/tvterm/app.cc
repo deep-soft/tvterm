@@ -52,6 +52,7 @@
 #include "fileopen.h"
 #include "desktops.h"
 #include "highlight.h"
+#include "pin.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -752,6 +753,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmTileRows: getDeskTop()->tileHorizontal(getTileRect()); noteNoFreeArea(); break;
                 case cmTileNCols: tileInN(true); break;
                 case cmTileNRows: tileInN(false); break;
+                case cmPinWindow: pinWindow(); break;
                 default:
                     handled = false;
                     break;
@@ -866,6 +868,12 @@ using appmenu::MainMenuPopup;
 
 void TVTermApp::openMenu()
 {
+    // Windows > Pin / Unpin (E84): for the focused Log View or terminal.
+    if (pin::canPin(deskTop->current))
+        enableCommand(cmPinWindow);
+    else
+        disableCommand(cmPinWindow);
+    bool pinnedNow = pin::isPinned(deskTop->current);
     TMenuItem &menuItems =
         // Order of item 30 (P1, chat 69; E70): desktops and windows, alerts,
         // terminals, files and editors, profiles, the rest. Free letters:
@@ -883,6 +891,7 @@ void TVTermApp::openMenu()
             *new TMenuItem("C~a~scade", cmCascade, kbNoKey) +
             newLine() +
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
+            *new TMenuItem(pinnedNow ? "Un~p~in" : "~P~in (not closed by mistake)", cmPinWindow, kbNoKey) +
             *new TMenuItem("Resize/~M~ove", cmResize, kbNoKey)
         ) +
         newLine() +
@@ -1315,6 +1324,8 @@ static TRect eventViewerBounds(const TRect &extent)
 
 static TRect editorBounds(const TRect &extent);
 
+static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext);
+
 void TVTermApp::openProfile(const Profile &profile)
 {
     // Mute (E72) goes back to [alerts] mute-above with every profile loaded.
@@ -1366,10 +1377,38 @@ void TVTermApp::openProfile(const Profile &profile)
     if (profile.hasWindowListColumns)
         setWindowListColumns(profile.windowListColumns);
 
+    // Load Profile with pinned windows kept (E84): what each of them would be
+    // saved as (title and command), to skip the same window in the profile.
+    std::vector<std::pair<std::string, std::string>> keptLogs, keptTerms;
+    for (TWindow *w : keptPinned)
+        if (auto *log = dynamic_cast<LogViewWindow *>(w))
+        {
+            if (!log->hasFixedLines())
+                keptLogs.push_back({log->getOptions().title, log->getOptions().command});
+        }
+        else if (auto *term = dynamic_cast<TerminalWindow *>(w))
+        {
+            WindowProfile d = describeTerminal(*term, ext);
+            keptTerms.push_back({d.title, d.command});
+        }
+    auto isKept = [] (const std::vector<std::pair<std::string, std::string>> &kept, const WindowProfile &win) {
+        return std::find(kept.begin(), kept.end(), std::make_pair(win.title, win.command)) != kept.end();
+    };
+
     for (const auto &win : profile.windows)
     {
         anyPos |= win.hasPos;
         TWindow *window = nullptr;
+        if ( (win.kind == WindowProfile::Terminal && isKept(keptTerms, win)) ||
+             (win.kind == WindowProfile::LogView && isKept(keptLogs, win)) )
+        {
+            const std::string &name = win.title.empty() ? win.command : win.title;
+            note("profile " + profile.path + ": " +
+                 (win.kind == WindowProfile::LogView ? "[logview] '" : "[terminal] '") +
+                 (name.empty() ? std::string("(shell)") : name) +
+                 "' skipped: the same as a pinned window kept open");
+            continue;
+        }
         switch (win.kind)
         {
             case WindowProfile::Terminal:
@@ -1397,6 +1436,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 alerts.silenceLevel = win.alertSilenceLevel;
                 alerts.action = win.alertAction;
                 term->setAlertSettings(std::move(alerts));
+                term->setPinned(win.pinned);
                 window = term;
                 break;
             }
@@ -1462,6 +1502,7 @@ void TVTermApp::openProfile(const Profile &profile)
                 alerts.silenceLevel = win.alertSilenceLevel;
                 alerts.action = win.alertAction;
                 log->setAlertSettings(std::move(alerts));
+                log->setPinned(win.pinned);
                 window = log;
                 break;
             }
@@ -1582,7 +1623,9 @@ void TVTermApp::loadProfile()
     TObject::destroy(p);
     if (result == cmCancel || !closeWindowsBeforeLoad())
         return;
-    if (!openProfile(std::string(fileName)) && pendingMessage.empty())
+    bool opened = openProfile(std::string(fileName));
+    keptPinned.clear();
+    if (!opened && pendingMessage.empty())
         pendingMessage = "No terminal was opened.";
 }
 
@@ -1617,31 +1660,113 @@ void TVTermApp::editorSaveAs()
     message(w, evCommand, cmSaveAs, nullptr);
 }
 
+namespace pinload
+{
+
+// Load Profile with pinned windows (E84): Keep (cmYes), Close all (cmNo) or
+// Cancel.
+static ushort askKeepPinned(const std::vector<TWindow *> &pinned)
+{
+    std::string text = std::to_string(pinned.size()) + " pinned window(s):";
+    size_t shown = 0;
+    for (TWindow *w : pinned)
+    {
+        if (++shown > 4)
+        {
+            text += "\n  ...";
+            break;
+        }
+        std::string t = pin::titleOf(w);
+        if (TText::width(t) > 60)
+            t = t.substr(0, TText::scroll(t, 59, False)) + "\u2026";
+        text += "\n  " + t;
+    }
+    text += "\nKeep: they stay (same Desk, same place); the others close.\n"
+            "Close all: the pinned windows close too.";
+    int lines = 1 + (int) std::count(text.begin(), text.end(), '\n');
+    int width = 0;
+    for (size_t start = 0;;)
+    {
+        size_t end = text.find('\n', start);
+        std::string line = text.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        width = std::max(width, (int) TText::width(line));
+        if (end == std::string::npos)
+            break;
+        start = end + 1;
+    }
+    width = std::min(std::max(width + 6, 50), 76);
+    TDialog *d = new TDialog(TRect(0, 0, width, lines + 6), "Load profile");
+    d->options |= ofCentered;
+    d->insert(new TStaticText(TRect(3, 2, width - 3, 2 + lines), text.c_str()));
+    int bw = 13;
+    int x = (width - 3*bw - 4)/2;
+    d->insert(new TButton(TRect(x, lines + 3, x + bw, lines + 5), "~K~eep", cmYes, bfDefault));
+    d->insert(new TButton(TRect(x + bw + 2, lines + 3, x + 2*bw + 2, lines + 5), "C~l~ose all", cmNo, bfNormal));
+    d->insert(new TButton(TRect(x + 2*bw + 4, lines + 3, x + 3*bw + 4, lines + 5), "Cancel", cmCancel, bfNormal));
+    d->selectNext(False);
+    return execDialog(d);
+}
+
+} // namespace pinload
+
 bool TVTermApp::closeWindowsBeforeLoad()
 {
+    keptPinned.clear();
     auto windows = getDeskTopWindows(*deskTop);
     if (windows.empty())
         return true;
+    std::vector<TWindow *> pinned;
+    for (TWindow *w : windows)
+        if (pin::isPinned(w))
+            pinned.push_back(w);
     ushort answer = messageBox(
         "Close the current windows first?\n"
         "(No: the profile's windows are added to them.)",
         mfConfirmation | mfYesNoCancel);
     if (answer == cmNo)
+    {
+        keptPinned = pinned;
         return true;
+    }
     if (answer != cmYes)
         return false;
-    // Lists what runs in the terminals and Log Views, as when quitting.
-    if ( (getOpenTermCount() || countRunningLogViews(*deskTop)) &&
-         !confirmQuit(*deskTop, true) )
+    // Pinned windows (E84): kept, or closed with the others.
+    std::vector<TWindow *> toClose = windows;
+    if (!pinned.empty())
+    {
+        ushort keep = pinload::askKeepPinned(pinned);
+        if (keep == cmYes)
+        {
+            toClose.clear();
+            for (TWindow *w : windows)
+                if (!pin::isPinned(w))
+                    toClose.push_back(w);
+        }
+        else if (keep != cmNo)
+            return false;
+    }
+    // Lists what runs in the terminals and Log Views closed, as when
+    // quitting.
+    if (!confirmQuit(*deskTop, true, &toClose))
         return false;
     // Editors with unsaved changes ask first, before anything is closed:
     // Cancel there keeps all the windows and loads nothing.
-    for (TWindow *w : windows)
+    for (TWindow *w : toClose)
         if (!w->valid(cmClose))
             return false;
-    for (TWindow *w : windows)
+    for (TWindow *w : toClose)
         w->close();
+    if (toClose.size() < windows.size())
+    {
+        keptPinned = pinned;
+        TVTermStatusLine::showMessage(std::to_string(pinned.size()) + " pinned window(s) kept.");
+    }
     return true;
+}
+
+void TVTermApp::pinWindow()
+{
+    pin::toggle(deskTop->current);
 }
 
 void TVTermApp::windowList()
@@ -1727,6 +1852,7 @@ static WindowProfile describeTerminal(TerminalWindow &w, const TRect &ext)
     term.alertSilence = alerts.silenceSeconds;
     term.alertSilenceLevel = alerts.silenceLevel;
     term.alertAction = alerts.action;
+    term.pinned = w.isPinned();
 
     setProfilePos(term, w, ext);
     return term;
@@ -1847,6 +1973,7 @@ void TVTermApp::saveProfile()
             win.logHighlightWords = o.highlightWords;
             win.logTransform = o.transform;
             win.logTransformOn = o.transformOn;
+            win.pinned = log->isPinned();
             const AlertSettings &alerts = log->getAlertSettings();
             win.alertActivity = alerts.activity;
             win.alertActivityLevel = alerts.activityLevel;

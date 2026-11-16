@@ -82,6 +82,7 @@ static std::vector<Entry> entries(help::Section s)
                 {menu + " H", "history mode: Up Down PgUp PgDn Home End scroll, / search,"},
                 {"", "F3 / Shift-F3 next / previous, F2 save, Ctrl-C copy, Esc exit"},
                 {menu + " T T", "select text: drag, Ctrl-C copy, Esc cancel"},
+                {menu + " Z P", "pin / unpin: not closed by mistake ([P] in the title)"},
             };
         case help::LogView:
             return {
@@ -109,6 +110,7 @@ static std::vector<Entry> entries(help::Section s)
                 {"double click", "copy a word (kept for +)"},
                 {"Ctrl-A", "go to the next alert"},
                 {"F5", "alerts of this window"},
+                {keyOf(st.keyLogViewPin), "pin / unpin: Ctrl-W and Close refuse it (key-logview-pin)"},
             };
         case help::Viewer:
             return {
