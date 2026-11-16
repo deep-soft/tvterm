@@ -748,10 +748,12 @@ tvision's editor keys) does the comment instead. Alt-C arrives through putty4far
 
 **Alt-I** adds one space at the start of the current line, or of every line of the selection; **Alt-U** removes one.
 A selection that ends at the start of a line leaves that line out (as Alt-D). Empty lines stay as they are. On a line
-that starts with a Tab, Alt-U makes the Tab 4 spaces and removes one (3 left). The selection stays on the same text,
-so the key can be pressed again (Alt-I Alt-I: two spaces); the cursor keeps its place in the text (at the start of a
-line it stays there). One undo step per press. Nothing to change: `Nothing to unindent.` / `Nothing to indent: empty
-line.` in the status line. In a read only editor: `Read only.`.
+whose leading blanks hold a Tab, Alt-U first makes them spaces, as wide as the editor shows them (a Tab reaches the next
+column that is a multiple of 8), then removes one: `Tab` → 7 spaces, `Tab Tab` → 15, `space Tab` → 7, so the text
+always moves one column, as on any other line. The selection stays on the same text, so the key can be pressed again
+(Alt-I Alt-I: two spaces); the cursor keeps its place in the text (at the start of a line it stays there). One undo step
+per press. Nothing to change: `Nothing to unindent.` / `Nothing to indent: empty line.` in the status line. In a read
+only editor: `Read only.`.
 
 The keys are `key-editor-indent` and `key-editor-unindent` in `[keys]` (`none`: no key). tvterm's own editor keys
 (Alt-D, Alt-W, Alt-F8, Ctrl-Down / Ctrl-Up) and `key-editor-comment` come first when the same key is set.

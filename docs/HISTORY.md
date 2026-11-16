@@ -183,6 +183,8 @@ E80. `[logview] cursor-color` (black on cyan) and `selection-color` (black on wh
      the selected lines of the Log Views (and of the Event Viewer, E81); applied at once
 E81. Event Viewer: cursor line, selection and copy (item 39), with the keys and the behavior of Log View; while a
      selection exists the window does not scroll, Esc follows the end again
+E82. Editor: Alt-U on a line whose leading blanks hold a Tab makes them spaces as wide as shown (Tab stops every 8;
+     was: the first Tab made 4 spaces), then removes one, so the text always moves one column
 
 ---
 
@@ -1275,12 +1277,21 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 - **Indent / unindent** (E79, item 38, agreed in chat 72): `editwnd::indentLines`, keys `ekIndent` / `ekUnindent` in
   `editorKey` after `key-editor-comment` (`[keys] key-editor-indent` Alt-I, `key-editor-unindent` Alt-U; `none`
   possible; Alt-I / Alt-U were free in tvision's editor and in tvterm). The lines as in Alt-D (a selection ending at
-  column 0 leaves that line out). A change per line (+1 a space, -1 a space removed, +2 a Tab replaced by 3 spaces, 0
-  empty line or nothing to remove), made from the last line to the first (the earlier positions stay valid). The
+  column 0 leaves that line out). A change per line (+1 a space, -1 a space removed, leading blanks with a Tab
+  replaced by spaces (E82, below), 0 empty line or nothing to remove), made from the last line to the first (the
+  earlier positions stay valid). The
   selection ends and the cursor are kept as line (from the first line; or the line after the block) and byte column; a
   column > 0 moves by the line's change, column 0 stays (so the new space is inside a selection that started at a line
   start, and the key repeats). One event, so one undo step; an editing key for Read only (`isEditingEvent`). Nothing to
   change: `Nothing to unindent.` / `Nothing to indent: empty line.`.
+- **Leading Tabs** (E82, agreed in chat 73 after the real test of E79, variant (b) chosen in chat 74): tvision's editor
+  shows Tab stops every 8 columns, so E79's 4 spaces for the first Tab moved the text 5 columns, `Tab Tab` 8 columns
+  (only the first Tab was replaced) and `space Tab` not at all (only the space was removed). Now, on unindent, when the
+  leading blanks (spaces and Tabs) hold a Tab, all of them (`expand[i]` bytes) are replaced by `width[i] - 1` spaces
+  (`width` = their screen width, `columnOf`, `tabWidth` 8): the text always moves one column. A selection end or the
+  cursor inside those blanks keeps its screen column minus one; the new columns are computed before the buffer changes.
+  Lines with only spaces lose one, as before. No `tab-spaces` key. The `key-editor-indent` comment of the template
+  (`settings.cc`) and `examples/tvterm.ini` say "leading Tabs become spaces".
 
 ### Capture (Desk / Window) — `far2l-extended`
 - **E71** (item 30, P1, agreed in chat 69): replaces the Shift+mouse captures of putty4far2l. `capture.cc`:
@@ -2228,6 +2239,12 @@ examples/profiles/example.ini
   Alt-U → `Nothing to unindent.`. Without a selection: End on ` gamma`, Alt-U, Alt-I ×2, typing `X` → `  gammaX` (the
   cursor kept its place); Alt-U at the start of `\tbeta` → `   beta`, Ctrl-Z → `\tbeta`; Alt-I on the empty line →
   `Nothing to indent: empty line.`; F9 Read only, Alt-I → `Read only.`.
+- E82, tmux, `/tmp/tab.txt` = `\tbeta`, `x\tgamma`, `\t\tdelta`, ` \tepsilon`, `  zeta`, `   \t  eta x` opened with Ctrl-B
+  O: Shift-Down ×6, Alt-U → every word except `gamma` one screen column to the left (`capture-pane`); F2 + `cat -A` → 7,
+  15, 7, 1 and 9 spaces (`x\tgamma` unchanged); Alt-U again → 6, 14, 6, 0, 8; Ctrl-Z ×2 → the original file. Without
+  a selection: End on `\tbeta`, Alt-U, `X` → `       betaX`; the cursor after the first Tab of `\t\tdelta` (screen
+  column 8), Alt-U, `X` → 7 spaces, `X`, 8 spaces, `delta` (same column minus one). Alt-U on `plain` → `Nothing to
+  unindent.`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2346,6 +2363,7 @@ examples/profiles/example.ini
 | `desktop-main` (`far2l-extended`) | E62 | `[profile] desktop-main = N` (by hand, kept by Save Profile As): desktop N shown after loading, focus on the `focus` window if it is on N, else on N's front window; missing / 0: as before |
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
+| Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |
 | Event Viewer select and copy (`far2l-extended`) | E81 | Event Viewer: cursor line and selection like Log View (Up / Down / PgUp / PgDn / Home / End, Shift, click, drag, Shift+click, wheel), Ctrl-C / Ctrl-Ins copy exactly what is shown, Esc clears the selection and follows again; no scrolling while a selection exists; lines kept up to 64000 bytes |
 | Cursor and selection colors (`far2l-extended`) | E80 | `[logview] cursor-color` (default black on cyan) and `selection-color` (black on white): the cursor line and the selected lines of the Log Views and the Event Viewer, any `<color> on <color>`; applied at once |
 | Editor indent / unindent (`far2l-extended`) | E79 | Alt-I / Alt-U (`[keys] key-editor-indent` / `key-editor-unindent`): one space added / removed at the start of the line or of the selected lines (selection kept, repeatable); empty lines untouched; a leading Tab becomes 4 spaces before one is removed; one undo step; read only refused |

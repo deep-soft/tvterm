@@ -572,8 +572,10 @@ static void duplicateLines(TEditor &e)
 // key-editor-indent / -unindent (E79, Alt-I / Alt-U): one space added at /
 // removed from the start of the current line, or of every line of the
 // selection (a selection ending at the start of a line leaves that line
-// out). Empty lines stay as they are; unindent on a line starting with a
-// Tab makes the Tab 4 spaces, then removes one (3 left). The selection
+// out). Empty lines stay as they are. Unindent on a line whose leading
+// blanks hold a Tab (E82; was: the first Tab made 4 spaces) makes all of
+// them spaces, as wide as the editor shows them (Tab stops every 8
+// columns), then removes one, so the text moves one column. The selection
 // (or the cursor) stays on the same text, so the key can be repeated; a
 // position at the start of a line stays there. One undo step (the window
 // records every key event as one).
@@ -595,23 +597,54 @@ static void indentLines(TEditor &e, bool unindent)
             break;
         l = e.nextChar(end);
     }
-    // The change of each line: +1 (a space added), -1 (one removed), +2
-    // (a Tab made 3 spaces), 0.
+    // The change of each line: +1 (a space added), -1 (one removed), 0;
+    // with expand[i] > 0 (unindent, leading blanks with a Tab) the first
+    // expand[i] bytes are replaced by width[i] - 1 spaces.
+    const uint tabWidth = 8; // tvision's editor shows Tab stops every 8.
     std::vector<int> delta(starts.size(), 0);
+    std::vector<uint> expand(starts.size(), 0), width(starts.size(), 0);
+    // Screen column of byte 'n' of the leading blanks of line 'l'.
+    auto columnOf = [&] (uint l, uint n) {
+        uint col = 0;
+        for (uint j = 0; j < n; ++j)
+            col = e.bufChar(l + j) == '\t' ? (col / tabWidth + 1) * tabWidth : col + 1;
+        return col;
+    };
     for (size_t i = 0; i < starts.size(); ++i)
     {
         uint l = starts[i];
-        if (e.lineEnd(l) == l)
+        uint end = e.lineEnd(l);
+        if (end == l)
             continue; // Empty.
-        char c = e.bufChar(l);
         if (!unindent)
+        {
             delta[i] = 1;
-        else if (c == ' ')
+            continue;
+        }
+        uint n = 0;
+        bool tab = false;
+        for (; l + n < end; ++n)
+        {
+            char c = e.bufChar(l + n);
+            if (c == '\t')
+                tab = true;
+            else if (c != ' ')
+                break;
+        }
+        if (tab)
+        {
+            expand[i] = n;
+            width[i] = columnOf(l, n);
+            delta[i] = (int) width[i] - 1 - (int) n;
+        }
+        else if (n > 0)
             delta[i] = -1;
-        else if (c == '\t')
-            delta[i] = 2;
     }
-    if (std::all_of(delta.begin(), delta.end(), [] (int d) { return d == 0; }))
+    bool none = true;
+    for (size_t i = 0; i < starts.size(); ++i)
+        if (delta[i] != 0 || expand[i] > 0)
+            none = false;
+    if (none)
     {
         showStatus(unindent ? "Nothing to unindent." : "Nothing to indent: empty line.");
         return;
@@ -629,31 +662,47 @@ static void indentLines(TEditor &e, bool unindent)
     };
     bool curAtStart = sel && e.curPtr == selA;
     Mark a = markOf(sel ? selA : e.curPtr), b = markOf(sel ? selB : e.curPtr);
+    // The new byte columns (computed before the buffer changes): column 0
+    // stays; inside expanded blanks the same screen column, one to the
+    // left; after them (or on other lines) moved by the line's change.
+    auto newCol = [&] (const Mark &m) {
+        if (m.col == 0 || m.line >= starts.size())
+            return m.col;
+        if (m.col < expand[m.line])
+            return std::max(1u, columnOf(starts[m.line], m.col)) - 1;
+        return (uint) std::max(0, (int) m.col + delta[m.line]);
+    };
+    a.col = newCol(a);
+    b.col = newCol(b);
     e.lock();
     for (size_t i = starts.size(); i-- > 0;)
     {
         uint l = starts[i];
-        if (delta[i] == 1)
+        if (expand[i] > 0)
+        {
+            e.setSelect(l, l + expand[i], False);
+            e.deleteSelect();
+            if (width[i] > 1)
+            {
+                std::string sp(width[i] - 1, ' ');
+                e.setCurPtr(l, 0);
+                e.insertText(sp.data(), (uint) sp.size(), False);
+            }
+        }
+        else if (delta[i] == 1)
         {
             e.setCurPtr(l, 0);
             e.insertText(" ", 1, False);
         }
-        else if (delta[i] != 0)
+        else if (delta[i] == -1)
         {
             e.setSelect(l, e.nextChar(l), False);
             e.deleteSelect();
-            if (delta[i] == 2)
-            {
-                e.setCurPtr(l, 0);
-                e.insertText("   ", 3, False);
-            }
         }
     }
     auto ptrOf = [&] (const Mark &m) {
         uint line = nextLines(e, first, (uint) m.line);
-        int d = m.line < delta.size() ? delta[m.line] : 0;
-        uint col = m.col == 0 ? 0 : (uint) std::max(0, (int) m.col + d);
-        return std::min(line + col, e.lineEnd(line));
+        return std::min(line + m.col, e.lineEnd(line));
     };
     if (sel)
     {
