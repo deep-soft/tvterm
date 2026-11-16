@@ -55,6 +55,9 @@ struct WindowProfile
     // Editor: file name (empty: untitled).
     std::string file;
     bool readOnly {false};      // [editor] read-only (E63).
+    // [editor] whitespace (E83): the whitespace view, 1 yes, 0 no, -1 not
+    // in the profile ([editor] show-whitespace of tvterm.ini).
+    int whitespace {-1};
     // Event Viewer.
     EventFilter filter;
     // All windows: position and size in percent of the desktop, if 'hasPos'.

@@ -1042,7 +1042,7 @@ static std::vector<TVTermEditWindow *> openWindows;
 enum : ushort
 {
     cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
-    cmEditOpen, cmEditReload,
+    cmEditOpen, cmEditReload, cmEditWhitespace,
 };
 
 // The directory of 'path' (as the editor expanded it), "" without one.
@@ -1097,7 +1097,20 @@ static bool isEditingCommand(ushort cmd)
 }
 
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment,
-                 ekIndent, ekUnindent };
+                 ekIndent, ekUnindent, ekWhitespace };
+
+// Ctrl-Space in the three forms it arrives in: Ctrl + the Space character;
+// Ctrl-@ (a terminal without far2l's extensions sends NUL, read by tvision
+// as Ctrl-@); the Space key's scan code 57 with no character (far2l's
+// extensions, putty4far2l: keyCode 0x3900).
+static bool isCtrlSpace(const TEvent &ev)
+{
+    TKey k(ev.keyDown);
+    if (k == TKey(' ', kbCtrlShift) || k == TKey('@', kbCtrlShift))
+        return true;
+    const auto &cs = ev.keyDown.charScan;
+    return cs.scanCode == 0x39 && (cs.charCode == 0 || cs.charCode == ' ') && k.mods == kbCtrlShift;
+}
 
 // The keys of 45 (not while the editor waits for the second key of
 // Ctrl-Q / Ctrl-K). 'extend': with Shift (Ctrl-Shift-Down / Up).
@@ -1134,15 +1147,118 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
     TKey unindent = TVTermApp::settings().keyEditorUnindent;
     if (unindent.code != 0 && k == unindent)
         return ekUnindent;
+    // key-editor-whitespace (E83; Ctrl-Space).
+    TKey whitespace = TVTermApp::settings().keyEditorWhitespace;
+    if (whitespace.code != 0 && (k == whitespace || (whitespace == TKey(' ', kbCtrlShift) && isCtrlSpace(ev))))
+        return ekWhitespace;
     return ekNone;
 }
+
+// The editor of TVTermEditWindow: tvision's file editor, drawn with the
+// whitespace view when it is on (E83). tvision's own drawing is used
+// otherwise. Only the drawing changes: every symbol takes the column of
+// the character it stands for (a Tab: the symbol, then spaces up to the
+// next Tab stop; the line end: the column after the text), so the cursor
+// and the columns stay the same. The last line without a line end gets no
+// symbol.
+class WsEditor : public TFileEditor
+{
+public:
+    using TFileEditor::TFileEditor;
+
+    bool showWs {false};
+
+    void draw() override
+    {
+        if (!showWs)
+        {
+            TFileEditor::draw();
+            return;
+        }
+        // As TEditor::draw / drawLines, with the symbols added.
+        if (drawLine != delta.y)
+        {
+            drawPtr = lineMove(drawPtr, delta.y - drawLine);
+            drawLine = delta.y;
+        }
+        TAttrPair colors = getColor(0x0201);
+        uint linePtr = drawPtr;
+        for (int y = 0; y < size.y; ++y)
+        {
+            TDrawBuffer b;
+            formatLine(b, linePtr, delta.x, size.x, colors);
+            markLine(b, linePtr, colors);
+            writeBuf(0, y, size.x, 1, b);
+            linePtr = nextLine(linePtr);
+        }
+    }
+
+private:
+
+    enum { symSpace, symTab, symLf, symCrLf, symCr };
+
+    void markLine(TDrawBuffer &b, uint linePtr, TAttrPair colors)
+    {
+        const Settings &st = TVTermApp::settings();
+        TColorAttr normal = TColorAttr(colors);
+        TColorAttr wsColor = TColorAttr(st.whitespaceColor);
+        if (st.whitespaceColorFore)
+        {
+            wsColor = normal;
+            wsColor.setForeground(TColorBIOS(st.whitespaceColor & 0x0F));
+        }
+        int hScroll = std::max(delta.x, 0);
+        auto put = [&] (int pos, int sym, uint p) {
+            int x = pos - hScroll;
+            if (x < 0 || x >= size.x || sym >= (int) st.whitespaceSymbols.size())
+                return;
+            bool selected = selStart <= p && p < selEnd;
+            b.moveStr(x, st.whitespaceSymbols[sym], selected ? TColorAttr(colors >> 8) : wsColor);
+        };
+        uint p = linePtr;
+        int pos = 0;
+        while (p < bufLen && pos - hScroll < size.x)
+        {
+            char c = bufChar(p);
+            if (c == '\r' || c == '\n')
+            {
+                put(pos, c == '\n' ? symLf : p + 1 < bufLen && bufChar(p + 1) == '\n' ? symCrLf : symCr, p);
+                break;
+            }
+            uint nextP = p;
+            int nextPos = pos;
+            nextCharAndPos(nextP, nextPos);
+            if (c == ' ')
+                put(pos, symSpace, p);
+            else if (c == '\t')
+                put(pos, symTab, p);
+            p = nextP;
+            pos = nextPos;
+        }
+    }
+};
 
 } // namespace editwnd
 
 TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept :
     TWindowInit(&initFrame),
-    TEditWindow(bounds, fileName, wnNoNumber)
+    // The file is read by the editor made below (WsEditor, E83), which
+    // replaces the one of TEditWindow (made without a file).
+    TEditWindow(bounds, TStringView(), wnNoNumber)
 {
+    if (editor)
+    {
+        TRect r = editor->getBounds();
+        TScrollBar *h = editor->hScrollBar, *v = editor->vScrollBar;
+        TIndicator *ind = editor->indicator;
+        TFileEditor *old = editor;
+        editor = nullptr;
+        destroy(old);
+        auto *e = new editwnd::WsEditor(r, h, v, ind, fileName);
+        whitespace = e->showWs = TVTermApp::settings().showWhitespace;
+        editor = e;
+        insert(editor);
+    }
     // Selects the status line shown while the editor is focused.
     helpCtx = hcEditor;
     if (editor)
@@ -1184,10 +1300,37 @@ TVTermEditWindow *TVTermEditWindow::ofFileNameBuffer(const char *fileName)
 const char *TVTermEditWindow::getTitle(short maxSize)
 {
     const char *t = TEditWindow::getTitle(maxSize);
-    if (!readOnly)
+    bool ws = showsWhitespace();
+    if (!readOnly && !ws)
         return t;
-    titleBuf = std::string(t ? t : "") + " [RO]";
+    titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") + (ws ? " [WS]" : "");
     return titleBuf.c_str();
+}
+
+void TVTermEditWindow::toggleWhitespace()
+{
+    setWhitespace(!showsWhitespace());
+    editwnd::showStatus(showsWhitespace() ? "Whitespace shown." : "Whitespace hidden.");
+}
+
+std::string TVTermEditWindow::whitespaceItemText() const
+{
+    std::string text = showsWhitespace() ? "on" : "off";
+    TKey key = TVTermApp::settings().keyEditorWhitespace;
+    if (key.code != 0)
+        text += ", " + keyName(key);
+    return text;
+}
+
+void TVTermEditWindow::setWhitespace(bool on)
+{
+    auto *e = dynamic_cast<editwnd::WsEditor *>(editor);
+    if (!e || whitespace == on)
+        return;
+    whitespace = e->showWs = on;
+    e->drawView();
+    if (frame)
+        frame->drawView();
 }
 
 void TVTermEditWindow::setReadOnly(bool on)
@@ -1245,7 +1388,9 @@ void TVTermEditWindow::openMenu()
         newLine() +
         *new TMenuItem("~F~ind...", cmEditFind, kbNoKey, hcNoContext, "F7") +
         *new TMenuItem("R~e~place...", cmEditReplace, kbNoKey, hcNoContext, "Ctrl-F7") +
-        *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8");
+        *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8") +
+        newLine() +
+        *new TMenuItem("~W~hitespace", cmEditWhitespace, kbNoKey, hcNoContext, whitespaceItemText());
     // Reload: nothing for Untitled (shown disabled; commands above 255
     // cannot be disabled through the command set, so the item is marked).
     bool untitled = !editor || !*editor->fileName;
@@ -1270,6 +1415,9 @@ void TVTermEditWindow::openMenu()
         case cmEditGoToLine:
             if (editor)
                 goToLine(*editor);
+            break;
+        case cmEditWhitespace:
+            toggleWhitespace();
             break;
     }
 }
@@ -1504,6 +1652,9 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
         case editwnd::ekUnindent:
             editwnd::indentLines(e, key == editwnd::ekUnindent);
             break;
+        case editwnd::ekWhitespace:
+            toggleWhitespace();
+            break;
         default:
             break;
     }
@@ -1625,6 +1776,10 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     if (!destroyed && track && editor)
         if (undoList.after(*editor, kind, hadSelection, replaceAllCount))
             updateWidthLimit();
+    // tvision draws a line changed by typing with its own (non-virtual)
+    // drawLines: the editor is drawn again with the symbols (E83).
+    if (!destroyed && track && whitespace && editor)
+        editor->drawView();
 }
 
 static ushort editorDialog(int dialog, ...)

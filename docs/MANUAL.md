@@ -569,8 +569,9 @@ Long lines: the editor scrolls right as far as the longest line of the text (als
 line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selecting](#moving-and-selecting).
 **Alt-C** inserts a comment line with the date and time ([Comment line](#comment-line)).
 **Alt-I / Alt-U** indent / unindent the line or the selected lines by one space ([Indent and unindent](#indent-and-unindent)).
+**Ctrl-Space** shows / hides the spaces, tabs and line ends ([Whitespace](#whitespace)).
 **F9** opens the editor's menu: Read only, Save, Save as (**F12**), Open (**Ctrl-F12**), Reload, Find, Replace, Go
-to line ([Read only](#read-only), [Open and Reload](#open-and-reload)).
+to line, Whitespace ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
 
 ### Open and Reload
@@ -758,6 +759,34 @@ only editor: `Read only.`.
 The keys are `key-editor-indent` and `key-editor-unindent` in `[keys]` (`none`: no key). tvterm's own editor keys
 (Alt-D, Alt-W, Alt-F8, Ctrl-Down / Ctrl-Up) and `key-editor-comment` come first when the same key is set.
 
+### Whitespace
+
+**Ctrl-Space** (or F9 > Whitespace) shows the spaces, tabs and line ends of the editor window, and hides them again;
+each editor window has its own state, also in read only. While it is on, the title ends with ` [WS]` (after ` [RO]`),
+and the status line says `Whitespace shown.` / `Whitespace hidden.`. Only the drawing changes: the text, Copy, Find
+and Save are as before, and every symbol takes the column of the character it stands for, so the cursor and the
+columns stay where they were.
+
+| Character | Symbol | Shown |
+|---|---|---|
+| Space | `·` | in its column |
+| Tab | `→` | in the Tab's first column, then spaces up to the next Tab stop (every 8 columns) |
+| LF (Unix line end) | `¶` | after the last character of the line |
+| CRLF (Windows line end) | `¤` | the same |
+| CR alone (old Mac line end) | `←` | the same |
+
+A file with mixed line ends shows each line's own end. The last line has no symbol when the file does not end with a
+line end. The symbols are drawn in `whitespace-color` (`bright-black`, dark gray on the editor's background); in the
+selected text they take the selection's color.
+
+`tvterm.ini`, section `[editor]`: `show-whitespace` (`no`; `yes`: every new editor window starts with it on),
+`whitespace-symbols` (five one-column characters, separated by spaces: Space, Tab, LF, CRLF, lone CR; default
+`· → ¶ ¤ ←`), `whitespace-color` (`<color>` on the editor's background, or `<color> on <color>`). The key is
+`key-editor-whitespace` in `[keys]` (`none`: no key). Some fonts have no `↵`, `␊` or `␍`; to see which symbols a font
+shows: `printf '· → ↵ ¤ ← ¶ ␊ ␍ ° »\n'`. Ctrl-Space works through putty4far2l / far2l and in other terminals
+(where it arrives as Ctrl-@). Save Profile As writes `whitespace = yes` for an editor window with it on (`whitespace = no` when it
+is off and `show-whitespace = yes`).
+
 ### Opening and viewing files
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
@@ -805,12 +834,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 7, created by tvterm v0.3.0 (b440528, built 2026-11-15 10:00 EET)`: the format of the file, then the
+  `## format 8, created by tvterm v0.3.0 (b440528, built 2026-11-16 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
@@ -869,6 +898,9 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `notify-repeat` | `60` | `notify` / `bell` repeated every N seconds while the level 1 alert is not seen (0: once) |
 | | `mute-above` | `off` | Mute at start: `2`–`5` mutes that level and the less urgent ones ([Mute](#mute)) |
 | `[capture]` | `folder` | `~/logs/tvterm/capture` | where Capture Desk / Window write their files; created if missing ([Capture](#capture)) |
+| `[editor]` | `show-whitespace` | `no` | `yes`: new editor windows start with the whitespace view on ([Whitespace](#whitespace)) |
+| | `whitespace-symbols` | `· → ¶ ¤ ←` | the symbols of Space, Tab, LF, CRLF and a lone CR: five one-column characters separated by spaces; invalid: the previous value |
+| | `whitespace-color` | `bright-black` | color of the symbols: `<color>` (on the editor's background) or `<color> on <color>`; selected text keeps the selection color |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
 | | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
@@ -881,6 +913,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `history-bottom` | `Alt-Shift-End` | |
 | | `key-editor-comment` | `Alt-C` | inserts the comment line in an editor (`comment-template`); `none`: no key |
 | | `key-editor-indent` / `key-editor-unindent` | `Alt-I` / `Alt-U` | one space more / less at the start of the line or of the selected lines in an editor ([Indent and unindent](#indent-and-unindent)); `none`: no key |
+| | `key-editor-whitespace` | `Ctrl-Space` | shows / hides the spaces, tabs and line ends of an editor ([Whitespace](#whitespace)); `none`: no key |
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
@@ -998,7 +1031,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `no` (the whitespace view; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

@@ -235,7 +235,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
     if (!file)
         return false;
 
-    enum { None, General, Scrollback, Alerts, Capture, Keys, LogView, Highlight, Transform, Unknown } section = None;
+    enum { None, General, Scrollback, Alerts, Capture, Editor, Keys, LogView, Highlight, Transform, Unknown } section = None;
     std::string line;
     int lineNo = 0;
     auto warn = [&] (const std::string &msg) {
@@ -288,6 +288,7 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                       name == "scrollback" ? Scrollback :
                       name == "alerts" ? Alerts :
                       name == "capture" ? Capture :
+                      name == "editor" ? Editor :
                       name == "keys" ? Keys :
                       name == "logview" ? LogView : Unknown;
             if (section == Unknown)
@@ -597,6 +598,55 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
             else
                 warn("unknown key '" + key + "' in [capture]");
         }
+        else if (section == Editor)
+        {
+            if (key == "show-whitespace")
+            {
+                if (!parseBool(value, settings.showWhitespace))
+                    invalid("use yes or no"), settings.showWhitespace = previous.showWhitespace;
+            }
+            else if (key == "whitespace-symbols")
+            {
+                // Five characters of one column, separated by blanks.
+                std::vector<std::string> list;
+                std::string one;
+                bool ok = true;
+                for (size_t i = 0; i < value.size() && ok;)
+                {
+                    size_t a = value.find_first_not_of(" \t", i);
+                    if (a == std::string::npos)
+                        break;
+                    size_t b = value.find_first_of(" \t", a);
+                    if (b == std::string::npos)
+                        b = value.size();
+                    ok = parsePattern(value.substr(a, b - a), one) && one != " ";
+                    list.push_back(one);
+                    i = b;
+                }
+                if (ok && list.size() == 5)
+                    settings.whitespaceSymbols = list;
+                else
+                    invalid("five characters of one column for Space, Tab, LF, CRLF and a lone CR, "
+                            "separated by spaces, e.g. \u00B7 \u2192 \u00B6 \u00A4 \u2190"),
+                    settings.whitespaceSymbols = previous.whitespaceSymbols;
+            }
+            else if (key == "whitespace-color")
+            {
+                std::string error;
+                int attr = 0;
+                if (parseColorName(value, attr, error))
+                {
+                    settings.whitespaceColor = attr;
+                    settings.whitespaceColorFore = lower(value).find(" on ") == std::string::npos;
+                }
+                else
+                    invalid(error + "; e.g. bright-black, or white on blue"),
+                    settings.whitespaceColor = previous.whitespaceColor,
+                    settings.whitespaceColorFore = previous.whitespaceColorFore;
+            }
+            else
+                warn("unknown key '" + key + "' in [editor]");
+        }
         else if (section == LogView)
         {
             if (key == "max-lines")
@@ -648,7 +698,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "key-editor-comment" ? &settings.keyEditorComment :
                            key == "key-logviews-end" ? &settings.keyLogViewsEnd :
                            key == "key-editor-indent" ? &settings.keyEditorIndent :
-                           key == "key-editor-unindent" ? &settings.keyEditorUnindent : nullptr;
+                           key == "key-editor-unindent" ? &settings.keyEditorUnindent :
+                           key == "key-editor-whitespace" ? &settings.keyEditorWhitespace : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
@@ -656,7 +707,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                                key == "key-editor-comment" ? &previous.keyEditorComment :
                                key == "key-logviews-end" ? &previous.keyLogViewsEnd :
                                key == "key-editor-indent" ? &previous.keyEditorIndent :
-                               key == "key-editor-unindent" ? &previous.keyEditorUnindent : nullptr;
+                               key == "key-editor-unindent" ? &previous.keyEditorUnindent :
+                               key == "key-editor-whitespace" ? &previous.keyEditorWhitespace : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -704,6 +756,20 @@ bool parseFormatLine(const std::string &line, int &format)
     format = std::stoi(line.substr(i, end - i));
     return true;
 }
+
+namespace settingsini
+{
+
+// whitespace-symbols as written in the file.
+static std::string joinSymbols(const std::vector<std::string> &list)
+{
+    std::string out;
+    for (const std::string &s : list)
+        out += (out.empty() ? "" : " ") + s;
+    return out;
+}
+
+} // namespace settingsini
 
 std::string settingsTemplate()
 {
@@ -858,6 +924,21 @@ std::string settingsTemplate()
         "  # on the screen with the frames, no colors; created if missing.\n"
         " #folder = " + d.captureFolder + "\n"
         "\n"
+        "[editor]\n"
+        "  # The whitespace view of the editors (key-editor-whitespace in [keys],\n"
+        "  # Ctrl-Space, or F9 > Whitespace): its state in a new editor window, yes\n"
+        "  # or no; a profile keeps it per window.\n"
+        " #show-whitespace = " + std::string(d.showWhitespace ? "yes" : "no") + "\n"
+        "  # Symbols shown by the whitespace view, five one-column characters\n"
+        "  # separated by spaces: Space, Tab, LF, CRLF, lone CR. Candidates:\n"
+        "  # \u00B7 \u2192 \u21B5 \u00A4 \u2190 \u00B6 \u240A \u240D \u00B0 \u00BB (\u21B5 \u240A \u240D are missing in some fonts;\n"
+        "  # check with: printf '\u00B7 \u2192 \u21B5 \u00A4 \u2190 \u00B6 \u240A \u240D \u00B0 \u00BB\\n').\n"
+        " #whitespace-symbols = " + settingsini::joinSymbols(d.whitespaceSymbols) + "\n"
+        "  # Color of the symbols: <color> (on the editor's background) or <color>\n"
+        "  # on <color> (the highlight colors below); selected text keeps the\n"
+        "  # selection color.\n"
+        " #whitespace-color = bright-black\n"
+        "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"
         "  # can ask for another number. About 1 KB per line of a firewall log.\n"
@@ -940,6 +1021,9 @@ std::string settingsTemplate()
         "  # spaces before one is removed), e.g. Alt-I, Alt-U or none.\n"
         " #key-editor-indent = " + keyName(d.keyEditorIndent) + "\n"
         " #key-editor-unindent = " + keyName(d.keyEditorUnindent) + "\n"
+        "  # Key that shows / hides the whitespace view of an editor window (spaces,\n"
+        "  # tabs and line ends as the symbols of [editor]), e.g. Ctrl-Space or none.\n"
+        " #key-editor-whitespace = " + keyName(d.keyEditorWhitespace) + "\n"
         "  # Key that, in the Event Viewer, moves every Log View (all the desktops) to\n"
         "  # its last line, following again (also More... Scroll Log Views to last).\n"
         " #key-logviews-end = " + keyName(d.keyLogViewsEnd) + "\n"

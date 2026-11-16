@@ -55,7 +55,16 @@ public:
     // editor is empty).
     virtual bool reloadFile();
 
-    // The file name, or "Untitled"; " [RO]" added while read only.
+    // Whitespace view (E83, key-editor-whitespace Ctrl-Space, F9 >
+    // Whitespace): spaces, tabs and line ends shown with the symbols of
+    // [editor] whitespace-symbols in whitespace-color; only the drawing
+    // changes. Starts as [editor] show-whitespace; profiles keep it
+    // ('whitespace = yes'). Allowed in read only.
+    bool showsWhitespace() const noexcept { return whitespace; }
+    void setWhitespace(bool on);
+
+    // The file name, or "Untitled"; " [RO]" added while read only, " [WS]"
+    // while the whitespace view is on.
     const char *getTitle(short maxSize) override;
 
     // Read only (E63): toggled from the window's menu (F9). The keys and
@@ -111,6 +120,9 @@ public:
 private:
 
     bool readOnly {false};
+    // The whitespace view (kept here too: during the window's shutDown the
+    // editor is already gone while broadcasts still reach the window).
+    bool whitespace {false};
     std::string titleBuf;
     // The file whose backups this window made (or that it wrote first by
     // Save As): no more backups for it from this window.
@@ -118,6 +130,10 @@ private:
 
     // F9: the window's menu.
     void openMenu();
+    // The whitespace view on / off, with its message in the status line;
+    // the text of its F9 item ("off, Ctrl-Space").
+    void toggleWhitespace();
+    std::string whitespaceItemText() const;
     // The "modified" question before Open: false = do not go on.
     bool saveChangesOrDrop();
     // Loads 'path' into the editor (openFile's last step).

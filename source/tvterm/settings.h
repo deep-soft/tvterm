@@ -32,8 +32,10 @@ const int minFileDialogHeight = 19;
 // mute-above (E72); 6: [general] auto-reload-check, desktop-pattern,
 // desktop-pattern-on-capture (E74); 7: [general] help-current-first (E77),
 // [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79),
-// [logview] cursor-color, selection-color (E80).
-const int settingsFormat = 7;
+// [logview] cursor-color, selection-color (E80); 8: [editor]
+// show-whitespace, whitespace-symbols, whitespace-color, [keys]
+// key-editor-whitespace (E83).
+const int settingsFormat = 8;
 
 struct Settings
 {
@@ -98,6 +100,16 @@ struct Settings
     // filled). The default makes "# 2026-11-10 10:06:43 ---...", 79 columns.
     std::string commentTemplate {"# %Y-%m-%d %H:%M:%S "};
     int commentWidth {79};
+    // [editor] (E83): the whitespace view of the editors.
+    // show-whitespace: its state in a new editor window.
+    bool showWhitespace {false};
+    // whitespace-symbols: Space, Tab, LF, CRLF, lone CR; each one character
+    // of one column (UTF-8).
+    std::vector<std::string> whitespaceSymbols {"\u00B7", "\u2192", "\u00B6", "\u00A4", "\u2190"};
+    // whitespace-color: a BIOS attribute; with whitespaceColorFore only its
+    // foreground is used (the editor's background stays).
+    int whitespaceColor {0x08};
+    bool whitespaceColorFore {true};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};
@@ -146,6 +158,8 @@ struct Settings
     // removed from the start of the current or selected lines of an editor.
     TKey keyEditorIndent {'I', kbAltShift};
     TKey keyEditorUnindent {'U', kbAltShift};
+    // key-editor-whitespace (E83): the whitespace view of an editor on/off.
+    TKey keyEditorWhitespace {' ', kbCtrlShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

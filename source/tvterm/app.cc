@@ -1406,6 +1406,8 @@ void TVTermApp::openProfile(const Profile &profile)
                 auto *edit = new TVTermEditWindow(r, win.file);
                 if (win.readOnly)
                     edit->setReadOnly(true);
+                if (win.whitespace >= 0)
+                    edit->setWhitespace(win.whitespace == 1);
                 window = edit;
                 break;
             }
@@ -1804,7 +1806,15 @@ void TVTermApp::saveProfile()
             {
                 win.file = edit->editor->fileName;
                 if (auto *rw = dynamic_cast<TVTermEditWindow *>(edit))
+                {
                     win.readOnly = rw->isReadOnly() && !win.file.empty();
+                    // Written when it differs from show-whitespace's default
+                    // state: yes when on; no when off and the default is on.
+                    if (rw->showsWhitespace())
+                        win.whitespace = 1;
+                    else if (TVTermApp::settings().showWhitespace)
+                        win.whitespace = 0;
+                }
                 if (win.file.empty() && edit->editor->bufLen > 0)
                     ++untitledWithText;
                 else if (!win.file.empty() && edit->editor->modified)

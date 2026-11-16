@@ -442,6 +442,14 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 if (!parseBool(value, win.readOnly))
                     warn("invalid read-only '" + value + "' (use yes or no)");
             }
+            else if (isEditor && key == "whitespace")
+            {
+                bool on;
+                if (parseBool(value, on))
+                    win.whitespace = on ? 1 : 0;
+                else
+                    warn("invalid whitespace '" + value + "' (use yes or no)");
+            }
             else if (win.kind == WindowProfile::EventViewer && isFilterKey(key))
             {
                 if (!parseBool(value, filterField(win.filter, key)))
@@ -552,6 +560,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     if (win.readOnly)
                         file << "read-only = yes\n";
                 }
+                if (win.whitespace >= 0)
+                    file << "whitespace = " << (win.whitespace ? "yes" : "no") << "\n";
                 break;
             case WindowProfile::LogView:
                 file << "\n[logview]\n";
