@@ -299,7 +299,8 @@ A **pinned** Log View or terminal is protected from being closed by mistake: **C
 **Ctrl-B Close Term** and **Close** in the Window List refuse it, with `Log View is pinned (F9 > Unpin).` / `Term is
 pinned (Ctrl-B Z P to unpin).` in the status line and a note in the Event Viewer. Pin / Unpin:
 
-- a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**;
+- a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**
+  (right under Save...);
 - the focused Log View or terminal: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a terminal
   this is the only way, because F6 goes to its program.
 

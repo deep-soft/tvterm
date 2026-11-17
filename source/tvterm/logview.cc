@@ -2363,13 +2363,15 @@ void LogViewWindow::openMenu(TPoint where)
         *new TMenuItem("~C~opy (selection or line)", cmLogCopy, kbNoKey, hcNoContext, "Ctrl-C") +
         *new TMenuItem("To new edi~t~or", cmLogToNewEditor, kbNoKey, hcNoContext, "Ctrl-E") +
         *new TMenuItem("To open ed~i~tor...", cmLogToEditor, kbNoKey, hcNoContext, "Ctrl-Shift-E") +
-        *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s") +
-        newLine() +
-        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, "F5");
+        *new TMenuItem("Sa~v~e...", cmLogSave, kbNoKey, hcNoContext, "F2 s");
     // E84: no letter (the good ones are taken); F6 by default. Not in Help.
+    // Under Save... (E85, item 54 a): with the other window items.
     if (!helpView)
         items + *new TMenuItem(pinned ? "Unpin" : "Pin (not closed by Ctrl-W)", cmLogPin, kbNoKey,
                                hcNoContext, pinKey.empty() ? nullptr : pinKey.c_str());
+    items +
+        newLine() +
+        *new TMenuItem("~A~lerts...", cmLogAlerts, kbNoKey, hcNoContext, "F5");
     ushort cmd = popupMenu(where, items, nullptr);
     if (cmd)
         runCommand(cmd);
