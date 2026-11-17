@@ -55,6 +55,7 @@ enum : ushort
     cmLogViewsToEnd,  // More... / Event Viewer Ctrl-L (E78): Scroll Log Views to last.
     cmPinAll,         // Windows > Pin all (E87): every Term, Log View and editor, every Desk.
     cmUnpinAll,       // Windows > Unpin all (E87).
+    cmClearNotes,     // Event Viewer Shift-N / F9 (E88): empty the kept messages.
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };

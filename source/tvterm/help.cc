@@ -149,6 +149,7 @@ static std::vector<Entry> entries(help::Section s)
             return {
                 {"M C K O T", "show mouse moves, clicks, keys, other events, messages on / off"},
                 {"N", "clear and show the kept messages again"},
+                {"Shift-N", "empty the kept messages (also F9)"},
                 {"A", "list the active alerts"},
                 {"X", "clear the window"},
                 {"Space", "pause / resume (like " + menu + " V)"},

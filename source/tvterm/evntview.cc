@@ -391,7 +391,7 @@ static bool shown(const EventFilter &filter, const TEvent &ev)
 // Ctrl-A (Go to Next Alert), F8 (Clear non-urgent alerts, E69),
 // key-logviews-end (Ctrl-L, E78) and F9 (the window's menu, E78), as
 // returned by ownKey.
-enum : char { keyNextAlert = 1, keyClearLowAlerts = 2, keyLogViewsEnd = 3, keyMenu = 4 };
+enum : char { keyNextAlert = 1, keyClearLowAlerts = 2, keyLogViewsEnd = 3, keyMenu = 4, keyClearNotes = 5 };
 
 static char ownKey(const TEvent &ev)
 // The letter of a filter key (lowercase), ' ' (Space: pause / resume),
@@ -411,6 +411,10 @@ static char ownKey(const TEvent &ev)
     if (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift))
         return 0;
     char c = ev.keyDown.charScan.charCode;
+    // Shift-N (E88): empty the kept messages; with Caps Lock on, a plain N
+    // is n.
+    if (c == 'N' && !(ev.keyDown.controlKeyState & kbCapsState))
+        return keyClearNotes;
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
     return strchr("mckotnax ", c) && c ? c : 0;
@@ -472,7 +476,9 @@ void TEventViewer::openMenu(TPoint where)
                        TVTermApp::settings().keyLogViewsEnd.code ? toEnd.c_str() : nullptr) +
         newLine() +
         *new TMenuItem("~N~ext Desk", cmNextDesk, kbNoKey, hcNoContext, "Ctrl-Right") +
-        *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left");
+        *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left") +
+        newLine() +
+        *new TMenuItem("~E~mpty kept messages", cmClearNotes, kbNoKey, hcNoContext, "Shift-N");
     if (ushort cmd = popupMenu(where, items, nullptr))
         message(TProgram::application, evCommand, cmd, this);
 }
@@ -518,6 +524,9 @@ void TEventViewer::handleEvent(TEvent &ev)
             case evntview::keyLogViewsEnd:
                 // Like More... > Scroll Log Views to last.
                 message(TProgram::application, evCommand, cmLogViewsToEnd, this);
+                break;
+            case evntview::keyClearNotes:
+                message(TProgram::application, evCommand, cmClearNotes, this);
                 break;
             case evntview::keyMenu:
                 openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);

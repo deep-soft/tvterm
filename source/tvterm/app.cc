@@ -82,9 +82,31 @@ static std::chrono::steady_clock::time_point nextCheck;
 static int reportedFormat = -2;
 
 // Messages for the Event Viewer, kept until one is opened, with their time
-// (shown as hh:mm:ss today, with the date on other days).
-static std::deque<std::pair<time_t, std::string>> notes;
+// (shown as hh:mm:ss today, with the date on other days). 'settings' (E88):
+// a note about tvterm.ini (format, invalid values, unknown keys), replaced
+// at every settings reload.
+struct KeptNote
+{
+    time_t time;
+    std::string text;
+    bool settings;
+};
+static std::deque<KeptNote> notes;
 enum { maxNotes = 200 };
+
+static void keepNote(time_t now, const std::string &text, bool settings)
+{
+    notes.push_back({now, text, settings});
+    while (notes.size() > maxNotes)
+        notes.pop_front();
+}
+
+// Settings reload (E88): the notes of the previous reading go.
+static void dropSettingsNotes()
+{
+    notes.erase( std::remove_if(notes.begin(), notes.end(), [] (const KeptNote &n) { return n.settings; }),
+                 notes.end() );
+}
 
 // When tvterm started (for the uptime in the About dialog).
 static const auto startTime = std::chrono::steady_clock::now();
@@ -103,23 +125,53 @@ const Settings &TVTermApp::settings()
     return appsettings::currentSettings;
 }
 
+namespace appnotes
+{
+
+static void printToViewer(time_t now, const std::string &text)
+{
+    if (TProgram::deskTop)
+        if (auto *viewer = (TEventViewer *) message(TProgram::deskTop, evBroadcast, cmFindEventViewer, nullptr))
+            viewer->printNote(formatEventTime(now) + " " + text);
+}
+
+// A note about tvterm.ini (E88): kept until the next reload; 'show': also
+// printed in an open Event Viewer now.
+static void settingsNote(const std::string &text, bool show = true)
+{
+    time_t now = time(nullptr);
+    appsettings::keepNote(now, text, true);
+    if (show)
+        printToViewer(now, text);
+}
+
+} // namespace appnotes
+
 void TVTermApp::note(const std::string &text)
 {
     // Timestamp, so that notes can be told apart.
     time_t now = time(nullptr);
-    appsettings::notes.emplace_back(now, text);
-    while (appsettings::notes.size() > appsettings::maxNotes)
-        appsettings::notes.pop_front();
-    if (TProgram::deskTop)
-        if (auto *viewer = (TEventViewer *) message(TProgram::deskTop, evBroadcast, cmFindEventViewer, nullptr))
-            viewer->printNote(formatEventTime(now) + " " + text);
+    appsettings::keepNote(now, text, false);
+    appnotes::printToViewer(now, text);
+}
+
+void TVTermApp::noteOnce(const std::string &text)
+{
+    appnotes::printToViewer(time(nullptr), text);
+}
+
+size_t TVTermApp::clearNotes()
+{
+    size_t n = appsettings::notes.size();
+    appsettings::notes.clear();
+    return n;
 }
 
 static void showNotes(TEventViewer &viewer, bool always)
 // The notes received so far (the last 'maxNotes').
 {
     for (auto &note : appsettings::notes)
-        viewer.printNote(formatEventTime(note.first) + " " + note.second, always);
+        viewer.printNote(formatEventTime(note.time) + " " + note.text, always);
 }
 
 static TEventViewer *newEventViewer(const TRect &bounds, const EventFilter &filter = EventFilter())
@@ -354,22 +406,28 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
     // Log View transformation sets (none built in).
     rebuildTransformSets(currentSettings.transform, path, warnings);
 
+    // The notes of the previous reading are replaced by those of this one
+    // (E88): the kept messages show the file as it is now.
+    dropSettingsNotes();
+
     // The format line: an older file (or one without the line) may lack
     // keys added since; a newer one may have keys this tvterm does not know.
-    // A note only (the file is never rewritten), once per format.
+    // A note only (the file is never rewritten): kept at every reload,
+    // printed in an open Event Viewer once per format.
     int format = existed ? currentSettings.fileFormat : -2;
-    if (existed && format != settingsFormat && format != reportedFormat)
+    if (existed && format != settingsFormat)
     {
+        bool show = format != reportedFormat;
         std::string uses = "this tvterm uses format " + std::to_string(settingsFormat);
         if (format < 0)
-            note( "settings: " + path + " has no format line (written before tvterm 0.2.0); " + uses +
-                  ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings" );
+            appnotes::settingsNote( "settings: " + path + " has no format line (written before tvterm 0.2.0); " + uses +
+                          ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings", show );
         else if (format < settingsFormat)
-            note( "settings: " + path + " is format " + std::to_string(format) + ", " + uses +
-                  ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings" );
+            appnotes::settingsNote( "settings: " + path + " is format " + std::to_string(format) + ", " + uses +
+                          ": keys added since may be missing, see tvt-ini-merge or tvterm --print-settings", show );
         else
-            note( "settings: " + path + " is format " + std::to_string(format) + ", from a newer tvterm (" +
-                  uses + "): keys it does not know are reported as unknown" );
+            appnotes::settingsNote( "settings: " + path + " is format " + std::to_string(format) + ", from a newer tvterm (" +
+                          uses + "): keys it does not know are reported as unknown", show );
     }
     reportedFormat = format;
 
@@ -381,7 +439,7 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
         size_t start = 0, end;
         while ((end = warnings.find('\n', start)) != std::string::npos)
         {
-            note("settings: " + warnings.substr(start, end - start));
+            appnotes::settingsNote("settings: " + warnings.substr(start, end - start));
             start = end + 1;
         }
     }
@@ -398,7 +456,7 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
             showStatus("Settings reloaded.");
     }
     else if (!existed && !startup)
-        note("settings file " + path + " removed: using the default settings");
+        appnotes::settingsNote("settings file " + path + " removed: using the default settings");
 }
 
 void TVTermApp::applyWindowShadow(TView *view)
@@ -743,6 +801,12 @@ void TVTermApp::handleEvent(TEvent &event)
                     if (event.message.infoPtr)
                         showNotes(*(TEventViewer *) event.message.infoPtr, true);
                     break;
+                case cmClearNotes:
+                {
+                    size_t n = clearNotes();
+                    appsettings::showStatus("Kept messages emptied: " + std::to_string(n) + ".");
+                    break;
+                }
                 case cmShowAlerts:
                     if (event.message.infoPtr)
                         ((TEventViewer *) event.message.infoPtr)->printText(listAlerts(*deskTop));

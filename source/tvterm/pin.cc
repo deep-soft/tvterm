@@ -90,7 +90,8 @@ bool refuseClose(TWindow &window, TEvent &ev)
     else
         text = "Term is pinned (" + globalkeys::menuKeyName() + " Z P to unpin)";
     TVTermStatusLine::showMessage(text + ".");
-    TVTermApp::note("not closed: " + titleOf(&window) + ": " + text);
+    // Shown once (E88): not kept for N.
+    TVTermApp::noteOnce("not closed: " + titleOf(&window) + ": " + text);
     window.clearEvent(ev);
     return true;
 }

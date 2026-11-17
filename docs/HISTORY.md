@@ -198,6 +198,9 @@ E86. Editor Pin (item 54 b): F9 > Pin / Unpin (under Read only), Ctrl-B Z P; Ctr
      profiles `[editor] pinned = yes`; Load Profile Keep: an `[editor]` with the same file is skipped
 E87. Windows ► Pin all / Unpin all (item 54 c): every terminal, Log View and editor, on every Desk; status
      `N window(s) pinned.` / `unpinned.`
+E88. Event Viewer messages (item 54 d): `not closed: …` and other one-time messages shown once, not kept; the
+     `tvterm.ini` messages (format, invalid values, unknown keys) replaced at every settings reload; Shift-N / F9 > Empty
+     kept messages
 
 ---
 
@@ -1344,6 +1347,15 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   disabled): `TVTermApp::pinAll` goes through `getDeskTopWindows` (every Desk, hidden windows too), sets every window
   `canPin` accepts (terminals, Log Views except Help, editors; not the Event Viewer); the status line counts the windows
   whose state changed (`0 window(s) pinned.` when all were already pinned).
+  E88 Event Viewer messages: the kept notes (`appsettings::notes`, last 200) carry a `settings` flag; `reloadSettings`
+  first drops the flagged ones (`dropSettingsNotes`), then adds the notes of this reading through
+  `appnotes::settingsNote` (format line, every warning, file removed). The format note is now kept at every reload
+  (N shows the file as it is) but printed in an open viewer only when the format changes (`reportedFormat`, as before).
+  `TVTermApp::noteOnce`: printed in an open Event Viewer only, not kept (used by `pin::refuseClose`; without an open
+  viewer the status line is the only trace). `TVTermApp::clearNotes` / command `cmClearNotes`: Event Viewer Shift-N
+  (`N` with Caps Lock off; with Caps Lock on a plain N is `n`) and its F9 item `~E~mpty kept messages  Shift-N`
+  (after Next / Previous Desk); status `Kept messages emptied: N.`; the window itself is not cleared. Meant for several
+  tvterm versions run in parallel, whose notes are no longer of interest. Help: the Shift-N line.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2366,6 +2378,11 @@ examples/profiles/example.ini
   '/tmp/t/…' skipped: the same as a pinned window kept open`; Window List: 5 rows, all `P`.
 - E87, profile `p1`: Ctrl-B Z → `Unpin`, `Pin all`, `Unpin all`, `Resize/Move` in this order; Ctrl-B Z I → `5 window(s)
   pinned.`, `[P]` in all five titles; Ctrl-B Z U → `5 window(s) unpinned.`.
+- E88, profile `p2` (Log Views `L1`, `L2`, Event Viewer below), `tvterm.ini` without a format line and with ` bogus-key-one
+  = 1`: at start the format note and `unknown key 'bogus-key-one'`; L1 F6, Ctrl-W → the viewer shows `not closed: Log:
+  L1: …`, N afterwards does not; the file changed to `bogus-key-two`, More... `r` → `Settings: 1 problem(s) …`; N → the
+  format note once and only `bogus-key-two` (the old warning gone); Shift-N → `Kept messages emptied: 6.`, N → nothing;
+  F9 → `Empty kept messages  Shift-N` under Previous Desk.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2487,6 +2504,7 @@ examples/profiles/example.ini
 | Log View F9 Pin under Save (`far2l-extended`) | E85 | Log View F9: Pin / Unpin right under Save... (was after Alerts...) |
 | Editor Pin (`far2l-extended`) | E86 | editors can be pinned: F9 > Pin / Unpin (under Read only), Ctrl-B Z P; Ctrl-W, the close button, Close Term, Window List > Close refused before "Save?"; `[P]` after `[RO]` / `[WS]`; the Settings editor too; `[editor] pinned = yes`; Load Profile Keep skips an `[editor]` with the same file |
 | Pin all / Unpin all (`far2l-extended`) | E87 | Ctrl-B Windows ► Pin all (`I`) / Unpin all (`U`): every terminal, Log View and editor on every Desk; `N window(s) pinned.` / `unpinned.` (N = the windows changed) |
+| Event Viewer messages (`far2l-extended`) | E88 | `not closed: …` shown once, not kept; the `tvterm.ini` messages replaced at every settings reload (format note kept each time, printed once per format); Shift-N / F9 > Empty kept messages: `Kept messages emptied: N.` |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

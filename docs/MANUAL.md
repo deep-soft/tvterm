@@ -297,8 +297,8 @@ and Command gets the rest; a cut text ends with `…`. A short name leaves the r
 
 A **pinned** Log View, terminal or editor is protected from being closed by mistake: **Ctrl-W**, the close button
 `[■]`, **Ctrl-B Close Term** and **Close** in the Window List refuse it, with `Log View is pinned (F9 > Unpin).` /
-`Term is pinned (Ctrl-B Z P to unpin).` / `Editor is pinned (F9 > Unpin).` in the status line and a note in the Event
-Viewer. A pinned editor refuses before its *Save?* question, so nothing is asked. Pin / Unpin:
+`Term is pinned (Ctrl-B Z P to unpin).` / `Editor is pinned (F9 > Unpin).` in the status line and a note in an open
+Event Viewer (`not closed: …`, shown once: not kept, so N does not show it again). A pinned editor refuses before its *Save?* question, so nothing is asked. Pin / Unpin:
 
 - a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**
   (right under Save...);
@@ -879,8 +879,9 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
-  --print-settings`); a newer format gets `… from a newer tvterm …`. The note comes once while tvterm runs (again only if
-  the format of the file changes); the file is read as usual and never rewritten. To bring an older file up to date,
+  --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
+  while tvterm runs (again only if the format of the file changes); the kept messages (N) hold the notes of the last
+  reading of the file only: at every reload its format note, invalid values and unknown keys replace the previous ones; the file is read as usual and never rewritten. To bring an older file up to date,
   add the new keys by hand (`diff <(tvterm --print-settings) tvterm.ini`) or with the `tvt-ini-merge` script, then
   put the format line at the top.
 - `#` or `;` at the start of a line: comment. Section and key names ignore case. Spaces at the start of a line are
@@ -1128,6 +1129,7 @@ Keys, while it is focused (each one is also a status line item):
 | `O` | other events (commands) on/off |
 | `T` | tvterm's messages on/off |
 | `N` | clears the window and shows the kept messages again |
+| Shift-N | empties the kept messages (also F9 > Empty kept messages): `Kept messages emptied: N.`; useful when several tvterm versions ran and their old messages are no longer of interest. With Caps Lock on, a plain N is `n` |
 | `A` | lists the active alerts ([chapter 9](#9-alerts)) |
 | `X` | clears the window |
 | Space | pauses / resumes it (like Ctrl-B V) |
@@ -1139,7 +1141,7 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `tvterm: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
 | Esc | clears the selection; the window goes back to the end and follows the new lines |
 | Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
-| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk |
+| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk, Empty kept messages |
 | F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
 
