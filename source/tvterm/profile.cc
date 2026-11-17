@@ -409,7 +409,7 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else
                     win.alertActivityLevel = level;
             }
-            else if (hasAlerts && key == "pinned")
+            else if ((hasAlerts || isEditor) && key == "pinned")
             {
                 if (!parseBool(value, win.pinned))
                     warn("invalid pinned '" + value + "' (use yes or no)");
@@ -569,6 +569,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                 }
                 if (win.whitespace >= 0)
                     file << "whitespace = " << (win.whitespace ? "yes" : "no") << "\n";
+                if (win.pinned)
+                    file << "pinned = yes\n";
                 break;
             case WindowProfile::LogView:
                 file << "\n[logview]\n";

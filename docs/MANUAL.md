@@ -295,21 +295,25 @@ and Command gets the rest; a cut text ends with `…`. A short name leaves the r
 
 ### Pin
 
-A **pinned** Log View or terminal is protected from being closed by mistake: **Ctrl-W**, the close button `[■]`,
-**Ctrl-B Close Term** and **Close** in the Window List refuse it, with `Log View is pinned (F9 > Unpin).` / `Term is
-pinned (Ctrl-B Z P to unpin).` in the status line and a note in the Event Viewer. Pin / Unpin:
+A **pinned** Log View, terminal or editor is protected from being closed by mistake: **Ctrl-W**, the close button
+`[■]`, **Ctrl-B Close Term** and **Close** in the Window List refuse it, with `Log View is pinned (F9 > Unpin).` /
+`Term is pinned (Ctrl-B Z P to unpin).` / `Editor is pinned (F9 > Unpin).` in the status line and a note in the Event
+Viewer. A pinned editor refuses before its *Save?* question, so nothing is asked. Pin / Unpin:
 
 - a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**
   (right under Save...);
-- the focused Log View or terminal: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a terminal
-  this is the only way, because F6 goes to its program.
+- an editor (the Settings editor too): **F9 > Pin** / **Unpin** (`p`, right under Read only);
+- the focused Log View, terminal or editor: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a
+  terminal this is the only way, because F6 goes to its program.
 
-The title shows ` [P]` (in a Log View before the other marks), the Window List and the Log Views table / list a `P`.
+The title shows ` [P]` (in a Log View before the other marks, in an editor after ` [RO]` / ` [WS]`), the Window List
+and the Log Views table / list a `P`.
 Nothing else changes: the window can be moved, resized, zoomed, tiled, renamed, filtered and moved to another desktop;
 **Quit** closes it as before; when its program ends a terminal behaves as before (with `keep-open = no` it stays
 `(Disconnected)` and closes on a key) and a Log View keeps its lines. The Help window cannot be pinned.
 
-Profiles: Save Profile As writes `pinned = yes` for a pinned terminal or Log View; a profile window with it opens pinned.
+Profiles: Save Profile As writes `pinned = yes` for a pinned terminal, Log View or editor; a profile window with it
+opens pinned.
 **Load Profile** with pinned windows open: after **Yes** to *Close the current windows first?*, a second question lists
 them: **Keep** (they stay, on their desktop and in their place, with their lines and running programs; the others
 close), **Close all** (the pinned ones close too) or **Cancel** (nothing is closed or loaded). The list of what runs
@@ -318,7 +322,8 @@ close), **Close all** (the pinned ones close too) or **Cancel** (nothing is clos
 after **No**, which keeps every window) is not opened again; the Event Viewer gets a note (`… [logview] 'mail'
 skipped: the same as a pinned window kept open`). The same title with another command, or the same command with
 another title, opens. For a terminal the command compared is the one Save Profile As would write (the profile's
-command, or else the command running in its foreground).
+command, or else the command running in its foreground). An `[editor]` is not opened again when its `file` is the file
+of a pinned editor kept open (an Untitled editor always opens).
 
 ### Desktops
 
@@ -600,8 +605,8 @@ line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selec
 **Alt-C** inserts a comment line with the date and time ([Comment line](#comment-line)).
 **Alt-I / Alt-U** indent / unindent the line or the selected lines by one space ([Indent and unindent](#indent-and-unindent)).
 **Ctrl-Space** shows / hides the spaces, tabs and line ends ([Whitespace](#whitespace)).
-**F9** opens the editor's menu: Read only, Save, Save as (**F12**), Open (**Ctrl-F12**), Reload, Find, Replace, Go
-to line, Whitespace ([Read only](#read-only), [Open and Reload](#open-and-reload)).
+**F9** opens the editor's menu: Read only, Pin ([Pin](#pin)), Save, Save as (**F12**), Open (**Ctrl-F12**), Reload,
+Find, Replace, Go to line, Whitespace ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
 
 ### Open and Reload
@@ -1064,7 +1069,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `no` (the whitespace view; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `no` (the whitespace view; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

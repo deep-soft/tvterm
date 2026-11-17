@@ -64,8 +64,14 @@ public:
     void setWhitespace(bool on);
 
     // The file name, or "Untitled"; " [RO]" added while read only, " [WS]"
-    // while the whitespace view is on.
+    // while the whitespace view is on, " [P]" while pinned.
     const char *getTitle(short maxSize) override;
+
+    // Pin (E86, item 54 b; pin.h): F9 > Pin / Unpin, Ctrl-B Z P. A pinned
+    // editor refuses Ctrl-W, the close button and Window List > Close
+    // before the "Save?" question. Profiles keep it ('pinned = yes').
+    bool isPinned() const noexcept { return pinned; }
+    void setPinned(bool on);
 
     // Read only (E63): toggled from the window's menu (F9). The keys and
     // commands that change the text do nothing ("Read only." in the status
@@ -120,6 +126,7 @@ public:
 private:
 
     bool readOnly {false};
+    bool pinned {false};
     // The whitespace view (kept here too: during the window's shutDown the
     // editor is already gone while broadcasts still reach the window).
     bool whitespace {false};

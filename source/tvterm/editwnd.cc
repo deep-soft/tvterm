@@ -28,6 +28,7 @@
 #include "statline.h"
 #include "app.h"
 #include "settings.h"
+#include "pin.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -1042,7 +1043,7 @@ static std::vector<TVTermEditWindow *> openWindows;
 enum : ushort
 {
     cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
-    cmEditOpen, cmEditReload, cmEditWhitespace,
+    cmEditOpen, cmEditReload, cmEditWhitespace, cmEditPin,
 };
 
 // The directory of 'path' (as the editor expanded it), "" without one.
@@ -1301,9 +1302,10 @@ const char *TVTermEditWindow::getTitle(short maxSize)
 {
     const char *t = TEditWindow::getTitle(maxSize);
     bool ws = showsWhitespace();
-    if (!readOnly && !ws)
+    if (!readOnly && !ws && !pinned)
         return t;
-    titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") + (ws ? " [WS]" : "");
+    titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") + (ws ? " [WS]" : "") +
+               (pinned ? " [P]" : "");
     return titleBuf.c_str();
 }
 
@@ -1329,6 +1331,15 @@ void TVTermEditWindow::setWhitespace(bool on)
         return;
     whitespace = e->showWs = on;
     e->drawView();
+    if (frame)
+        frame->drawView();
+}
+
+void TVTermEditWindow::setPinned(bool on)
+{
+    if (pinned == on)
+        return;
+    pinned = on;
     if (frame)
         frame->drawView();
 }
@@ -1380,6 +1391,8 @@ void TVTermEditWindow::openMenu()
     using namespace editwnd;
     TMenuItem &items =
         *new TMenuItem("~R~ead only", cmEditReadOnly, kbNoKey, hcNoContext, readOnly ? "on" : "off") +
+        // Pin (E86): under Read only.
+        *new TMenuItem(pinned ? "Un~p~in" : "~P~in (not closed by Ctrl-W)", cmEditPin, kbNoKey) +
         newLine() +
         *new TMenuItem("~S~ave", cmEditSave, kbNoKey, hcNoContext, "F2") +
         *new TMenuItem("Save ~a~s...", cmEditSaveAs, kbNoKey, hcNoContext, "F12") +
@@ -1406,6 +1419,7 @@ void TVTermEditWindow::openMenu()
             showStatus(readOnly ? "Read only: the text cannot be changed; F2 saves as another file."
                                 : "Read only off.");
             break;
+        case cmEditPin: pin::toggle(this); break;
         case cmEditSave: message(this, evCommand, cmSave, nullptr); break;
         case cmEditSaveAs: message(this, evCommand, cmSaveAs, nullptr); break;
         case cmEditOpen: openFile(); break;
@@ -1664,6 +1678,10 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
 void TVTermEditWindow::handleEvent(TEvent &ev)
 {
     closeKeyToCommand(*this, ev);
+    // Pin (E86): Ctrl-W, the close button, Window List > Close; before the
+    // "Save?" question (asked by valid(cmClose)).
+    if (pin::refuseClose(*this, ev))
+        return;
     if (ev.what == evKeyDown && editor && editor->keyState == 0 && (state & sfFocused))
     {
         TKey k(ev.keyDown);

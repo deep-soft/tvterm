@@ -1380,8 +1380,15 @@ void TVTermApp::openProfile(const Profile &profile)
     // Load Profile with pinned windows kept (E84): what each of them would be
     // saved as (title and command), to skip the same window in the profile.
     std::vector<std::pair<std::string, std::string>> keptLogs, keptTerms;
+    // Editors (E86): the file (an Untitled editor never matches).
+    std::vector<std::string> keptFiles;
     for (TWindow *w : keptPinned)
-        if (auto *log = dynamic_cast<LogViewWindow *>(w))
+        if (auto *edit = dynamic_cast<TVTermEditWindow *>(w))
+        {
+            if (edit->editor && *edit->editor->fileName)
+                keptFiles.push_back(edit->editor->fileName);
+        }
+        else if (auto *log = dynamic_cast<LogViewWindow *>(w))
         {
             if (!log->hasFixedLines())
                 keptLogs.push_back({log->getOptions().title, log->getOptions().command});
@@ -1406,6 +1413,13 @@ void TVTermApp::openProfile(const Profile &profile)
             note("profile " + profile.path + ": " +
                  (win.kind == WindowProfile::LogView ? "[logview] '" : "[terminal] '") +
                  (name.empty() ? std::string("(shell)") : name) +
+                 "' skipped: the same as a pinned window kept open");
+            continue;
+        }
+        if ( win.kind == WindowProfile::Editor && !win.file.empty() &&
+             std::find(keptFiles.begin(), keptFiles.end(), win.file) != keptFiles.end() )
+        {
+            note("profile " + profile.path + ": [editor] '" + win.file +
                  "' skipped: the same as a pinned window kept open");
             continue;
         }
@@ -1448,6 +1462,7 @@ void TVTermApp::openProfile(const Profile &profile)
                     edit->setReadOnly(true);
                 if (win.whitespace >= 0)
                     edit->setWhitespace(win.whitespace == 1);
+                edit->setPinned(win.pinned);
                 window = edit;
                 break;
             }
@@ -1934,6 +1949,7 @@ void TVTermApp::saveProfile()
                 if (auto *rw = dynamic_cast<TVTermEditWindow *>(edit))
                 {
                     win.readOnly = rw->isReadOnly() && !win.file.empty();
+                    win.pinned = rw->isPinned();
                     // Written when it differs from show-whitespace's default
                     // state: yes when on; no when off and the default is on.
                     if (rw->showsWhitespace())

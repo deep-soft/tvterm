@@ -247,7 +247,8 @@ const char *SettingsEditWindow::getTitle(short maxSize)
 {
     if (otherPid != 0)
     {
-        title = "Settings \u2014 being edited in another tvterm (pid " + std::to_string(otherPid) + ")";
+        title = "Settings \u2014 being edited in another tvterm (pid " + std::to_string(otherPid) + ")" +
+                (isPinned() ? " [P]" : "");
         return title.c_str();
     }
     return TVTermEditWindow::getTitle(maxSize);

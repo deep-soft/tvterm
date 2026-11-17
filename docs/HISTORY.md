@@ -193,6 +193,9 @@ E84. Pin (item 33): a pinned Log View or terminal is not closed by Ctrl-W, the c
      in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile Keep / Close all / Cancel,
      the same window (title + command) not opened twice; `tvterm.ini` format 9
 E85. Log View F9: Pin / Unpin moved under Save... (item 54 a), with the other window items
+E86. Editor Pin (item 54 b): F9 > Pin / Unpin (under Read only), Ctrl-B Z P; Ctrl-W, the close button, Close Term
+     and Window List > Close refused before the "Save?" question; `[P]` after `[RO]` / `[WS]`; the Settings editor too;
+     profiles `[editor] pinned = yes`; Load Profile Keep: an `[editor]` with the same file is skipped
 
 ---
 
@@ -1326,6 +1329,15 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
 - **Pin, part 2** (E85–E89, item 54, agreed in chat 75 after the real test of E84; E90 = item 57; one patch, separate
   commits, chat 77): E85 Log View F9: the Pin / Unpin item right under `Sa~v~e...` (was the last item, after Alerts...),
   still without a letter.
+  E86 editors: `TVTermEditWindow::pinned` / `isPinned` / `setPinned` (frame redrawn); `pin::canPin`, `isPinned`, `set`,
+  `titleOf` (`Editor: <file>` / `Editor: Untitled`) and `refuseClose` (`Editor is pinned (F9 > Unpin)`) know editors, so
+  Ctrl-B Z P works for them. `refuseClose` is checked at the start of `TVTermEditWindow::handleEvent` (after
+  `closeKeyToCommand`), before `TEditWindow` turns `cmClose` into `close()` → `valid(cmClose)` (the "Save?" question):
+  a pinned editor asks nothing. Quit (`valid(cmQuit)`) and Load Profile Close all (`close()`) are unchanged. F9 item
+  `~P~in (not closed by Ctrl-W)` / `Un~p~in` under `~R~ead only` (`cmEditPin`); title `… [RO] [WS] [P]`; the Settings
+  editor inherits it (its other-tvterm title gets ` [P]` too). Profiles: `pinned` is read for `[editor]` too and
+  written after `whitespace`; Load Profile Keep / No: a profile `[editor]` whose `file` equals the file of a kept pinned
+  editor is skipped with the usual note (an Untitled editor never matches). Help: editor F9 line `(Read only, Pin, …)`.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2339,6 +2351,13 @@ examples/profiles/example.ini
   yes or no)`. A name without `.ini` in Load Profile still fails (known, not changed).
 - E85, tmux 200x50, profile `p3` (Log Views `L1`, `L2` on D2, Event Viewer): L1 F9 → `Save...  F2 s`, then `Pin (not
   closed by Ctrl-W)  F6`, then a separator and `Alerts...  F5`.
+- E86, tmux 200x50, profile `p1` (Log Views `L1`, `L2`, terminal `T1`, editors `/tmp/t/a.txt`, `/tmp/t/b.txt`,
+  `layout = columns 3`): b.txt F9 → `Read only  off`, then `Pin (not closed by Ctrl-W)`; `p` → title `/tmp/t/b.txt [P]`,
+  status `Pinned: Editor: /tmp/t/b.txt …`; `x` typed, Ctrl-W → `Editor is pinned (F9 > Unpin).`, no Save? box; Window
+  List Alt-C → refused the same way; F9 → `Unpin`, `p` → `[P]` gone; Ctrl-W → `/tmp/t/b.txt has been modified. Save?`.
+  Ctrl-B Z I (Pin all), Ctrl-B C `s1` → `pinned = yes` in all five sections (two `[editor]`); Ctrl-B P `s1.ini`, Yes →
+  `5 pinned window(s):`, Keep → `5 pinned window(s) kept.`, notes `[logview] …`, `[terminal] …` and two `[editor]
+  '/tmp/t/…' skipped: the same as a pinned window kept open`; Window List: 5 rows, all `P`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2458,6 +2477,7 @@ examples/profiles/example.ini
 | Editor read only (`far2l-extended`) | E63 | F9 menu in every editor (Read only, Save, Save as, Find, Replace, Go to line); Read only: `[RO]`, editing keys / commands → `Read only.`, F2 → Save As (then not read only), Log View adds nothing; `[editor] read-only = yes` |
 | Alert levels (`far2l-extended`) | E68 | levels 1-5 (`1:` keywords, `alert-silence = 1:120`, `alert-activity = 3:yes`); title color / Window List `A<n>` by level; top bar `Alerts: 1+7` + flashing `A1 <window>: <keyword>`; Ctrl-B G most urgent first; level 1: `alert-action` / `[alerts] action` (detached, `TVTERM_ALERT_*`, `action-interval`); `[alerts] log` (every match); `[alerts] notify` flash / far2l notify / bell, `notify-repeat`; More... > Clear non-urgent alerts; `tvterm.ini` format 4 |
 | Log View F9 Pin under Save (`far2l-extended`) | E85 | Log View F9: Pin / Unpin right under Save... (was after Alerts...) |
+| Editor Pin (`far2l-extended`) | E86 | editors can be pinned: F9 > Pin / Unpin (under Read only), Ctrl-B Z P; Ctrl-W, the close button, Close Term, Window List > Close refused before "Save?"; `[P]` after `[RO]` / `[WS]`; the Settings editor too; `[editor] pinned = yes`; Load Profile Keep skips an `[editor]` with the same file |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

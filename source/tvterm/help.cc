@@ -119,7 +119,7 @@ static std::vector<Entry> entries(help::Section s)
             };
         case help::Editor:
             return {
-                {"F9", "the window's menu (Read only, Open, Reload...)"},
+                {"F9", "the window's menu (Read only, Pin, Open, Reload...)"},
                 {"F2 / F12 / Ctrl-F12", "save / save as / open another file here"},
                 {"F7 or Ctrl-F", "find"},
                 {"Ctrl-F7 or Ctrl-H", "replace"},

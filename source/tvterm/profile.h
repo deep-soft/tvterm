@@ -30,7 +30,7 @@ struct WindowProfile
     std::string dir;
     std::string command;
     bool keepOpen {true};
-    // Terminal and Log View: pinned = yes (E84, see pin.h).
+    // Terminal, Log View and (E86) editor: pinned = yes (E84, see pin.h).
     bool pinned {false};
     // Log View (see logview.h).
     std::string logInclude;
