@@ -203,6 +203,8 @@ E88. Event Viewer messages (item 54 d): `not closed: …` and other one-time mes
      kept messages
 E89. Log Views table / list (item 54 e): column `|P|` without spaces; headers NoCase, Filters, HLight, HLight Sets,
      HLight Words
+E90. Scroll Log Views to last (item 57): the windows kept where they are, named once in the Event Viewer with the
+     reason (and their Desk)
 
 ---
 
@@ -1361,6 +1363,9 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   E89 Log Views table / list: the P column is one character wide with no spaces around it (`|P|`, separator `|-|`; an
   exception to the aligned cells); names `NoCase` (was Ignore case), `Filters` (Filters on), `HLight` (Highlight Type),
   `HLight Sets`, `HLight Words`; `Wrap` unchanged; the list uses the same names.
+  E90 (item 57, chat 77) Scroll Log Views to last: `LogViewWindow::keptReason` (`selection` / `search` / null) is
+  read before `moveToEnd`; the windows kept are listed in one `noteOnce` (`Scroll to last: kept 2: "Log: L1"
+  (selection), "Log: L2" (search, D2)`; the Desk only when it is not the one shown). The status line is unchanged.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2391,6 +2396,10 @@ examples/profiles/example.ini
 - E89, profile `p3`: More... `l` → `| #   |P| Name | Alert | Desk | Command … | NoCase | Wrap | Filters | HLight |
   HLight Sets | HLight Words |`, separator `|-----|-|------|…`, row `| 1   | | L1   |…`; More... `s` → the 17 names, the
   new ones included.
+- E90, profile `p3`: L1 Shift-Up ×2, L2 (on D2) `/33` Enter, back to D1, More... `t` → `0 Log View(s) moved to end; 2
+  kept (selection or search).` and in the viewer `Scroll to last: kept 2: "Log: L1" (selection), "Log: L2" (search,
+  D2)`; with only L1 selected: `kept 1: "Log: L1" (selection)` and `1 Log View(s) moved to end; 1 kept …`; N afterwards
+  does not show it.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2514,6 +2523,7 @@ examples/profiles/example.ini
 | Pin all / Unpin all (`far2l-extended`) | E87 | Ctrl-B Windows ► Pin all (`I`) / Unpin all (`U`): every terminal, Log View and editor on every Desk; `N window(s) pinned.` / `unpinned.` (N = the windows changed) |
 | Event Viewer messages (`far2l-extended`) | E88 | `not closed: …` shown once, not kept; the `tvterm.ini` messages replaced at every settings reload (format note kept each time, printed once per format); Shift-N / F9 > Empty kept messages: `Kept messages emptied: N.` |
 | Log Views table headers (`far2l-extended`) | E89 | table / list: `|P|` without spaces; headers NoCase, Filters, HLight, HLight Sets, HLight Words |
+| Scroll to last: which kept (`far2l-extended`) | E90 | Scroll Log Views to last: the Log Views kept where they are named once in the Event Viewer (`Scroll to last: kept 2: "Log: L1" (selection), "Log: L2" (search, D2)`), not kept for N |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

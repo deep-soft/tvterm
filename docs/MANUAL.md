@@ -1574,7 +1574,9 @@ The last set shows `2026-11-01 08:00:01        10.0.0.5         8.8.8.8 53    ac
 menu): every Log View, on every desktop, goes to its last line and follows the new lines again, like End (a pause
 ends). Not moved: a Log View with a selection or a search match shown (Esc clears them), and the windows with fixed
 lines (View file, Search > New window, Help: nothing new comes). Status line: `3 Log View(s) moved to end.`, or `2 Log
-View(s) moved to end; 1 kept (selection or search).`
+View(s) moved to end; 1 kept (selection or search).`; then an open Event Viewer names the windows kept, once (not kept
+for N): `Scroll to last: kept 2: "Log: mail" (selection), "Log: fg-short" (search, D3)` (the desktop only when it is not
+the one shown).
 
 ### Search: New window
 

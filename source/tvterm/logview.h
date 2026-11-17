@@ -135,6 +135,9 @@ public:
     // (like End; a pause ends). Not with fixed lines (nothing new comes), a
     // selection or a search match shown: false.
     bool moveToEnd();
+    // Why moveToEnd keeps the window where it is (E90): "selection",
+    // "search", or null (it would move, or it has fixed lines).
+    const char *keptReason() const noexcept;
     // Pin (E84, see pin.h): " [P]" in the title; not closed by the user.
     bool isPinned() const noexcept { return pinned; }
     void setPinned(bool on);

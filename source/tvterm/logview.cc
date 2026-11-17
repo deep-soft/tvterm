@@ -2171,6 +2171,13 @@ bool LogViewWindow::moveToEnd()
     return true;
 }
 
+const char *LogViewWindow::keptReason() const noexcept
+{
+    if (fixedSource)
+        return nullptr;
+    return hasSel ? "selection" : hasMatch ? "search" : nullptr;
+}
+
 void LogViewWindow::moveCursorTo(long index, bool extend)
 // Up/Down, PgUp/PgDn, Home/End; with Shift ('extend'), the selection
 // grows from the cursor line.

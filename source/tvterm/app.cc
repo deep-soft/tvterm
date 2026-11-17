@@ -2172,19 +2172,34 @@ void TVTermApp::switchDesktop(int n)
 void TVTermApp::logViewsToEnd()
 {
     size_t moved = 0, kept = 0;
+    // The windows kept where they are (E90): named in the Event Viewer, once
+    // (not kept for N), with the reason and their Desk when it is not the
+    // one shown.
+    std::string names;
     for (TWindow *w : getDeskTopWindows(*deskTop))
         if (auto *lw = dynamic_cast<LogViewWindow *>(w))
         {
             if (lw->hasFixedLines())
                 continue;
+            const char *reason = lw->keptReason();
             if (lw->moveToEnd())
                 ++moved;
             else
+            {
                 ++kept;
+                std::string why = reason ? reason : "kept";
+                int desk = desktops::of(w);
+                if (desk > 0 && desk != desktops::current())
+                    why += ", " + desktops::label(desk);
+                names += (names.empty() ? "" : ", ") + std::string("\"") + lw->messageTitle() + "\" (" + why + ")";
+            }
         }
     std::string text = std::to_string(moved) + " Log View(s) moved to end";
     if (kept)
+    {
         text += "; " + std::to_string(kept) + " kept (selection or search)";
+        noteOnce("Scroll to last: kept " + std::to_string(kept) + ": " + names);
+    }
     appsettings::showStatus(text + ".");
 }
 
