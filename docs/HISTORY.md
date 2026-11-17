@@ -205,6 +205,8 @@ E89. Log Views table / list (item 54 e): column `|P|` without spaces; headers No
      HLight Words
 E90. Scroll Log Views to last (item 57): the windows kept where they are, named once in the Event Viewer with the
      reason (and their Desk)
+E91. `scripts/build.sh dbg`: a static executable with debug information, not stripped (`bin/tvterm-dbg`, for gdb on a
+     core file)
 
 ---
 
@@ -1643,7 +1645,9 @@ examples/profiles/example.ini
 
 ## 4. Build and workflow
 
-- Build: `scripts/build.sh [dynamic|static|both]`; static = `cmake -DTVTERM_STATIC=ON`.
+- Build: `scripts/build.sh [dynamic|static|both|dbg]`; static = `cmake -DTVTERM_STATIC=ON`; `dbg` (E91, chat 77) =
+  static, `RelWithDebInfo`, not stripped, `bin/tvterm-dbg` (the other modes: `MinSizeRel`, stripped), for `gdb <exe>
+  <core>` → `bt` (segfault watch, Open); block A of a patch builds `static` and `dbg`.
   Alpine packages: `build-base cmake perl patch git linux-headers ncurses-dev ncurses-static gpm-dev`.
 - **Delivery:** patches made with `git format-patch` on top of the state on GitHub;
   applied with `git am ../x.patch && scripts/build.sh static && git push`. If a patch is already applied: `git am --skip`.
@@ -2400,6 +2404,8 @@ examples/profiles/example.ini
   kept (selection or search).` and in the viewer `Scroll to last: kept 2: "Log: L1" (selection), "Log: L2" (search,
   D2)`; with only L1 selected: `kept 1: "Log: L1" (selection)` and `1 Log View(s) moved to end; 1 kept …`; N afterwards
   does not show it.
+- E91: `sh -n scripts/build.sh`; `scripts/build.sh dbg` in the container (Ubuntu, glibc static) → `bin/tvterm-dbg`
+  (28 MB) with `.debug_info` (`readelf -S`), `with debug_info, not stripped` (`file`), `--version` runs.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2524,6 +2530,7 @@ examples/profiles/example.ini
 | Event Viewer messages (`far2l-extended`) | E88 | `not closed: …` shown once, not kept; the `tvterm.ini` messages replaced at every settings reload (format note kept each time, printed once per format); Shift-N / F9 > Empty kept messages: `Kept messages emptied: N.` |
 | Log Views table headers (`far2l-extended`) | E89 | table / list: `|P|` without spaces; headers NoCase, Filters, HLight, HLight Sets, HLight Words |
 | Scroll to last: which kept (`far2l-extended`) | E90 | Scroll Log Views to last: the Log Views kept where they are named once in the Event Viewer (`Scroll to last: kept 2: "Log: L1" (selection), "Log: L2" (search, D2)`), not kept for N |
+| Debug build (`far2l-extended`) | E91 | `scripts/build.sh dbg`: `bin/tvterm-dbg`, static, RelWithDebInfo, not stripped, for gdb on a core file |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

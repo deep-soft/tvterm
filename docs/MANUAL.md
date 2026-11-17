@@ -38,10 +38,12 @@ Packages:
 ```sh
 git clone --recursive -b far2l-extended https://github.com/deep-soft/tvterm.git
 cd tvterm
-scripts/build.sh static      # or: dynamic, both (default)
+scripts/build.sh static      # or: dynamic, both (default), dbg
 ```
 
-The result is `bin/tvterm-static` (or `bin/tvterm-dynamic`), with a build log next to it. Nothing is installed:
+The result is `bin/tvterm-static` (or `bin/tvterm-dynamic`), with a build log next to it. `dbg` makes
+`bin/tvterm-dbg`: static, with debug information and not stripped (larger, a bit slower), so that `gdb bin/tvterm-dbg
+core` → `bt` shows the functions and lines after a crash. Nothing is installed:
 copy the executable where you want it, e.g. `cp bin/tvterm-static ~/bin/tvterm`. The static build has no library
 dependencies and can be copied to other servers (see [Known problems](#12-known-problems) for old systems).
 

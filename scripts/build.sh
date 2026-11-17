@@ -1,8 +1,11 @@
 #!/bin/sh
 # Build tvterm (dynamic and/or static executable).
 #
-# Usage:  scripts/build.sh [dynamic|static|both]     (default: both)
-# Output: bin/tvterm-dynamic, bin/tvterm-static, bin/build-*.log
+# Usage:  scripts/build.sh [dynamic|static|both|dbg]     (default: both)
+# Output: bin/tvterm-dynamic, bin/tvterm-static, bin/tvterm-dbg, bin/build-*.log
+#
+# dbg: a static executable with debug information, not stripped
+# (RelWithDebInfo), for gdb on a core file (bt shows functions and lines).
 #
 # Required packages:
 #   Debian/Ubuntu/Raspbian: apt install build-essential cmake perl patch git \
@@ -17,23 +20,27 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 mkdir -p "$root/bin"
 stamp=$(date '+%Y%m%d-%H%M%S')
 
-build() # $1 = name, $2.. = extra cmake options
+build() # $1 = name, $2 = build type, $3.. = extra cmake options
 {
-    name=$1; shift
+    name=$1; type=$2; shift 2
     dir="$root/build-$name"
     log="$root/bin/build-$name-$stamp.log"
     echo ">> Building $name (log: $log)"
     rm -rf "$dir"
-    cmake -S "$root" -B "$dir" -DCMAKE_BUILD_TYPE=MinSizeRel "$@" >"$log" 2>&1
+    cmake -S "$root" -B "$dir" -DCMAKE_BUILD_TYPE="$type" "$@" >"$log" 2>&1
     cmake --build "$dir" -j "$(nproc 2>/dev/null || echo 2)" >>"$log" 2>&1
     cp "$dir/tvterm" "$root/bin/tvterm-$name"
-    strip "$root/bin/tvterm-$name" 2>/dev/null || true
+    # The debug build keeps its symbols.
+    if [ "$name" != dbg ]; then
+        strip "$root/bin/tvterm-$name" 2>/dev/null || true
+    fi
     ls -la "$root/bin/tvterm-$name"
 }
 
 case $mode in
-    dynamic) build dynamic ;;
-    static)  build static -DTVTERM_STATIC=ON ;;
-    both)    build dynamic; build static -DTVTERM_STATIC=ON ;;
-    *)       echo "Usage: $0 [dynamic|static|both]" >&2; exit 1 ;;
+    dynamic) build dynamic MinSizeRel ;;
+    static)  build static MinSizeRel -DTVTERM_STATIC=ON ;;
+    both)    build dynamic MinSizeRel; build static MinSizeRel -DTVTERM_STATIC=ON ;;
+    dbg)     build dbg RelWithDebInfo -DTVTERM_STATIC=ON ;;
+    *)       echo "Usage: $0 [dynamic|static|both|dbg]" >&2; exit 1 ;;
 esac
