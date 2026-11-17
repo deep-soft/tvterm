@@ -1637,18 +1637,19 @@ order of the Window List, as a markdown table into a new editor (untitled; F2 sa
 longest value (or its name):
 
 ```
-| #   | P   | Name    | Alert                         | Desk | Command                          | Include          | ...
-|-----|-----|---------|-------------------------------|------|----------------------------------|------------------| ...
-| 1   | P   | maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
+| #   |P| Name    | Alert                         | Desk | Command                          | Include          | ...
+|-----|-|---------|-------------------------------|------|----------------------------------|------------------| ...
+| 1   |P| maillog | keywords: reject; silence: 60 | D1   | tail -n 5000 -F /var/log/maillog | reject\|bounced  | ...
 ```
 
-The columns: `#`, P (`P` when [pinned](#pin), else empty), Name, Alert, Desk, Command, Include, And include, Exclude, Ignore case, Wrap, Filters on, Highlight Type,
-Highlight Sets, Highlight Words, Transform, Max lines, Restart after.
+The columns: `#`, P (`P` when [pinned](#pin), else empty; one character, without the spaces of the other columns),
+Name, Alert, Desk, Command, Include, And include, Exclude, NoCase (Ignore case), Wrap, Filters (Filters on), HLight
+(Highlight type), HLight Sets, HLight Words, Transform, Max lines, Restart after.
 
 - **Name**: the Title field (empty: none); **Command**: `(fixed lines)` for the windows of Search > New window and View file.
 - **Alert**: `activity`, `keywords: …`, `silence: N` (seconds), joined with `; `, or `none`.
-- **Desk**: `D1`, or `2:mail` for a named desktop. Yes / no columns: the check boxes (Filters on = the F state).
-- **Highlight Type**: `sets` or `words`; both fields are written. **Max lines** and **Restart after**: as in F4 (`0`:
+- **Desk**: `D1`, or `2:mail` for a named desktop. Yes / no columns: the check boxes (Filters = the F state).
+- **HLight**: `sets` or `words`; both fields are written. **Max lines** and **Restart after**: as in F4 (`0`:
   the default / no restart).
 - A `|` in a value is written `\|`, so the table keeps its columns.
 

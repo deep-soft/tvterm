@@ -3282,8 +3282,8 @@ void showLogViewsTable(TDeskTop &deskTop, bool list)
     using namespace logview;
     // The table has '#' first; the list has only the 17 fields.
     static const char *const names[] = {
-        "#", "P", "Name", "Alert", "Desk", "Command", "Include", "And include", "Exclude", "Ignore case", "Wrap",
-        "Filters on", "Highlight Type", "Highlight Sets", "Highlight Words", "Transform", "Max lines",
+        "#", "P", "Name", "Alert", "Desk", "Command", "Include", "And include", "Exclude", "NoCase", "Wrap",
+        "Filters", "HLight", "HLight Sets", "HLight Words", "Transform", "Max lines",
         "Restart after",
     };
     enum { columns = sizeof(names) / sizeof(names[0]) };
@@ -3353,20 +3353,26 @@ void showLogViewsTable(TDeskTop &deskTop, bool list)
                 r.push_back(tableCell(v));
             cells.push_back(std::move(r));
         }
+        // The P column (E89): one character, no spaces around it (`|P|`).
+        enum { pinColumn = 1 };
         std::vector<size_t> width(columns, 3);
+        width[pinColumn] = 1;
         for (auto &r : cells)
             for (int c = 0; c < columns; ++c)
                 width[c] = std::max<size_t>(width[c], strwidth(r[c]));
         auto line = [&] (const std::vector<std::string> &r) {
             std::string out = "|";
             for (int c = 0; c < columns; ++c)
-                out += " " + r[c] + std::string(width[c] - strwidth(r[c]), ' ') + " |";
+            {
+                std::string cell = r[c] + std::string(width[c] - strwidth(r[c]), ' ');
+                out += c == pinColumn ? cell + "|" : " " + cell + " |";
+            }
             return out + "\n";
         };
         text += line(cells[0]);
         text += "|";
         for (int c = 0; c < columns; ++c)
-            text += std::string(width[c] + 2, '-') + "|";
+            text += std::string(width[c] + (c == pinColumn ? 0 : 2), '-') + "|";
         text += "\n";
         for (size_t i = 1; i < cells.size(); ++i)
             text += line(cells[i]);
