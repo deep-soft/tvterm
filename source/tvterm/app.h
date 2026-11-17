@@ -68,6 +68,9 @@ struct TVTermApp : public TApplication
     std::vector<TWindow *> keptPinned;
     // Windows > Pin / Unpin (E84).
     void pinWindow();
+    // Windows > Pin all / Unpin all (E87): every terminal, Log View (not the
+    // Help window) and editor, on every Desk; the count in the status line.
+    void pinAll(bool on);
     // After Tile / Cascade: a note if the fixed windows left no room.
     void noteNoFreeArea();
     // Windows > Tile in N Columns / Rows: asks for N (1-20; the last value

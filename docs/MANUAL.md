@@ -195,7 +195,7 @@ submenu its own letters work; a letter it does not have goes to the main menu (C
 **Windows ►** (`Z`): `Z` Zoom (Maximize/Restore: maximizes the focused window; again: back to its size) · `C` Tile
 (Columns First) · `R` Tile (Rows First) · `L` Tile in N Columns... · `S` Tile in N Rows... · `A` Cascade
 ([Tile and Cascade](#tile-and-cascade)) · `G` Grab Input ([Grab Input](#grab-input)) · `P` Pin / Unpin the focused
-Log View or terminal ([Pin](#pin)) · `M` Resize/Move (arrows move,
+Log View, terminal or editor · `I` Pin all · `U` Unpin all ([Pin](#pin)) · `M` Resize/Move (arrows move,
 Shift+arrows resize, Ctrl faster, Enter done, Esc cancel). So Zoom is **Ctrl-B Z Z** and Resize/Move **Ctrl-B Z M**
 (`key-zoom` in [Global keys](#global-keys) gives Zoom a direct key).
 
@@ -303,6 +303,8 @@ Viewer. A pinned editor refuses before its *Save?* question, so nothing is asked
 - a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**
   (right under Save...);
 - an editor (the Settings editor too): **F9 > Pin** / **Unpin** (`p`, right under Read only);
+- all at once: **Ctrl-B Z I** (Windows ► Pin all) / **Ctrl-B Z U** (Unpin all): every terminal, Log View and editor, on
+  every desktop; the status line says how many changed (`5 window(s) pinned.`).
 - the focused Log View, terminal or editor: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a
   terminal this is the only way, because F6 goes to its program.
 

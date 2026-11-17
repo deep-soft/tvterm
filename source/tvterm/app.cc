@@ -754,6 +754,8 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmTileNCols: tileInN(true); break;
                 case cmTileNRows: tileInN(false); break;
                 case cmPinWindow: pinWindow(); break;
+                case cmPinAll: pinAll(true); break;
+                case cmUnpinAll: pinAll(false); break;
                 default:
                     handled = false;
                     break;
@@ -892,6 +894,8 @@ void TVTermApp::openMenu()
             newLine() +
             *new TMenuItem("~G~rab Input", cmGrabInput, kbNoKey) +
             *new TMenuItem(pinnedNow ? "Un~p~in" : "~P~in (not closed by mistake)", cmPinWindow, kbNoKey) +
+            *new TMenuItem("P~i~n all", cmPinAll, kbNoKey) +
+            *new TMenuItem("~U~npin all", cmUnpinAll, kbNoKey) +
             *new TMenuItem("Resize/~M~ove", cmResize, kbNoKey)
         ) +
         newLine() +
@@ -1782,6 +1786,18 @@ bool TVTermApp::closeWindowsBeforeLoad()
 void TVTermApp::pinWindow()
 {
     pin::toggle(deskTop->current);
+}
+
+void TVTermApp::pinAll(bool on)
+{
+    size_t changed = 0;
+    for (TWindow *w : getDeskTopWindows(*deskTop))
+        if (pin::canPin(w) && pin::isPinned(w) != on)
+        {
+            pin::set(w, on);
+            ++changed;
+        }
+    appsettings::showStatus(std::to_string(changed) + (on ? " window(s) pinned." : " window(s) unpinned."));
 }
 
 void TVTermApp::windowList()

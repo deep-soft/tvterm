@@ -53,6 +53,8 @@ enum : ushort
     cmNextDesk,       // Event Viewer Ctrl-Right (E77): the next Desk with windows.
     cmPrevDesk,       // Event Viewer Ctrl-Left (E77): the previous one.
     cmLogViewsToEnd,  // More... / Event Viewer Ctrl-L (E78): Scroll Log Views to last.
+    cmPinAll,         // Windows > Pin all (E87): every Term, Log View and editor, every Desk.
+    cmUnpinAll,       // Windows > Unpin all (E87).
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };
