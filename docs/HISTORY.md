@@ -212,6 +212,8 @@ E92. Window List: the filter field filled from a buffer of the field's size (ite
 E93. Event Viewer startup notes (item 61): build type in the build line (`--version`, About too), executable, command
      line, profile at start; `profile loaded: …` at each Load Profile; always kept (not emptied by Shift-N)
 E94. Event Viewer L / F9 > Log View commands (item 62): the Log Views open now with their commands, one block per use
+E95. Flight recorder (item 59): `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT
+     (startup lines, window and dialog, last 50 messages, last 30 keys / clicks / commands), then the default action
 
 ---
 
@@ -1367,6 +1369,21 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `LogViewWindow` of `getSortedWindows` (all desktops, Window List order) `  #n <messageTitle> — <command>`
   (`(fixed lines)` for a window without a command; line breaks in a command become spaces). Status line item
   `L Log cmds`; Help line.
+  E95 (item 59) flight recorder, `crashlog.cc/.h`: `crashlog::install` is the first call in `main`, so tvision's
+  `SignalHandler::enable` (at console setup) saves these actions and calls them after restoring the terminal
+  (`invokeHandlerOrDefault`). The handler (`crashrec::handler`, `SA_SIGINFO | SA_ONSTACK`, 64 KB alternate stack for a
+  direct call) writes the report once (`handling`), then sets `SIG_DFL`, unblocks the signal and `raise`s it (returning
+  would loop: tvision reinstalls its handler and calls this one again at the next fault), `_exit(128 + sig)` after
+  that. The report uses only `open` / `write` / `close`, `getpid`, `time` and hand-made number formatting; the local
+  time comes from `gmtOffset` (`tm_gmtoff`, taken outside the handler) and a days-to-date conversion. Fixed buffers,
+  written by the main thread between events: 8 info lines (`setInfo`, from `noteLasting`: 7 startup + the last
+  Load Profile), window / dialog (`setContext`), 50 messages (`addMessage`, from `printToViewer` and the settings notes
+  not printed), 30 inputs (`addInput`), each with `hh:mm:ss`. `crashctx::record` (start of `TVTermApp::getEvent`, so
+  dialogs run by `execView` are seen too): `evKeyDown` (`keyName`, or the text in quotes; with the focus on a terminal
+  and no modal view a typed character is only `key: a character, in a terminal`), `evMouseDown` (button, position,
+  `(double)`), `evCommand` (the number); then the front visible window of the desktop that is not the modal view (kind,
+  title, Desk) and the modal view (`TopView`; its title and focused control: `TInputLine` with `data`, `TButton`,
+  `TListViewer`). File `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (`HOME`, else `/tmp`), `O_APPEND`, mode 0600.
 - **Pin, part 2** (E85–E89, item 54, agreed in chat 75 after the real test of E84; E90 = item 57; one patch, separate
   commits, chat 77): E85 Log View F9: the Pin / Unpin item right under `Sa~v~e...` (was the last item, after Alerts...),
   still without a letter.
@@ -1611,6 +1628,7 @@ source/tvterm/             the application
                            previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit; `only`: Load Profile with pinned windows kept, E84)
   pin.cc/.h                Pin (E84): pinned Log Views and terminals refuse Ctrl-W / Close; toggle, refuseClose
+  crashlog.cc/.h           flight recorder (E95): crash report on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT
   capture.cc/.h            Capture Desk / Window (E71): screen or window buffer as text, [capture] folder;
                            Desk with desktop-pattern-on-capture (E73 / E74)
   alerts.cc/.h             alert settings (Ctrl-B K), Ctrl-B G, countAlerts (shown by the top bar),
@@ -2450,6 +2468,14 @@ examples/profiles/example.ini
   1000`, `  #2 Log: tail -F /tmp/nofile.log — tail -F /tmp/nofile.log`, `  #3 Log: L2 — while :; …` (L2 on D2 last, the
   Window List order); F9 → `Log View commands  L` above `Empty kept messages  Shift-N`, its `l` → a second block; with
   T- and stopped (Space) → a third block; status line `L Log cmds`.
+- E95, tmux, `HOME=/tmp/h`, `ulimit -c unlimited`: Ctrl-B P, `ab*` typed in Load profile, `kill -SEGV` → exit 139,
+  core, `tvterm-crash-…txt` (0600): `SIGSEGV (11), sent by process N`, the startup lines, `dialog: 'Load profile', focus
+  on an input line: 'ab'`, the messages, `key: Ctrl-B`, `key: 'P'`, `command: 2010`, `key: 'a'`…; a real fault (`gdb
+  -p PID -batch -ex 'set $pc=0' -ex detach`) after `secret` typed in a terminal → `SIGSEGV (11), code 1, address …`,
+  six `key: a character, in a terminal`, `window: terminal '' (D1)`; `gdb tvterm core` `bt`: `raise`,
+  `crashrec::handler`, tvision's `handleSignal`, `<signal handler called>`, then the faulting frame. `kill -ABRT` →
+  exit 134, report, core; `HOME=/nonexistent`, `kill -BUS` → `/tmp/tvterm-crash-…txt`, exit 135; `kill -TERM` → no
+  report.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2578,6 +2604,7 @@ examples/profiles/example.ini
 | Window List filter over-read (`far2l-extended`) | E92 | the Window List filter field is filled from a buffer of its own size (was an over-read of the text, ASan) |
 | Event Viewer startup notes (`far2l-extended`) | E93 | build type in the build line (`release (MinSizeRel)`, `debug info (RelWithDebInfo)`; `--version`, About too); notes `executable:`, `command line:`, `profile at start:`; `profile loaded:` at each Load Profile (replaces the previous one); these are always kept (Shift-N and the 200 limit leave them) |
 | Log View commands (`far2l-extended`) | E94 | Event Viewer `L` / F9 > Log View commands: one block `hh:mm:ss Log Views (N):` + `  #n <title> — <command>` for the Log Views open now (all desktops, Window List order); not kept |
+| Flight recorder (`far2l-extended`) | E95 | on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT: `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (or `/tmp`) with the signal, the startup lines, the window and dialog in front (focused control), the last 50 Event Viewer messages, the last 30 keys / clicks / commands (not the characters typed into a terminal); then the default action (core, exit 128 + signal) |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

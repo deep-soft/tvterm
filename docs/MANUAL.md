@@ -129,6 +129,27 @@ on a server is the right one. The same information is in **Ctrl-B More... > Abou
 together with the settings file, the last profile loaded, the uptime and the number of terminals.
 
 Versions are tagged on GitHub (`v0.2.0`, `v0.3.0`, signed); the release page of a tag lists what the version contains.
+
+### Crash report
+
+If tvterm crashes (SIGSEGV, SIGILL, SIGBUS, SIGFPE or SIGABRT), it first writes
+`~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (local time; in `/tmp` if the home directory cannot be written; readable only by
+you), then the crash goes on as before: the terminal is restored, a core file is written if enabled (`ulimit -c`), and
+the exit status is 128 + the signal (139 for SIGSEGV). Every build does it (static, dynamic, dbg); there is no setting.
+The report has:
+
+- the signal, and the address for a crash (or the process that sent it, e.g. `kill -SEGV`), the time and the pid;
+- the startup lines of the Event Viewer (version, build, executable, command line, profile at start) and the last
+  `profile loaded`;
+- the window in front and the dialog open over it, with the focused control (an input line with its text, a button, a
+  list);
+- the last 50 Event Viewer messages and the last 30 keys, clicks (with `(double)`) and commands, each with its time.
+  Characters typed into a terminal are not written, only `key: a character, in a terminal` (no passwords in the file);
+  keys typed in dialogs and editors are.
+
+Send the report together with `bt` from `gdb <executable> <core>`. With a core file, `bt` shows tvterm's crash handler
+on top (`crashrec::handler`, tvision's `handleSignal`, `<signal handler called>`); the frames below that line are where
+the crash happened. To check that it works: `kill -SEGV <pid of tvterm>` (the report then says `sent by process N`).
 Since `v0.3.0` the version is shown with the `v`, as the tags, and each part has one digit (`v0.3.9` is followed by
 `v0.4.0`).
 

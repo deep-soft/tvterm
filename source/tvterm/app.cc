@@ -18,6 +18,8 @@
 #define Uses_TDialog
 #define Uses_TButton
 #define Uses_TStaticText
+#define Uses_TInputLine
+#define Uses_TListViewer
 #include <tvision/tv.h>
 
 #include "app.h"
@@ -53,6 +55,7 @@
 #include "desktops.h"
 #include "highlight.h"
 #include "pin.h"
+#include "crashlog.h"
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
@@ -152,6 +155,8 @@ namespace appnotes
 
 static void printToViewer(time_t now, const std::string &text)
 {
+    // The flight recorder keeps the last messages (E95).
+    crashlog::addMessage(text);
     if (TProgram::deskTop)
         if (auto *viewer = (TEventViewer *) message(TProgram::deskTop, evBroadcast, cmFindEventViewer, nullptr))
             viewer->printNote(formatEventTime(now) + " " + text);
@@ -165,6 +170,8 @@ static void settingsNote(const std::string &text, bool show = true)
     appsettings::keepNote(now, text, appsettings::NoteKind::Settings);
     if (show)
         printToViewer(now, text);
+    else
+        crashlog::addMessage(text);
 }
 
 } // namespace appnotes
@@ -182,6 +189,8 @@ void TVTermApp::noteLasting(const std::string &text, bool loadedProfile)
     time_t now = time(nullptr);
     appsettings::keepNote( now, text, loadedProfile ? appsettings::NoteKind::Loaded :
                                                       appsettings::NoteKind::Start );
+    // Also the header of a crash report (E95).
+    crashlog::setInfo(text, loadedProfile);
     appnotes::printToViewer(now, text);
 }
 
@@ -301,6 +310,9 @@ static void remember(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    // The flight recorder (E95), before tvision installs its own handlers
+    // (which restore the terminal, then call these).
+    crashlog::install();
     appstart::remember(argc, argv);
     const char *profileName = nullptr;
     bool useDefaultProfile = true;
@@ -1260,12 +1272,109 @@ bool TVTermApp::deleteHistoryEntry()
     return true;
 }
 
+namespace crashctx
+{
+
+// The flight recorder (E95): what the user did and where.
+
+static std::string windowText(TView *v)
+// "Log View 'Log: L1' (D2)", "terminal 'bash'", "editor '...'", ...
+{
+    auto *w = dynamic_cast<TWindow *>(v);
+    if (!w)
+        return v ? "a view" : "";
+    const char *kind = dynamic_cast<TerminalWindow *>(w) ? "terminal" :
+                       dynamic_cast<LogViewWindow *>(w) ? "Log View" :
+                       dynamic_cast<TVTermEditWindow *>(w) ? "editor" :
+                       dynamic_cast<TEventViewer *>(w) ? "Event Viewer" : "window";
+    const char *title = w->getTitle(200);
+    std::string text = std::string(kind) + " '" + (title ? title : "") + "'";
+    int desk = desktops::of(w);
+    if (desk > 0)
+        text += " (" + desktops::label(desk) + ")";
+    return text;
+}
+
+static std::string dialogText(TView *top, TProgram &app)
+// The modal view over the desktop: its title and the focused control.
+{
+    if (!top || top == &app || top == app.deskTop)
+        return "";
+    auto *w = dynamic_cast<TWindow *>(top);
+    if (!w)
+        return "a menu or another modal view";
+    const char *title = w->getTitle(200);
+    std::string text = std::string("'") + (title ? title : "") + "'";
+    TView *focus = w->current;
+    if (auto *input = dynamic_cast<TInputLine *>(focus))
+        text += ", focus on an input line: '" + std::string(input->data ? input->data : "") + "'";
+    else if (auto *button = dynamic_cast<TButton *>(focus))
+        text += ", focus on the button '" + std::string(button->title ? button->title : "") + "'";
+    else if (dynamic_cast<TListViewer *>(focus))
+        text += ", focus on a list";
+    else if (focus)
+        text += ", focus on another control";
+    return text;
+}
+
+static void record(const TEvent &ev, TProgram &app)
+{
+    TView *top = app.TopView();
+    bool inTerminal = (top == &app || top == app.deskTop) && app.deskTop &&
+                      dynamic_cast<TerminalWindow *>(app.deskTop->current);
+    if (ev.what == evKeyDown)
+    {
+        TKey key(ev.keyDown);
+        uchar c = (uchar) ev.keyDown.charScan.charCode;
+        bool plainChar = ev.keyDown.textLength > 0 || (c >= ' ' && c != 0x7F && !(key.mods & (kbCtrlShift | kbAltShift)));
+        if (plainChar && inTerminal)
+            // Not the text itself (passwords).
+            crashlog::addInput("key: a character, in a terminal");
+        else if (plainChar && ev.keyDown.textLength > 0)
+            crashlog::addInput( "key: '" + std::string(ev.keyDown.text, ev.keyDown.textLength) + "'" );
+        else
+            crashlog::addInput("key: " + keyName(key));
+    }
+    else if (ev.what == evMouseDown)
+    {
+        std::string b = (ev.mouse.buttons & mbLeftButton) ? "left" :
+                        (ev.mouse.buttons & mbRightButton) ? "right" : "other";
+        crashlog::addInput( "click: " + b + " at " + std::to_string(ev.mouse.where.x) + "," +
+                            std::to_string(ev.mouse.where.y) +
+                            ((ev.mouse.eventFlags & meDoubleClick) ? " (double)" : "") );
+    }
+    else if (ev.what == evCommand)
+        crashlog::addInput("command: " + std::to_string(ev.message.command));
+    else
+        return;
+    // The window: the front one of the desktop that is not the modal view
+    // (a dialog runs inside the desktop too).
+    TView *win = nullptr;
+    if (app.deskTop && app.deskTop->first())
+    {
+        TView *v = app.deskTop->first();
+        do
+        {
+            if (v != top && (v->state & sfVisible) && dynamic_cast<TWindow *>(v))
+            {
+                win = v;
+                break;
+            }
+            v = v->next;
+        } while (v != app.deskTop->first());
+    }
+    crashlog::setContext(windowText(win), dialogText(top, app));
+}
+
+} // namespace crashctx
+
 void TVTermApp::getEvent(TEvent &event)
 {
     // A window being moved or resized stays above the status line (see
     // windrag.h).
     windrag::keepAboveStatusLine(*deskTop);
     TApplication::getEvent(event);
+    crashctx::record(event, *this);
     // The top corners of the focused window resize it. Not while a menu or
     // another modal view (other than a dialog on the desktop) has the
     // events.
