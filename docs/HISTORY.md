@@ -207,6 +207,8 @@ E90. Scroll Log Views to last (item 57): the windows kept where they are, named 
      reason (and their Desk)
 E91. `scripts/build.sh dbg`: a static executable with debug information, not stripped (`bin/tvterm-dbg`, for gdb on a
      core file)
+E92. Window List: the filter field filled from a buffer of the field's size (item 60; was an over-read of the text,
+     found by ASan)
 
 ---
 
@@ -1337,6 +1339,11 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `whitespace-color` with `parseColorName`), `[keys] key-editor-whitespace`; `settingsFormat` = 8. Profiles:
   `WindowProfile::whitespace` (-1 / 0 / 1); Save Profile As writes `yes` when on, `no` when off and
   `show-whitespace = yes`. Settings reload: the open editors are already drawn again (E79 code).
+- **Diagnostics** (E92–E95, items 60, 61, 62, 59, agreed in chats 77–78; one patch, separate commits, chat 78):
+  E92 (item 60) Window List: `setAllRows` filled the filter field with `filter->setData(text.c_str())`;
+  `TInputLine::setData` copies `dataSize()` bytes (the field's `maxLen` + 1 = 129), so it read past the end of a shorter
+  string (ASan, chat 77: a read inside the stack, not the segfault). The text is now copied into a zeroed buffer of
+  `dataSize()` bytes (cut to the field's size), which `setData` copies.
 - **Pin, part 2** (E85–E89, item 54, agreed in chat 75 after the real test of E84; E90 = item 57; one patch, separate
   commits, chat 77): E85 Log View F9: the Pin / Unpin item right under `Sa~v~e...` (was the last item, after Alerts...),
   still without a letter.
@@ -2406,6 +2413,9 @@ examples/profiles/example.ini
   does not show it.
 - E91: `sh -n scripts/build.sh`; `scripts/build.sh dbg` in the container (Ubuntu, glibc static) → `bin/tvterm-dbg`
   (28 MB) with `.debug_info` (`readelf -S`), `with debug_info, not stripped` (`file`), `--version` runs.
+- E92: ASan build (Debug, `-fsanitize=address`), profile `p62` (three Log Views), Ctrl-B W: with the old `winlist.cc`
+  `stack-buffer-overflow` in `TInputLine::setData` (`tinputli.cpp:514`) and no Window List; with E92 the list opens,
+  no ASan report (also L, Shift-N, N in the Event Viewer). Each of E92–E95 built alone: no warning.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2531,6 +2541,7 @@ examples/profiles/example.ini
 | Log Views table headers (`far2l-extended`) | E89 | table / list: `|P|` without spaces; headers NoCase, Filters, HLight, HLight Sets, HLight Words |
 | Scroll to last: which kept (`far2l-extended`) | E90 | Scroll Log Views to last: the Log Views kept where they are named once in the Event Viewer (`Scroll to last: kept 2: "Log: L1" (selection), "Log: L2" (search, D2)`), not kept for N |
 | Debug build (`far2l-extended`) | E91 | `scripts/build.sh dbg`: `bin/tvterm-dbg`, static, RelWithDebInfo, not stripped, for gdb on a core file |
+| Window List filter over-read (`far2l-extended`) | E92 | the Window List filter field is filled from a buffer of its own size (was an over-read of the text, ASan) |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

@@ -32,6 +32,7 @@
 #include <string.h>
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace winlist
 {
@@ -304,7 +305,11 @@ public:
     void setAllRows(std::vector<Row> rows, size_t focusedRow, const std::string &text)
     {
         allRows = std::move(rows);
-        filter->setData((void *) text.c_str());
+        // setData copies the whole field (dataSize() bytes, E92): from a
+        // buffer of that size, not from the shorter string (an over-read).
+        std::vector<char> buf(filter->dataSize(), '\0');
+        memcpy(buf.data(), text.data(), std::min(text.size(), buf.size() - 1));
+        filter->setData(buf.data());
         applyFilter(focusedRow);
     }
 
