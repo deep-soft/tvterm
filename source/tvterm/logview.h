@@ -377,6 +377,12 @@ size_t countRunningLogViews(TDeskTop &deskTop);
 // block after an empty line. P (E84): 'P' for a pinned Log View. Shows a status message when there is none.
 void showLogViewsTable(TDeskTop &deskTop, bool list = false);
 
+// Event Viewer L / F9 > Log View commands (E94): the Log Views open now
+// (all the desktops, in the order of the Window List), one line each after
+// a first line "Log Views (N):": "  #n <title> — <command>" ("(fixed
+// lines)" for a window without a command). Ends with a line break.
+std::string logViewCommandsText(TDeskTop &deskTop);
+
 // Splits an And include value at " && " (each part trimmed, empty parts
 // dropped) / joins words with " && ".
 std::vector<std::string> splitIncludeAnd(const std::string &value);

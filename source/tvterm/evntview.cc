@@ -18,6 +18,8 @@
 #include "app.h"
 #include "settings.h"
 #include "statline.h"
+#include "logview.h"
+#include "alerts.h"
 
 #include <algorithm>
 #include <deque>
@@ -417,7 +419,7 @@ static char ownKey(const TEvent &ev)
         return keyClearNotes;
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
-    return strchr("mckotnax ", c) && c ? c : 0;
+    return strchr("mckotnaxl ", c) && c ? c : 0;
 }
 
 } // namespace evntview
@@ -478,9 +480,23 @@ void TEventViewer::openMenu(TPoint where)
         *new TMenuItem("~N~ext Desk", cmNextDesk, kbNoKey, hcNoContext, "Ctrl-Right") +
         *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left") +
         newLine() +
+        *new TMenuItem("~L~og View commands", cmLogViewCommands, kbNoKey, hcNoContext, "L") +
         *new TMenuItem("~E~mpty kept messages", cmClearNotes, kbNoKey, hcNoContext, "Shift-N");
     if (ushort cmd = popupMenu(where, items, nullptr))
-        message(TProgram::application, evCommand, cmd, this);
+    {
+        if (cmd == cmLogViewCommands)
+            printLogViewCommands();
+        else
+            message(TProgram::application, evCommand, cmd, this);
+    }
+}
+
+void TEventViewer::printLogViewCommands()
+// One block of lines, with the time, shown even while stopped or with T-
+// (like the alert list); a new block each time.
+{
+    if (TProgram::deskTop)
+        printText(formatEventTime(time(nullptr)) + " " + logViewCommandsText(*TProgram::deskTop));
 }
 
 void TEventViewer::clear()
@@ -503,6 +519,7 @@ void TEventViewer::handleEvent(TEvent &ev)
             case 'o': filter.other = !filter.other; break;
             case 't': filter.messages = !filter.messages; break;
             case 'x': clear(); break;
+            case 'l': printLogViewCommands(); break;
             case 'a':
                 // The application knows the windows (see listAlerts).
                 message(TProgram::application, evCommand, cmShowAlerts, this);

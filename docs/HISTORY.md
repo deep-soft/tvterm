@@ -211,6 +211,7 @@ E92. Window List: the filter field filled from a buffer of the field's size (ite
      found by ASan)
 E93. Event Viewer startup notes (item 61): build type in the build line (`--version`, About too), executable, command
      line, profile at start; `profile loaded: …` at each Load Profile; always kept (not emptied by Shift-N)
+E94. Event Viewer L / F9 > Log View commands (item 62): the Log Views open now with their commands, one block per use
 
 ---
 
@@ -1359,6 +1360,13 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `none (-p none)`, `none (no 'profile' in [general] of tvterm.ini)`, `default 'NAME' not loaded`. Load Profile:
   `loadedProfile` cleared before `openProfile` (restored when nothing was loaded), then `profile loaded: <path>`. Help:
   the Shift-N line.
+  E94 (item 62, variant b) Event Viewer `L` (free: the own keys were `mckotnax` and Space) and F9 item `~L~og View
+  commands  L` (above Empty kept messages; `cmLogViewCommands`, handled by the viewer itself, not sent to the
+  application): `TEventViewer::printLogViewCommands` prints through `printText` (shown while stopped or with T-, not
+  kept) the time and `logViewCommandsText` (`logview.cc`): `Log Views (N):` (`Log Views (0): none`), then for each
+  `LogViewWindow` of `getSortedWindows` (all desktops, Window List order) `  #n <messageTitle> — <command>`
+  (`(fixed lines)` for a window without a command; line breaks in a command become spaces). Status line item
+  `L Log cmds`; Help line.
 - **Pin, part 2** (E85–E89, item 54, agreed in chat 75 after the real test of E84; E90 = item 57; one patch, separate
   commits, chat 77): E85 Log View F9: the Pin / Unpin item right under `Sa~v~e...` (was the last item, after Alerts...),
   still without a letter.
@@ -2438,6 +2446,10 @@ examples/profiles/example.ini
   notes; Load Profile `p62b.ini` (Yes, Close) → `profile loaded: …/p62b.ini`; again with `p62.ini`, Shift-N, N → the
   five notes and only `profile loaded: …/p62.ini`. `buildinfo.cmake` run alone: `BUILD_TYPE=RelWithDebInfo` → `type[] =
   "RelWithDebInfo"`, empty → `""`.
+- E94, profile `p62`: the Event Viewer focused (click), `L` → `hh:mm:ss Log Views (3):`, `  #1 Log: L1 — seq 1 50; sleep
+  1000`, `  #2 Log: tail -F /tmp/nofile.log — tail -F /tmp/nofile.log`, `  #3 Log: L2 — while :; …` (L2 on D2 last, the
+  Window List order); F9 → `Log View commands  L` above `Empty kept messages  Shift-N`, its `l` → a second block; with
+  T- and stopped (Space) → a third block; status line `L Log cmds`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2565,6 +2577,7 @@ examples/profiles/example.ini
 | Debug build (`far2l-extended`) | E91 | `scripts/build.sh dbg`: `bin/tvterm-dbg`, static, RelWithDebInfo, not stripped, for gdb on a core file |
 | Window List filter over-read (`far2l-extended`) | E92 | the Window List filter field is filled from a buffer of its own size (was an over-read of the text, ASan) |
 | Event Viewer startup notes (`far2l-extended`) | E93 | build type in the build line (`release (MinSizeRel)`, `debug info (RelWithDebInfo)`; `--version`, About too); notes `executable:`, `command line:`, `profile at start:`; `profile loaded:` at each Load Profile (replaces the previous one); these are always kept (Shift-N and the 200 limit leave them) |
+| Log View commands (`far2l-extended`) | E94 | Event Viewer `L` / F9 > Log View commands: one block `hh:mm:ss Log Views (N):` + `  #n <title> — <command>` for the Log Views open now (all desktops, Window List order); not kept |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

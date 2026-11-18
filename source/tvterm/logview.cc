@@ -3284,6 +3284,22 @@ static std::string alertCell(const AlertSettings &a)
 
 } // namespace logview
 
+std::string logViewCommandsText(TDeskTop &deskTop)
+{
+    std::string lines;
+    size_t n = 0;
+    for (TWindow *w : getSortedWindows(deskTop))
+        if (auto *log = dynamic_cast<LogViewWindow *>(w))
+        {
+            std::string command = log->hasFixedLines() ? "(fixed lines)" : log->getOptions().command;
+            for (char &c : command)
+                if (c == '\n' || c == '\r')
+                    c = ' ';
+            lines += "  #" + std::to_string(++n) + " " + log->messageTitle() + " \u2014 " + command + "\n";
+        }
+    return "Log Views (" + std::to_string(n) + "):" + (n ? "" : " none") + "\n" + lines;
+}
+
 void showLogViewsTable(TDeskTop &deskTop, bool list)
 {
     using namespace logview;

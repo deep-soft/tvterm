@@ -1148,6 +1148,7 @@ Keys, while it is focused (each one is also a status line item):
 | `N` | clears the window and shows the kept messages again |
 | Shift-N | empties the kept messages (also F9 > Empty kept messages): `Kept messages emptied: N.`; useful when several tvterm versions ran and their old messages are no longer of interest. The startup messages and the last `profile loaded` stay. With Caps Lock on, a plain N is `n` |
 | `A` | lists the active alerts ([chapter 9](#9-alerts)) |
+| `L` | lists the Log Views open now (all desktops, in the order of the Window List) with their commands, as one block: `hh:mm:ss Log Views (2):`, then `  #1 Log: maillog — tail -F /var/log/zimbra.log`… (`(fixed lines)` for a window without a command; `Log Views (0): none`); also F9 > Log View commands. Shown even while stopped or with T-; each use adds a new block, nothing is kept |
 | `X` | clears the window |
 | Space | pauses / resumes it (like Ctrl-B V) |
 | Ctrl-A | goes to the next alert (like Ctrl-B G) |
@@ -1158,7 +1159,7 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `tvterm: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
 | Esc | clears the selection; the window goes back to the end and follows the new lines |
 | Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
-| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk, Empty kept messages |
+| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk, Log View commands, Empty kept messages |
 | F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
 

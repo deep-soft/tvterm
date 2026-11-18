@@ -23,6 +23,7 @@
 //               only new events are affected
 //   N           clear, then show again the messages kept by tvterm
 //   A           list the active alerts (oldest first)
+//   L           list the Log Views open now with their commands (E94)
 //   X           clear
 //   Ctrl-Right / Ctrl-Left  show the next / previous Desk with windows
 //               (E77; the viewer keeps the focus; shown with K+)
@@ -71,6 +72,9 @@ public:
     // F9 or a right click (E78): Scroll Log Views to last, Next / Previous
     // Desk.
     void openMenu(TPoint where);
+    // L / F9 > Log View commands (E94): the Log Views open now and their
+    // commands, as one block of lines.
+    void printLogViewCommands();
 
     const EventFilter &getFilter() const { return filter; }
 };
