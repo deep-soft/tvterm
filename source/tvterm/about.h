@@ -12,6 +12,7 @@ extern const char commit[];   // short hash, '-dirty' if modified, or "unknown"
 extern const char branch[];
 extern const char date[];     // "YYYY-MM-DD hh:mm TZ", local time of the build
 extern const char kind[];     // "static" or "dynamic"
+extern const char type[];     // CMAKE_BUILD_TYPE: "MinSizeRel", "RelWithDebInfo"...; may be empty
 extern const char arch[];     // like 'uname -m': "x86_64", "armv7l", "aarch64"
 extern const char tvision[];  // commit of the bundled Turbo Vision
 extern const char libvterm[]; // commit of the bundled libvterm
@@ -28,8 +29,12 @@ std::string buildLine();
 // headers), "musl", "uClibc", "bionic"; empty if not known.
 std::string libcName();
 
-// "2026-10-25 16:40 EET, static, x86_64, musl": date, type, architecture
-// and C library of the build.
+// The build type (E93): "release (MinSizeRel)", "debug info (RelWithDebInfo)",
+// "debug (Debug)", another CMAKE_BUILD_TYPE as it is; empty if none.
+std::string buildTypeText();
+
+// "2026-10-25 16:40 EET, static, release (MinSizeRel), x86_64, musl": date,
+// kind, build type (E93), architecture and C library of the build.
 std::string buildDescription();
 
 // Several lines, for 'tvterm --version'.

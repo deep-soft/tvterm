@@ -29,10 +29,27 @@ std::string libcName()
 #endif
 }
 
+std::string buildTypeText()
+{
+    std::string type = buildinfo::type;
+    if (type.empty())
+        return "";
+    if (type == "MinSizeRel" || type == "Release")
+        return "release (" + type + ")";
+    if (type == "RelWithDebInfo")
+        return "debug info (" + type + ")";
+    if (type == "Debug")
+        return "debug (" + type + ")";
+    return type;
+}
+
 std::string buildDescription()
 {
-    std::string text = std::string(buildinfo::date) + ", " + buildinfo::kind + ", " +
-                       buildinfo::arch;
+    std::string text = std::string(buildinfo::date) + ", " + buildinfo::kind;
+    std::string type = buildTypeText();
+    if (!type.empty())
+        text += ", " + type;
+    text += std::string(", ") + buildinfo::arch;
     std::string libc = libcName();
     if (!libc.empty())
         text += ", " + libc;

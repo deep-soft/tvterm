@@ -56,6 +56,7 @@
 #include <tvterm/termctrl.h>
 #include <tvterm/vtermemu.h>
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
@@ -82,29 +83,50 @@ static std::chrono::steady_clock::time_point nextCheck;
 static int reportedFormat = -2;
 
 // Messages for the Event Viewer, kept until one is opened, with their time
-// (shown as hh:mm:ss today, with the date on other days). 'settings' (E88):
-// a note about tvterm.ini (format, invalid values, unknown keys), replaced
-// at every settings reload.
+// (shown as hh:mm:ss today, with the date on other days). Kinds:
+// 'Settings' (E88): a note about tvterm.ini (format, invalid values, unknown
+// keys), replaced at every settings reload; 'Start' (E93): the startup
+// notes (version, build, executable, command line, profile at start) and
+// 'Loaded': the profile of the last Load Profile (one, replaced by the
+// next); these two are always kept (not dropped as the oldest, not
+// emptied by Shift-N).
+enum class NoteKind { Normal, Settings, Start, Loaded };
 struct KeptNote
 {
     time_t time;
     std::string text;
-    bool settings;
+    NoteKind kind;
 };
 static std::deque<KeptNote> notes;
 enum { maxNotes = 200 };
 
-static void keepNote(time_t now, const std::string &text, bool settings)
+static bool isLasting(const KeptNote &n)
 {
-    notes.push_back({now, text, settings});
+    return n.kind == NoteKind::Start || n.kind == NoteKind::Loaded;
+}
+
+static void keepNote(time_t now, const std::string &text, NoteKind kind)
+{
+    if (kind == NoteKind::Loaded)
+        notes.erase( std::remove_if(notes.begin(), notes.end(),
+                                    [] (const KeptNote &n) { return n.kind == NoteKind::Loaded; }),
+                     notes.end() );
+    notes.push_back({now, text, kind});
+    // The oldest notes go first, except the lasting ones.
     while (notes.size() > maxNotes)
-        notes.pop_front();
+    {
+        auto it = std::find_if(notes.begin(), notes.end(), [] (const KeptNote &n) { return !isLasting(n); });
+        if (it == notes.end())
+            break;
+        notes.erase(it);
+    }
 }
 
 // Settings reload (E88): the notes of the previous reading go.
 static void dropSettingsNotes()
 {
-    notes.erase( std::remove_if(notes.begin(), notes.end(), [] (const KeptNote &n) { return n.settings; }),
+    notes.erase( std::remove_if(notes.begin(), notes.end(),
+                                [] (const KeptNote &n) { return n.kind == NoteKind::Settings; }),
                  notes.end() );
 }
 
@@ -140,7 +162,7 @@ static void printToViewer(time_t now, const std::string &text)
 static void settingsNote(const std::string &text, bool show = true)
 {
     time_t now = time(nullptr);
-    appsettings::keepNote(now, text, true);
+    appsettings::keepNote(now, text, appsettings::NoteKind::Settings);
     if (show)
         printToViewer(now, text);
 }
@@ -151,7 +173,15 @@ void TVTermApp::note(const std::string &text)
 {
     // Timestamp, so that notes can be told apart.
     time_t now = time(nullptr);
-    appsettings::keepNote(now, text, false);
+    appsettings::keepNote(now, text, appsettings::NoteKind::Normal);
+    appnotes::printToViewer(now, text);
+}
+
+void TVTermApp::noteLasting(const std::string &text, bool loadedProfile)
+{
+    time_t now = time(nullptr);
+    appsettings::keepNote( now, text, loadedProfile ? appsettings::NoteKind::Loaded :
+                                                      appsettings::NoteKind::Start );
     appnotes::printToViewer(now, text);
 }
 
@@ -161,10 +191,13 @@ void TVTermApp::noteOnce(const std::string &text)
 }
 
 size_t TVTermApp::clearNotes()
+// The startup notes and the last Load Profile note stay (E93).
 {
-    size_t n = appsettings::notes.size();
-    appsettings::notes.clear();
-    return n;
+    using namespace appsettings;
+    size_t n = notes.size();
+    notes.erase(std::remove_if(notes.begin(), notes.end(), [] (const KeptNote &n) { return !isLasting(n); }),
+                notes.end());
+    return n - notes.size();
 }
 
 static void showNotes(TEventViewer &viewer, bool always)
@@ -223,8 +256,52 @@ static void printUsage(FILE *f, const char *argv0)
         argv0, settingsPath().c_str());
 }
 
+namespace appstart
+{
+
+// How tvterm was started (E93), for the startup notes: the executable's
+// full path and the command line as given.
+static std::string executable;
+static std::string commandLine;
+
+static std::string quoteArg(const std::string &arg)
+// The argument as a shell would need it: in single quotes if it is empty
+// or has characters other than letters, digits and -_./=:,+@%~.
+{
+    bool plain = !arg.empty();
+    for (unsigned char c : arg)
+        if (!isalnum(c) && !strchr("-_./=:,+@%~", c))
+            plain = false;
+    if (plain)
+        return arg;
+    std::string out = "'";
+    for (char c : arg)
+        out += c == '\'' ? std::string("'\\''") : std::string(1, c);
+    return out + "'";
+}
+
+static void remember(int argc, char **argv)
+{
+    for (int i = 0; i < argc; ++i)
+        commandLine += (i ? " " : "") + quoteArg(argv[i]);
+    char buf[4096];
+    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (n > 0)
+        executable.assign(buf, (size_t) n);
+    else if (argc > 0)
+    {
+        // Without /proc: argv[0], made absolute when it has a '/'.
+        char *real = strchr(argv[0], '/') ? realpath(argv[0], nullptr) : nullptr;
+        executable = real ? real : argv[0];
+        free(real);
+    }
+}
+
+} // namespace appstart
+
 int main(int argc, char **argv)
 {
+    appstart::remember(argc, argv);
     const char *profileName = nullptr;
     bool useDefaultProfile = true;
     for (int i = 1; i < argc; ++i)
@@ -293,9 +370,12 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
 {
     // The top bar (see topbar.h), on the first line.
     insert(new TopBar(TRect(0, 0, size.x, 1)));
-    // First lines in the Event Viewer: which build is running.
-    note(versionLine());
-    note(buildLine());
+    // First lines in the Event Viewer: which build is running, and how it
+    // was started (E93). Always kept (N shows them, Shift-N leaves them).
+    noteLasting(versionLine());
+    noteLasting(buildLine());
+    noteLasting("executable: " + appstart::executable);
+    noteLasting("command line: " + appstart::commandLine);
     disableCommands(tileCmds);
     for (ushort cmd : TerminalWindow::appConsts.focusedCmds())
         disableCommand(cmd);
@@ -322,6 +402,17 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
                                  "': see the Event Viewer (" + globalkeys::menuKeyName() + " V)." );
         pendingMessage.clear();
     }
+    // The profile at start (E93), always kept.
+    if (!loadedProfile.empty())
+        noteLasting("profile at start: " + loadedProfile);
+    else if (profileName)
+        noteLasting("profile at start: '" + profile + "' not loaded");
+    else if (!useDefaultProfile)
+        noteLasting("profile at start: none (-p none)");
+    else if (profile.empty())
+        noteLasting("profile at start: none (no 'profile' in [general] of tvterm.ini)");
+    else
+        noteLasting("profile at start: default '" + profile + "' not loaded");
     if (!opened)
         newTerm();
 }
@@ -1706,7 +1797,14 @@ void TVTermApp::loadProfile()
     TObject::destroy(p);
     if (result == cmCancel || !closeWindowsBeforeLoad())
         return;
+    std::string before = loadedProfile;
+    loadedProfile.clear();
     bool opened = openProfile(std::string(fileName));
+    // The profile loaded (E93), kept until the next Load Profile.
+    if (!loadedProfile.empty())
+        noteLasting("profile loaded: " + loadedProfile, true);
+    else
+        loadedProfile = before;
     keptPinned.clear();
     if (!opened && pendingMessage.empty())
         pendingMessage = "No terminal was opened.";

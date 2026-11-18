@@ -111,19 +111,20 @@ still has it in its list writes it again.
 
 ### Version
 
-`tvterm --version` prints the version (`v0.3.0`), the branch and commit, the build date, type (`static` / `dynamic`),
-architecture and C library, and the commits of the bundled tvision and libvterm. For example:
+`tvterm --version` prints the version (`v0.3.0`), the branch and commit, the build date, kind (`static` / `dynamic`),
+build type, architecture and C library, and the commits of the bundled tvision and libvterm. For example:
 
 ```
 tvterm v0.3.0 (deep-soft)
 commit:   1a2b3c4 (far2l-extended)
-built:    2026-10-30 17:20 EET, static, armv7l, glibc 2.28
+built:    2026-10-30 17:20 EET, static, release (MinSizeRel), armv7l, glibc 2.28
 tvision:  6402631
 libvterm: 62b27d1
 ```
 
-The architecture uses the names of `uname -m` (`x86_64`, `armv7l`, `aarch64`) and the C library is `glibc X.Y` or
-`musl` (Alpine). Both describe the executable as it was built, not the machine it runs on: useful to check that the copy
+The build type is `release (MinSizeRel)` for `scripts/build.sh static` / `dynamic` and `debug info (RelWithDebInfo)`
+for `scripts/build.sh dbg` (`debug (Debug)` for a plain CMake debug build). The architecture uses the names of `uname -m`
+(`x86_64`, `armv7l`, `aarch64`) and the C library is `glibc X.Y` or `musl` (Alpine). Both describe the executable as it was built, not the machine it runs on: useful to check that the copy
 on a server is the right one. The same information is in **Ctrl-B More... > About tvterm...**,
 together with the settings file, the last profile loaded, the uptime and the number of terminals.
 
@@ -1118,8 +1119,22 @@ It opens on the right side (70 columns) when the screen is wider than 100 column
 It shows the Turbo Vision events (keys, mouse, commands; useful to check what a key sends) and **tvterm's messages**:
 settings problems, saved files, profile notes, ended Log View sources. Messages look like
 `tvterm: hh:mm:ss text`, or `tvterm: YYYY-MM-DD hh:mm:ss text` for a message of another day (the date is added when the
-message is shown, so after midnight the older messages get it); the last 200 are kept, even while no Event Viewer is open, and the first two lines give
-the version and build.
+message is shown, so after midnight the older messages get it); the last 200 are kept, even while no Event Viewer is open.
+
+The first messages tell how tvterm was started; they are always kept (N shows them, Shift-N and the limit of 200 leave
+them):
+
+```
+tvterm: 08:15:02 tvterm v0.3.0 (deep-soft), far2l-extended 1a2b3c4
+tvterm: 08:15:02 built 2026-11-18 08:00 EET, static, debug info (RelWithDebInfo), x86_64, musl
+tvterm: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg
+tvterm: 08:15:02 command line: ./tvterm-e95-dbg -p mon
+tvterm: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
+```
+
+`profile at start` can also be `none (-p none)`, `none (no 'profile' in [general] of tvterm.ini)`, `'NAME' not loaded`
+(with `-p`) or `default 'NAME' not loaded`. Each **Load Profile** adds `profile loaded: <path>`, kept too until the next
+Load Profile replaces it (the `profile at start` line stays).
 
 Keys, while it is focused (each one is also a status line item):
 
@@ -1131,7 +1146,7 @@ Keys, while it is focused (each one is also a status line item):
 | `O` | other events (commands) on/off |
 | `T` | tvterm's messages on/off |
 | `N` | clears the window and shows the kept messages again |
-| Shift-N | empties the kept messages (also F9 > Empty kept messages): `Kept messages emptied: N.`; useful when several tvterm versions ran and their old messages are no longer of interest. With Caps Lock on, a plain N is `n` |
+| Shift-N | empties the kept messages (also F9 > Empty kept messages): `Kept messages emptied: N.`; useful when several tvterm versions ran and their old messages are no longer of interest. The startup messages and the last `profile loaded` stay. With Caps Lock on, a plain N is `n` |
 | `A` | lists the active alerts ([chapter 9](#9-alerts)) |
 | `X` | clears the window |
 | Space | pauses / resumes it (like Ctrl-B V) |

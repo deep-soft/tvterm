@@ -113,8 +113,12 @@ struct TVTermApp : public TApplication
     // A message shown once (E88): printed in an open Event Viewer, not kept
     // (N does not show it again).
     static void noteOnce(const std::string &text);
-    // Event Viewer Shift-N / F9 (E88): empties the kept messages; their
-    // number.
+    // A note always kept (E93): not dropped as the oldest, not emptied by
+    // Shift-N. The startup notes; 'loadedProfile': the profile of the
+    // last Load Profile (replaces the previous one).
+    static void noteLasting(const std::string &text, bool loadedProfile = false);
+    // Event Viewer Shift-N / F9 (E88): empties the kept messages (except
+    // the lasting ones, E93); their number.
     static size_t clearNotes();
     void alertSettings();
     void nextAlert();
