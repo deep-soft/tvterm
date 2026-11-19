@@ -1151,7 +1151,7 @@ them):
 ```
 tvterm: 08:15:02 tvterm v0.3.0 (deep-soft), far2l-extended 1a2b3c4
 tvterm: 08:15:02 built 2026-11-18 08:00 EET, static, debug info (RelWithDebInfo), x86_64, musl
-tvterm: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg
+tvterm: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg (pid 23456)
 tvterm: 08:15:02 command line: ./tvterm-e95-dbg -p mon
 tvterm: 08:15:02 crash reports: /root/logs/tvterm/crash/
 tvterm: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
@@ -1159,7 +1159,8 @@ tvterm: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
 
 `profile at start` can also be `none (-p none)`, `none (no 'profile' in [general] of tvterm.ini)`, `'NAME' not loaded`
 (with `-p`) or `default 'NAME' not loaded`. Each **Load Profile** adds `profile loaded: <path>`, kept too until the next
-Load Profile replaces it (the `profile at start` line stays).
+Load Profile replaces it (the `profile at start` line stays). The pid after the executable (E97) is the process of
+this tvterm: the one to give to `kill`, the number in `core.<pid>`.
 
 Keys, while it is focused (each one is also a status line item):
 

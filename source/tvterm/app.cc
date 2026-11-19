@@ -386,7 +386,8 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
     // was started (E93). Always kept (N shows them, Shift-N leaves them).
     noteLasting(versionLine());
     noteLasting(buildLine());
-    noteLasting("executable: " + appstart::executable);
+    // With the pid (E97): which process this is (ps, kill, the core file).
+    noteLasting("executable: " + appstart::executable + " (pid " + std::to_string((long) getpid()) + ")");
     noteLasting("command line: " + appstart::commandLine);
     // Where a crash report would go (E96).
     {
