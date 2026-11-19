@@ -442,6 +442,9 @@ gets F1), **More... > Keys (Help)...** (`k`) and the **Keys...** button of About
 kind of window, in sections: Global keys, Terminal, Log View, Viewer, Editor, Event Viewer. The keys set in
 `tvterm.ini` (`menu-key`, `key-zoom`, `key-window-*`, `history-*`, `key-editor-comment`...) are shown as they are set
 when the window opens.
+Global keys also list the keys of the text fields of dialogs (E100): Down (the field's list; in file dialogs the list
+of folders), Ctrl-Del (delete the focused entry of an open list, also from the history file, see
+[Field lists](#field-lists-history)), Shift-Ins / Ctrl-V paste, Ctrl-Ins / Ctrl-C copy.
 
 The section of the window you came from is marked `(this window)`, its title in yellow: the window opens with that
 section at the top and the cursor line on its first key. With `[general] help-current-first = yes` that section also

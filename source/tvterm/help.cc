@@ -69,6 +69,14 @@ static std::vector<Entry> entries(help::Section s)
                 {"F1", "this help (not in a terminal)"},
                 {"Ctrl-W", "close the window (not in a terminal)"},
                 {"Ctrl-F10 / Ctrl-F11", "Capture Desk / Capture Window (not in a terminal)"},
+                // The keys of the dialog fields (E100, item 70).
+                {"", "In the text fields of dialogs:"},
+                {"Down", "open the field's list (the arrow next to it); in file dialogs,"},
+                {"", "into the list of folders when it is open"},
+                {"Ctrl-Del", "in an open list: delete the focused entry (also from the"},
+                {"", "history file, ~/.config/tvterm/history)"},
+                {"Shift-Ins or Ctrl-V", "paste"},
+                {"Ctrl-Ins or Ctrl-C", "copy the selected text"},
             };
         case help::Terminal:
             return {

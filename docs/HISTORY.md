@@ -220,6 +220,8 @@ E97. Startup note `executable: <path> (pid N)` (item 66), also in the crash repo
 E98. Event Viewer messages start with `t:` instead of `tvterm:` (item 67)
 E99. Log source history (item 68): sources started / stopped are no longer Event Viewer messages; Event Viewer `S` /
      F9 > Log source history lists the last 200 starts, stops, restarts and ends (time, pid, command)
+E100. F1 Help, Global keys: the keys of the dialog text fields (item 70): Down, Ctrl-Del (an open list's entry, also
+      from the history file), Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C
 
 ---
 
@@ -1073,6 +1075,11 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   other windows reach it); More... `~K~eys (Help)...` (shown key F1) and About `~K~eys...` (`cmYes`, opened after the
   dialog closes; `showAbout` returns whether it was used) send `cmHelpKeys`.
 - `[general] help-current-first` (yes / no, default no); `tvterm.ini` format 7.
+- **E100** (item 70, agreed in chat 78): the Global keys section ends with `In the text fields of dialogs:` and the
+  keys that were only in the MANUAL: Down (the field's history list, `THistory`; in file dialogs the folder list of
+  `dircompl` when open), Ctrl-Del (the open list: `TVTermApp::getEvent` → `deleteHistoryEntry`, and the lists of
+  `logview.cc` / `fileopen.cc`; also removed from `~/.config/tvterm/history`), Shift-Ins / Ctrl-V and Ctrl-Ins / Ctrl-C
+  (`dlgclip`). Long actions go on a second line without a key (empty `keys`).
 
 ### Manual — `far2l-extended`
 - `docs/MANUAL.md` (English; `docs/MANUAL-ro.md`, Romanian, from E12 until E75): how to use tvterm as it is now —
@@ -2518,6 +2525,9 @@ examples/profiles/example.ini
   `restarted, pid <old>`, `started, pid <new>`, `stopped (no window uses it), pid <new>`; Shift-N, N → none of the
   source lines, S still `(6, …)`; X, F9 → `Log source history  S` under `Log View commands  L`, its `s` → one block;
   status line `S Sources`; F1 → the Event Viewer line `S  log source history: …`.
+- E100 (`t100.sh`), tmux: F1 in the Event Viewer → Global keys end with `In the text fields of dialogs:`, `Down`,
+  `Ctrl-Del`, `Shift-Ins or Ctrl-V`, `Ctrl-Ins or Ctrl-C` (the continuation lines aligned under the actions); `/` in
+  the Help window finds `Ctrl-Del`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2653,6 +2663,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Help: dialog keys (`far2l-extended`) | E100 | F1 Help, Global keys: the text fields of dialogs (Down, Ctrl-Del in an open list, also from the history file, Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C) |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |
