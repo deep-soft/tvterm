@@ -77,6 +77,11 @@ static std::vector<Entry> entries(help::Section s)
                 {"", "history file, ~/.config/tvterm/history)"},
                 {"Shift-Ins or Ctrl-V", "paste"},
                 {"Ctrl-Ins or Ctrl-C", "copy the selected text"},
+                // The Window List header (E101, item 55).
+                {"", "In the Window List (also a click on the column name):"},
+                {"Alt-1", "P: only the pinned windows, again: all (P* in the header)"},
+                {"Alt-2", "Alert: only the windows with an alert, again: all (Alert*)"},
+                {"Alt-3 / Alt-4", "sort by Name / Command: ascending (\u25B2), descending (\u25BC), off"},
             };
         case help::Terminal:
             return {

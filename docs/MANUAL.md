@@ -296,7 +296,7 @@ terminals); menus and dialogs always have one.
 **Ctrl-B W** or a click on `WinList` (top bar). The list has the windows of every desktop, in five columns, with
 their names on the row above the list:
 
-- **P**: `P` for a pinned window ([Pin](#pin)), else empty; always one column.
+- **P**: `P` for a pinned window ([Pin](#pin)), else empty; always two columns (room for `P*`).
 - **Alert**: `A1`…`A5`, the level of the window's alert ([Levels](#levels)), empty without an alert.
 - **Desk**: `D1`, or `2:mail` for a named desktop; `*` marks the current one; `all` is the Event Viewer.
 - **Name**: the title, with the alert mark if any.
@@ -313,9 +313,25 @@ the filters used when the list was closed with Go, Rename or Close (not with Esc
 ([Field lists](#field-lists-history)). With nothing listed, Go, Rename and Close do nothing. The text
 stays while the list opens again after Rename or Close; a new Ctrl-B W starts empty.
 
+**Header** (the column names): a click on a name, or its key, filters or sorts the list:
+
+| Column | Key | Action |
+|---|---|---|
+| P | Alt-1 | only the pinned windows; again: all |
+| Alert | Alt-2 | only the windows with an alert (`A1`…`A5`); again: all |
+| Name | Alt-3 | sort by the name: ascending, descending, off |
+| Command | Alt-4 | sort by the command: ascending, descending, off |
+
+P, Alert and the Filter text work together (a window must match all of them); with P or Alert on, the title shows how
+many windows are listed (`Windows 3/12`). One sort at a time (A–Z folded; equal texts keep the usual order). The header
+shows the state: `P*`, `Alert*`, `Name▲` (ascending), `Command▼` (descending). Desk has no action. The state is kept
+until tvterm exits (after Rename, Close and a new Ctrl-B W too), not in profiles. A column hidden with
+`window-list-columns` still has its key. After Close, the list opens again on the window shown after the closed one.
+
 The dialog can be resized with the mouse (bottom right corner) or **Ctrl-F5** (arrows move it, Shift+arrows change its
 size, Enter or Esc end); **F5** or the zoom button: whole screen, again: back. Alert and Desk are as wide as their
-longest text (at least their name), Name as wide as the longest name of the rows shown but at most 40% of the line,
+longest text (at least their name; Alert one column more, for its mark), Name as wide as the longest name of the rows
+shown (at least `Name` and its mark) but at most 40% of the line,
 and Command gets the rest; a cut text ends with `…`. A short name leaves the room to the command. Fixed widths:
 `window-list-columns` in profiles ([Profiles](#format)). **Alt-W** moves to the list. The size you choose is kept until tvterm exits and is saved in profiles (`window-list-size`,
 [Profiles](#format)); without it the list opens at 90×20 (smaller on a small screen).

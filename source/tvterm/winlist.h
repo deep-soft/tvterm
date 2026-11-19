@@ -8,9 +8,11 @@
 #include <string>
 #include <vector>
 
-// Shows the list of windows of every desktop (columns: Alert, Desk, Name,
+// Shows the list of windows of every desktop (columns: P, Alert, Desk, Name,
 // Command, with their names above the list) and lets the user go to one of them, rename a terminal or close
-// a window. The dialog can be resized; its size is kept (see
+// a window. A click on a column name or Alt-1…Alt-4 (E101): P / Alert show
+// only the pinned / alerted windows, Name / Command sort the rows (kept
+// while tvterm runs). The dialog can be resized; its size is kept (see
 // getWindowListSize).
 class TDeskTop;
 void execWindowList(TDeskTop &deskTop);

@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -57,6 +58,34 @@ static int columnSpec[3] = {-1, -1, -1};
 
 const char *const columnNames[5] = {"P", "Alert", "Desk", "Name", "Command"};
 const int columnGap = 2;   // Spaces between two columns.
+
+// The header's filters and sort (E101, item 55), kept while tvterm runs:
+// P / Alt-1 only the pinned windows, Alert / Alt-2 only those with an
+// alert (both with the text filter: all must match); Name / Alt-3 and
+// Command / Alt-4 sort the rows: ascending, descending, off (one at a
+// time). Shown in the header: "P*", "Alert*", "Name▲", "Command▼".
+enum { colPinned, colAlert, colDesk, colName, colCommand };
+static bool filterPinned = false;
+static bool filterAlert = false;
+static int sortColumn = -1;        // colName, colCommand or -1 (off).
+static bool sortDescending = false;
+
+// The mark after a column's name in the header ("" without one).
+static std::string headerMark(int col)
+{
+    if ((col == colPinned && filterPinned) || (col == colAlert && filterAlert))
+        return "*";
+    if (col == sortColumn)
+        return sortDescending ? "\u25BC" : "\u25B2";
+    return std::string();
+}
+
+// A column that can have a mark gets one more column in its automatic
+// width, so the table does not move when the mark comes and goes.
+static int markRoom(int col)
+{
+    return col == colDesk ? 0 : 1;
+}
 const int nameShare = 40;  // Automatic Name: at most this % of the line.
 
 // Cuts 'text' to at most 'width' columns ('…' at the end if it was cut)
@@ -70,6 +99,19 @@ static std::string fitColumn(const std::string &text, int width)
         s = s.substr(0, TText::scroll(s, width - 1, False)) + "\u2026";
     int w = (int) TText::width(s);
     return w < width ? s + std::string(width - w, ' ') : s;
+}
+
+// A header cell: the column's name and its mark; when the column is too
+// narrow the name is cut and the mark kept ("Ale*").
+static std::string headerCell(int col, int width)
+{
+    std::string name = columnNames[col], mark = headerMark(col);
+    if (mark.empty() || width < 1)
+        return name;
+    int room = width - 1;
+    if ((int) name.size() > room)
+        name = name.substr(0, std::max(0, room));
+    return name + mark;
 }
 
 // The five columns of a row (or of the header), cut and padded to
@@ -107,7 +149,7 @@ public:
     {
         rows = std::move(aRows);
         for (int i = 0; i < 5; ++i)
-            longest[i] = (int) strlen(columnNames[i]);
+            longest[i] = (int) strlen(columnNames[i]) + markRoom(i);
         for (const Row &r : rows)
         {
             longest[1] = std::max(longest[1], (int) TText::width(r.alert));
@@ -122,11 +164,11 @@ public:
     }
 
     // The widths of the columns for the current width of the list (the
-    // text starts one column in): P (E84) always one column; Alert, Desk
-    // and Name as chosen in the
-    // profile or automatic (the longest text, at least the column name;
-    // Name at most nameShare % of the line), Command the rest. Columns that
-    // do not fit are cut, from the right.
+    // text starts one column in): P (E84) always two columns (E101: room
+    // for "P*"); Alert, Desk and Name as chosen in the profile or automatic
+    // (the longest text, at least the column name and the room for its
+    // mark; Name at most nameShare % of the line), Command the rest. Columns
+    // that do not fit are cut, from the right.
     void columnWidths(int (&widths)[5]) const
     {
         int total = size.x - 1;
@@ -134,12 +176,13 @@ public:
         bool any = false;
         for (int i = 0; i < 4; ++i)
         {
-            int w = i == 0 ? 1 : columnSpec[i - 1];
+            int w = i == 0 ? 2 : columnSpec[i - 1];
             if (w < 0)
             {
                 w = longest[i];
                 if (i == 3)
-                    w = std::min(w, std::max((int) strlen(columnNames[3]), total * nameShare / 100));
+                    w = std::min(w, std::max((int) strlen(columnNames[3]) + markRoom(3),
+                                             total * nameShare / 100));
             }
             int gap = (any && w > 0) ? columnGap : 0;
             w = std::max(0, std::min(w, left - gap));
@@ -170,12 +213,14 @@ public:
 };
 
 // The names of the columns, above the list and aligned with it (in the
-// color of the dialog's static text).
+// color of the dialog's static text). A click on a name calls 'onClick'
+// with the column (E101); the header never takes the focus.
 class ColumnHeader : public TView
 {
 public:
 
     WindowListViewer *list {nullptr};
+    std::function<void(int)> onClick;
 
     ColumnHeader(const TRect &bounds) noexcept :
         TView(bounds)
@@ -193,8 +238,9 @@ public:
         {
             int widths[5];
             list->columnWidths(widths);
-            const std::string cells[5] = {columnNames[0], columnNames[1], columnNames[2], columnNames[3],
-                                          columnNames[4]};
+            std::string cells[5];
+            for (int i = 0; i < 5; ++i)
+                cells[i] = headerCell(i, widths[i]);
             // TListViewer draws its text one column in.
             b.moveStr(1, joinColumns(cells, widths), color);
         }
@@ -207,11 +253,42 @@ public:
         return palette;
     }
 
+    // The column under 'x' (local; the text starts one column in), or -1
+    // (a gap, past the last column).
+    int columnAt(int x) const
+    {
+        if (!list)
+            return -1;
+        int widths[5];
+        list->columnWidths(widths);
+        int pos = 1;
+        bool first = true;
+        for (int i = 0; i < 5; ++i)
+        {
+            if (widths[i] <= 0)
+                continue;
+            if (!first)
+                pos += columnGap;
+            if (x >= pos && x < pos + widths[i])
+                return i;
+            pos += widths[i];
+            first = false;
+        }
+        return -1;
+    }
+
     void handleEvent(TEvent &ev) override
     {
         TView::handleEvent(ev);
         if (ev.what == evBroadcast && ev.message.command == cmWinListColumns)
             drawView();
+        else if (ev.what == evMouseDown && (ev.mouse.buttons & mbLeftButton))
+        {
+            int col = columnAt(makeLocal(ev.mouse.where).x);
+            clearEvent(ev);
+            if (col >= 0 && onClick)
+                onClick(col);
+        }
     }
 
     // The widths follow the list, which is resized with the dialog.
@@ -285,6 +362,7 @@ public:
         // The column names on the row above the list (Alt-W: the list).
         header = new ColumnHeader(TRect(r.a.x, r.a.y - 1, r.b.x, r.a.y));
         header->list = list;
+        header->onClick = [this] (int col) { headerAction(col); };
         insert(header);
         insert(list);
         int x = size.x - buttonsWidth, y = 2;
@@ -314,34 +392,52 @@ public:
     }
 
     // Shows the rows whose title or command contains the filter text
-    // (case-insensitive; empty: all). 'keep' (index in allRows) stays
-    // focused if shown, otherwise the first row.
+    // (case-insensitive; empty: all) and that pass the header's filters
+    // (P*, Alert*), sorted as the header says (E101). 'keep' (index in
+    // allRows) stays focused if shown, otherwise the first row.
     void applyFilter(size_t keep)
     {
         lastFilter = filter->data;
         std::string needle = lowerAscii(lastFilter);
         visible.clear();
-        std::vector<Row> rows;
-        short focusedItem = 0;
         for (size_t i = 0; i < allRows.size(); ++i)
         {
             const Row &r = allRows[i];
+            if (filterPinned && r.pinned.empty())
+                continue;
+            if (filterAlert && r.alert.empty())
+                continue;
             if ( needle.empty() ||
                  lowerAscii(r.title).find(needle) != std::string::npos ||
                  lowerAscii(r.command).find(needle) != std::string::npos )
-            {
-                if (i == keep)
-                    focusedItem = (short) visible.size();
                 visible.push_back(i);
-                rows.push_back(r);
-            }
+        }
+        // Sort by Name or Command (A–Z folded); equal texts keep the
+        // order of the list (desktop, then opened).
+        if (sortColumn == colName || sortColumn == colCommand)
+        {
+            auto text = [&] (size_t i) {
+                const Row &r = allRows[i];
+                return lowerAscii(sortColumn == colName ? r.title : r.command);
+            };
+            std::stable_sort(visible.begin(), visible.end(), [&] (size_t a, size_t b) {
+                return sortDescending ? text(b) < text(a) : text(a) < text(b);
+            });
+        }
+        std::vector<Row> rows;
+        short focusedItem = 0;
+        for (size_t k = 0; k < visible.size(); ++k)
+        {
+            if (visible[k] == keep)
+                focusedItem = (short) k;
+            rows.push_back(allRows[visible[k]]);
         }
         list->setRows(std::move(rows));
         if (!visible.empty())
             list->focusItem(focusedItem);
-        // The title shows how many are left: "Windows 3/12".
+        // The title shows how many are left: "Windows 3/12" (any filter).
         std::string t = "Windows";
-        if (!needle.empty())
+        if (!needle.empty() || filterPinned || filterAlert)
             t += " " + std::to_string(visible.size()) + "/" + std::to_string(allRows.size());
         delete[] (char *) title;
         title = newStr(t.c_str());
@@ -356,6 +452,49 @@ public:
         if (i < 0 || (size_t) i >= visible.size())
             return -1;
         return (long) visible[i];
+    }
+
+    // The window of the row shown after the focused one (or before it, if
+    // it is the last), as the list is sorted now; -1 if none (E101: Close
+    // focuses it when the list opens again).
+    long neighbourRow() const
+    {
+        short i = list->focused;
+        if (i < 0 || (size_t) i >= visible.size())
+            return -1;
+        if ((size_t) i + 1 < visible.size())
+            return (long) visible[i + 1];
+        return i > 0 ? (long) visible[i - 1] : -1;
+    }
+
+    // A click on a column name or Alt-1…Alt-4 (E101): P and Alert filter
+    // on / off, Name and Command sort ascending → descending → off. The
+    // focused window stays focused if it is still shown.
+    void headerAction(int col)
+    {
+        switch (col)
+        {
+            case colPinned: filterPinned = !filterPinned; break;
+            case colAlert: filterAlert = !filterAlert; break;
+            case colName:
+            case colCommand:
+                if (sortColumn != col)
+                {
+                    sortColumn = col;
+                    sortDescending = false;
+                }
+                else if (!sortDescending)
+                    sortDescending = true;
+                else
+                    sortColumn = -1;
+                break;
+            default:
+                return;
+        }
+        long cur = focusedRow();
+        applyFilter(cur < 0 ? allRows.size() : (size_t) cur);
+        if (header)
+            header->drawView();
     }
 
     static std::string lowerAscii(const std::string &s)
@@ -429,6 +568,24 @@ public:
             ev.what = evCommand;
             ev.message.command = cmd;
             ev.message.infoPtr = nullptr;
+        }
+        // Alt-1…Alt-4: the header's P, Alert, Name, Command (E101).
+        if (ev.what == evKeyDown)
+        {
+            int col = -1;
+            switch (ev.keyDown.keyCode)
+            {
+                case kbAlt1: col = colPinned; break;
+                case kbAlt2: col = colAlert; break;
+                case kbAlt3: col = colName; break;
+                case kbAlt4: col = colCommand; break;
+            }
+            if (col >= 0)
+            {
+                headerAction(col);
+                clearEvent(ev);
+                return;
+            }
         }
         // Alt-W: the list (its label was replaced by the column names).
         if (ev.what == evKeyDown && ev.keyDown.keyCode == kbAltW)
@@ -655,6 +812,7 @@ void execWindowList(TDeskTop &deskTop)
             return;
         ushort result = deskTop.execView(p);
         long index = d->focusedRow();
+        long neighbour = d->neighbourRow();
         filterText = d->lastFilter;
         // The filter goes to its history (not after Cancel / Esc).
         if (result != cmCancel)
@@ -676,9 +834,10 @@ void execWindowList(TDeskTop &deskTop)
                 break; // Show the list again.
             case cmWinListClose:
             {
-                // The next window of the list is focused when it opens again.
-                focusedWindow = (size_t) index + 1 < windows.size() ? windows[index + 1] :
-                                index > 0 ? windows[index - 1] : nullptr;
+                // The next window of the list, as it was shown (sorted,
+                // filtered: E101), is focused when it opens again.
+                focusedWindow = neighbour >= 0 && (size_t) neighbour < windows.size() ?
+                                windows[neighbour] : nullptr;
                 TEvent ev;
                 ev.what = evCommand;
                 ev.message.command = cmClose;

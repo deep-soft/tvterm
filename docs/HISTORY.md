@@ -222,6 +222,8 @@ E99. Log source history (item 68): sources started / stopped are no longer Event
      F9 > Log source history lists the last 200 starts, stops, restarts and ends (time, pid, command)
 E100. F1 Help, Global keys: the keys of the dialog text fields (item 70): Down, Ctrl-Del (an open list's entry, also
       from the history file), Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C
+E101. Window List header (item 55): a click on P / Alert filters (only pinned / alerted, on / off), on Name / Command
+      sorts (ascending, descending, off); Alt-1…Alt-4; marks `P*`, `Alert*`, `Name▲` / `▼`; kept while tvterm runs
 
 ---
 
@@ -1542,6 +1544,19 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `cmWinListColumns`) and when the dialog is resized. `window-list-columns`: parsed in `profile.cc`
   (`parseWindowListColumns`: three values, then an optional `*`), kept until tvterm exits (`setWindowListColumns`),
   written by Save Profile As when set (`auto auto 30 *`).
+  E101 (item 55, agreed in chats 75 and 80): the header acts on a click (`ColumnHeader::columnAt`, the same widths and
+  gaps as the rows; the header is not selectable, the list keeps the focus) and on Alt-1…Alt-4 (handled by the dialog
+  before its views; `kbAlt1`–`kbAlt4` arrive through putty4far2l → far2l, checked in chat 79; the dialog is modal, so
+  tvision's Alt-digit window selection never sees them): P / Alt-1 and Alert / Alt-2 filters on / off (`r.pinned`,
+  `r.alert` not empty; together with the text: all must match), Name / Alt-3 and Command / Alt-4 sort ascending →
+  descending → off (one at a time; `std::stable_sort` of `visible` on the text with A–Z folded, so equal texts keep the
+  `getSortedWindows` order). State in `winlist` statics (`filterPinned`, `filterAlert`, `sortColumn`,
+  `sortDescending`), kept while tvterm runs, not in profiles; the text filter is unchanged (empty at a new Ctrl-B W).
+  Header marks `P*`, `Alert*`, `Name▲` / `Name▼` (`headerCell`: a narrow column cuts the name, keeps the mark); P is
+  two columns wide (was one), the automatic widths of Alert and Name keep one more column for the mark (`markRoom`), so
+  the table does not move. Title `Windows N/M` also with P / Alert on. Close: the list opens again on the window shown
+  after the closed one (`neighbourRow`, the sorted / filtered order; was the next in `getSortedWindows`). F1 Help:
+  Global keys end with `In the Window List …` and the four keys.
 - **Moving and resizing windows** (E54): tvision only keeps the title row of a window on the desktop, so a window
   moved down, or made taller from a bottom corner, could end with its lower part under the status line (and stay so
   after the button was released). Now, for every window and dialog on the desktop: a window being moved stops when its
@@ -1659,7 +1674,7 @@ source/tvterm/             the application
   app.cc/.h                menu, status line, commands, profiles (open/save), main() with -p/--help/--version
   about.cc/.h              version text and About dialog; declarations of the generated build information
   profile.cc/.h            INI parser/writer (WindowProfile, Profile)
-  winlist.cc/.h            Window List dialog (columns and header, E55), renameTerminal, getDeskTopWindows (with the windows of other desktops)
+  winlist.cc/.h            Window List dialog (columns and header, E55; header filters / sort, E101), renameTerminal, getDeskTopWindows (with the windows of other desktops)
   desktops.cc/.h           desktops 1-9: which windows are hidden on which desktop, switchTo, moveTo, selectWindow,
                            previous desktop, names, order in which windows were opened (E35)
   quitdlg.cc/.h            quit confirmation dialog (confirmQuit; `only`: Load Profile with pinned windows kept, E84)
@@ -2528,6 +2543,14 @@ examples/profiles/example.ini
 - E100 (`t100.sh`), tmux: F1 in the Event Viewer → Global keys end with `In the text fields of dialogs:`, `Down`,
   `Ctrl-Del`, `Shift-Ins or Ctrl-V`, `Ctrl-Ins or Ctrl-C` (the continuation lines aligned under the actions); `/` in
   the Help window finds `Ctrl-Del`.
+- E101 (`t101.sh`), tmux 140x35, profile with five windows (two terminals, two Log Views, an editor; one Log View
+  pinned, one terminal with an alert keyword hit): Alt-1 → `P*`, one row, title `Windows 1/5`; Alt-2 with Alt-1 → no
+  row (pinned without alert), Go ignored; Alt-1 off → only the alerted one; Alt-3 ×3 → `Name▲` (rows A–Z), `Name▼`
+  (Z–A), off (the default order again); Alt-3 then Alt-4 → `Command▲`, `Name` without mark; text filter + Alt-2 → both
+  apply; clicks (SGR through `TIOCSTI`) on `P`, `Alert`, `Name`, `Command` = the same as the keys, a click on `Desk` and
+  in a gap: nothing; the focus stays on the same window after each change; Esc + Ctrl-B W → the state kept, the text
+  empty; Close on a sorted list → reopens on the row shown after it; `window-list-columns = 0 auto auto *` (Alert
+  hidden) → Alt-2 still filters, title `Windows 1/5`; Alert width 3 → `Al*`; F1 → the four Help lines.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2663,6 +2686,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Window List header (`far2l-extended`) | E101 | Window List: a click on the column names or Alt-1…Alt-4: P / Alert = only the pinned / alerted windows (on / off, with the text filter), Name / Command = sort ascending, descending, off; header `P*`, `Alert*`, `Name▲`, `Command▼`; kept while tvterm runs; P two columns wide; Close reopens on the next row shown |
 | Help: dialog keys (`far2l-extended`) | E100 | F1 Help, Global keys: the text fields of dialogs (Down, Ctrl-Del in an open list, also from the history file, Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C) |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
