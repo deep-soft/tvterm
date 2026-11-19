@@ -217,6 +217,7 @@ E95. Flight recorder (item 59): `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` on SIGSEG
 E96. Crash reports in `~/logs/tvterm/crash/` (item 65): the folder created at start (`crash` mode 700), `/tmp` if it
      cannot be; startup note `crash reports: <folder>/`
 E97. Startup note `executable: <path> (pid N)` (item 66), also in the crash report header
+E98. Event Viewer messages start with `t:` instead of `tvterm:` (item 67)
 
 ---
 
@@ -505,6 +506,9 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
 - **Messages**: tvterm's own messages (settings, saved files, profile errors) appear in the Event Viewer as `tvterm: hh:mm:ss ...`
   (`YYYY-MM-DD hh:mm:ss` for a message of another day, E13: the notes keep their `time_t` and are formatted when shown),
   even when it is paused; the last 200 are kept and shown when it is opened. Short messages appear in the status line for 5 s.
+  Since E98 (item 67) the prefix is `t:` (`t: hh:mm:ss ...`): shorter, and `t` is the letter of the T filter;
+  `TEventViewer::printNote` is the only place that writes it; the crash report keeps the messages without it; far2l's
+  notification title `tvterm: level 1 alert` is not an Event Viewer message and stays.
 
 ### Alerts — `far2l-extended`
 - Only for terminals that are **not selected**. Three kinds, set per terminal with **Ctrl-B K** (Alerts...) or in profiles:
@@ -2494,6 +2498,8 @@ examples/profiles/example.ini
   `HOME=/nonexistent` → `crash reports: /tmp/ (cannot create /nonexistent/logs: No such file or directory)`, `kill -BUS`
   → the report in `/tmp`, exit 135; `~/logs` a file → `(cannot create …/logs: not a folder)`; an existing `crash` with
   mode 755 → used, mode unchanged; user `nobody` with a home of mode 555 → `(cannot create …/logs: Permission denied)`.
+- E98 (`t98.sh`): the startup notes, a settings note and N (shown again) all start with `t: hh:mm:ss`; no line starts
+  with `tvterm:`; Ctrl-C on a note copies `t: …` (tmux buffer); the crash report lines have no prefix.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2627,6 +2633,7 @@ examples/profiles/example.ini
 | Flight recorder (`far2l-extended`) | E95 | on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT: `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (or `/tmp`) with the signal, the startup lines, the window and dialog in front (focused control), the last 50 Event Viewer messages, the last 30 keys / clicks / commands (not the characters typed into a terminal); then the default action (core, exit 128 + signal) |
 | Crash reports folder (`far2l-extended`) | E96 | crash reports in `~/logs/tvterm/crash/` (created at start, `crash` mode 700; `/tmp` if it cannot be); startup note `crash reports: <folder>/` |
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
+| Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

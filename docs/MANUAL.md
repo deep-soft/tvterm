@@ -1142,19 +1142,21 @@ It opens on the right side (70 columns) when the screen is wider than 100 column
 
 It shows the Turbo Vision events (keys, mouse, commands; useful to check what a key sends) and **tvterm's messages**:
 settings problems, saved files, profile notes, ended Log View sources. Messages look like
-`tvterm: hh:mm:ss text`, or `tvterm: YYYY-MM-DD hh:mm:ss text` for a message of another day (the date is added when the
+`t: hh:mm:ss text`, or `t: YYYY-MM-DD hh:mm:ss text` for a message of another day (the date is added when the
 message is shown, so after midnight the older messages get it); the last 200 are kept, even while no Event Viewer is open.
+The prefix `t:` is the letter of the `T` key that shows / hides them; until E98 it was `tvterm:`. The crash report
+lists the same messages without the prefix.
 
 The first messages tell how tvterm was started; they are always kept (N shows them, Shift-N and the limit of 200 leave
 them):
 
 ```
-tvterm: 08:15:02 tvterm v0.3.0 (deep-soft), far2l-extended 1a2b3c4
-tvterm: 08:15:02 built 2026-11-18 08:00 EET, static, debug info (RelWithDebInfo), x86_64, musl
-tvterm: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg (pid 23456)
-tvterm: 08:15:02 command line: ./tvterm-e95-dbg -p mon
-tvterm: 08:15:02 crash reports: /root/logs/tvterm/crash/
-tvterm: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
+t: 08:15:02 tvterm v0.3.0 (deep-soft), far2l-extended 1a2b3c4
+t: 08:15:02 built 2026-11-18 08:00 EET, static, debug info (RelWithDebInfo), x86_64, musl
+t: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg (pid 23456)
+t: 08:15:02 command line: ./tvterm-e95-dbg -p mon
+t: 08:15:02 crash reports: /root/logs/tvterm/crash/
+t: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
 ```
 
 `profile at start` can also be `none (-p none)`, `none (no 'profile' in [general] of tvterm.ini)`, `'NAME' not loaded`
@@ -1182,7 +1184,7 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-Right / Ctrl-Left | shows the next / previous desktop (1-9) that has windows, skipping the empty ones; no wrap-around (at the last one: `No Desk with windows after D5.`); the Event Viewer keeps the focus and no window of those desktops gets it (Ctrl-B 1-9 then focuses as usual) |
 | Up / Down, PgUp / PgDn, Home / End | move the cursor line (`cursor-color`, only while the window is focused); on the last line new lines are followed, higher up the view stays |
 | Shift + those keys, click, drag, Shift+click | select lines (`selection-color`); while a selection exists the window does not scroll |
-| Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `tvterm: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
+| Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `t: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
 | Esc | clears the selection; the window goes back to the end and follows the new lines |
 | Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
 | F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk, Log View commands, Empty kept messages |

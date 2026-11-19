@@ -449,7 +449,8 @@ void TEventViewer::printNote(const std::string &text, bool always)
     if (out && (always || filter.messages))
     {
         lock();
-        *out << "tvterm: " << text;
+        // 't:' (E98; was 'tvterm:'): short, and the letter of the T filter.
+        *out << "t: " << text;
         if (text.empty() || text.back() != '\n')
             *out << '\n';
         *out << std::flush;

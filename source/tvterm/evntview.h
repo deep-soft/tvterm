@@ -61,9 +61,9 @@ public:
 
     void toggle();
     void print(const TEvent &ev);
-    // Messages from tvterm itself (settings, saved files, errors). Shown
-    // even while the viewer is stopped, unless hidden by the filter;
-    // 'always': shown anyway (N key).
+    // Messages from tvterm itself (settings, saved files, errors), as
+    // 't: <text>' (E98). Shown even while the viewer is stopped, unless
+    // hidden by the filter; 'always': shown anyway (N key).
     void printNote(const std::string &text, bool always = false);
     // Text shown as it is, even while stopped or with T- (e.g. the alert
     // list, key A).
