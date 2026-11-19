@@ -218,6 +218,8 @@ E96. Crash reports in `~/logs/tvterm/crash/` (item 65): the folder created at st
      cannot be; startup note `crash reports: <folder>/`
 E97. Startup note `executable: <path> (pid N)` (item 66), also in the crash report header
 E98. Event Viewer messages start with `t:` instead of `tvterm:` (item 67)
+E99. Log source history (item 68): sources started / stopped are no longer Event Viewer messages; Event Viewer `S` /
+     F9 > Log source history lists the last 200 starts, stops, restarts and ends (time, pid, command)
 
 ---
 
@@ -413,6 +415,16 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
 - **Space** (E58) pauses / resumes it (`toggle()`, like Ctrl-B V) and **Ctrl-A** goes to the next alert (`cmNextAlert`,
   like Ctrl-B G); both are own keys (not shown as events; `ownKey` returns `' '` / `keyNextAlert`) and status line items
   (`Space Pause`, `Ctrl-A Next Alert`).
+- **S** (E99, item 68, agreed in chat 78): the log source history. `logsrc::record(what, pid, command)` keeps a
+  `std::deque<HistoryEntry>` (time, what, pid, whole command), the last 200 (`maxHistory`), apart from the notes of
+  `TVTermApp` (so Shift-N and N do not touch it; lost at exit). Recorded: `started` (`LogSource::start`, was the note
+  `log source started (pid N): …`), `stopped (no window uses it)` (`~LogSource`, with the pid taken before `stop`; was a
+  note), `restarted` (old pid; the note stays), `ended (exit N)` (`finishIfExited`; the note stays), `cannot start`.
+  `LogSource::historyText()` gives the block (`Log source history (N, oldest first; the last 200 kept):` or `… : none`,
+  then `  hh:mm:ss what, pid N: command`; line breaks in the command become spaces); `TEventViewer::printLogSourceHistory`
+  prints it like L (`printText`, with the time, also while stopped or with T-). Own key `s` (`ownKey`), F9 item `Log
+  ~s~ource history  S` (`cmLogSourceHistory`, handled in the viewer like `cmLogViewCommands`), status line item `S
+  Sources`, Help line.
 - **F8** (E69): clears the alerts of levels 2-5 (`cmClearLowAlerts`, like More... > Clear non-urgent alerts; status
   `Alerts of levels 2-5 cleared: N.` / `No alerts of levels 2-5.`); own key `keyClearLowAlerts`, status item `F8 Clear 2-5`.
 - The title shows the state: `Event Viewer [M- C+ K+ O+ T+]` (`(Stopped)` before the brackets when paused).
@@ -2500,6 +2512,12 @@ examples/profiles/example.ini
   mode 755 → used, mode unchanged; user `nobody` with a home of mode 555 → `(cannot create …/logs: Permission denied)`.
 - E98 (`t98.sh`): the startup notes, a settings note and N (shown again) all start with `t: hh:mm:ss`; no line starts
   with `tvterm:`; Ctrl-C on a note copies `t: …` (tmux buffer); the crash report lines have no prefix.
+- E99 (`t99.sh`), tmux 200x50, profile `p99` (Log Views L1 `seq 1 50; sleep 1000`, L2 `echo x; exit 3`, Event Viewer):
+  live messages: no `log source started`, `log source ended (exit 3)` yes; `S` → `Log source history (3, …)`: started
+  L1, started L2, ended (exit 3) L2 with their pids; L1: R then Ctrl-W → message `log source restarted` live, S adds
+  `restarted, pid <old>`, `started, pid <new>`, `stopped (no window uses it), pid <new>`; Shift-N, N → none of the
+  source lines, S still `(6, …)`; X, F9 → `Log source history  S` under `Log View commands  L`, its `s` → one block;
+  status line `S Sources`; F1 → the Event Viewer line `S  log source history: …`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2634,6 +2652,7 @@ examples/profiles/example.ini
 | Crash reports folder (`far2l-extended`) | E96 | crash reports in `~/logs/tvterm/crash/` (created at start, `crash` mode 700; `/tmp` if it cannot be); startup note `crash reports: <folder>/` |
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
+| Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

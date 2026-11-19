@@ -56,6 +56,12 @@ public:
     static size_t countRunning();
     // Commands of the current sources (for the history of the dialog).
     static std::vector<std::string> commands();
+    // Log source history (E99): one line per start, stop (no window uses
+    // it), restart, end and failed start, the last 200, oldest first, as
+    // a block for the Event Viewer (S, F9 > Log source history). Starts and
+    // stops are no longer Event Viewer messages; restarts and ends still
+    // are.
+    static std::string historyText();
 
     ~LogSource();
 

@@ -24,6 +24,8 @@
 //   N           clear, then show again the messages kept by tvterm
 //   A           list the active alerts (oldest first)
 //   L           list the Log Views open now with their commands (E94)
+//   S           the log source history: started, stopped, restarted and
+//               ended sources (E99)
 //   X           clear
 //   Ctrl-Right / Ctrl-Left  show the next / previous Desk with windows
 //               (E77; the viewer keeps the focus; shown with K+)
@@ -75,6 +77,9 @@ public:
     // L / F9 > Log View commands (E94): the Log Views open now and their
     // commands, as one block of lines.
     void printLogViewCommands();
+    // S / F9 > Log source history (E99): the last 200 starts, stops, restarts
+    // and ends of the Log View sources, as one block of lines.
+    void printLogSourceHistory();
 
     const EventFilter &getFilter() const { return filter; }
 };

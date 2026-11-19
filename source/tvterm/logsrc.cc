@@ -3,6 +3,7 @@
 
 #include "logsrc.h"
 #include "app.h"
+#include "alerts.h"
 
 #include <tvterm/pty.h>
 
@@ -11,6 +12,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include <algorithm>
 #include <iterator>
@@ -41,6 +43,25 @@ enum : size_t
 // A line without '\n' is shown after this time without new data
 // (e.g. a prompt).
 static const auto partialTimeout = std::chrono::milliseconds(1000);
+
+// Log source history (E99): kept apart from the Event Viewer messages
+// (not shown live, not shown by N, not emptied by Shift-N).
+struct HistoryEntry
+{
+    time_t time;
+    std::string what;
+    long pid;
+    std::string command;
+};
+static std::deque<HistoryEntry> history;
+enum { maxHistory = 200 };
+
+static void record(const std::string &what, long pid, const std::string &command)
+{
+    history.push_back({time(nullptr), what, pid, command});
+    while (history.size() > maxHistory)
+        history.pop_front();
+}
 
 static void onPtyError(const char *reason)
 {
@@ -154,6 +175,25 @@ std::vector<std::string> LogSource::commands()
     return out;
 }
 
+std::string LogSource::historyText()
+{
+    using namespace logsrc;
+    std::string out = "Log source history (" + std::to_string(history.size()) + ", oldest first; the last " +
+                      std::to_string((int) maxHistory) + " kept):" + (history.empty() ? " none" : "") + "\n";
+    for (auto &h : history)
+    {
+        std::string command = h.command;
+        for (char &c : command)
+            if (c == '\n' || c == '\r')
+                c = ' ';
+        out += "  " + formatEventTime(h.time) + " " + h.what;
+        if (h.pid > 0)
+            out += ", pid " + std::to_string(h.pid);
+        out += ": " + command + "\n";
+    }
+    return out;
+}
+
 LogSource::LogSource(const std::string &aCommand) :
     command(aCommand)
 {
@@ -173,8 +213,10 @@ LogSource::~LogSource()
 {
     if (isRunning())
     {
+        long oldPid = pid;
         stop("");
-        TVTermApp::note("log source stopped (no window uses it): " + logsrc::shortCommand(command));
+        // Only in the log source history (E99).
+        logsrc::record("stopped (no window uses it)", oldPid, command);
     }
 }
 
@@ -200,6 +242,7 @@ void LogSource::start()
         ended = true;
         endTime = Clock::now();
         pushLine("-- cannot start the source --", true);
+        logsrc::record("cannot start", 0, command);
         return;
     }
     fd = d.masterFd;
@@ -208,8 +251,8 @@ void LogSource::start()
     if (flags != -1)
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     fcntl(fd, F_SETFD, FD_CLOEXEC);
-    TVTermApp::note( "log source started (pid " + std::to_string(pid) + "): " +
-                     logsrc::shortCommand(command) );
+    // Only in the log source history (E99).
+    logsrc::record("started", pid, command);
 }
 
 void LogSource::stop(const char *why)
@@ -240,10 +283,12 @@ void LogSource::restart()
 {
     if (fixed)
         return;
+    long oldPid = pid;
     if (isRunning())
         stop("");
     pushLine("-- source restarted --", true);
     TVTermApp::note("log source restarted: " + logsrc::shortCommand(command));
+    logsrc::record("restarted", oldPid, command);
     start();
 }
 
@@ -359,6 +404,7 @@ void LogSource::finishIfExited()
         return;
     }
     std::string what = r == pid ? logsrc::describeStatus(status) : std::string("ended");
+    logsrc::record("ended (" + what + ")", pid, command);
     pid = 0;
     pushLine("-- source ended (" + what + ") --", true);
     TVTermApp::note("log source ended (" + what + "): " + logsrc::shortCommand(command));

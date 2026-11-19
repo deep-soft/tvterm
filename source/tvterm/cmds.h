@@ -57,6 +57,7 @@ enum : ushort
     cmUnpinAll,       // Windows > Unpin all (E87).
     cmClearNotes,     // Event Viewer Shift-N / F9 (E88): empty the kept messages.
     cmLogViewCommands, // Event Viewer L / F9 (E94): the Log Views and their commands.
+    cmLogSourceHistory, // Event Viewer S / F9 (E99): the log source history.
     // Items of the desktop menus: the desktop is the difference (1-9).
     cmDesktopPick = 2200,
 };

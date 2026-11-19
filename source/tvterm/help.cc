@@ -152,6 +152,7 @@ static std::vector<Entry> entries(help::Section s)
                 {"Shift-N", "empty the kept messages, not the startup ones (also F9)"},
                 {"A", "list the active alerts"},
                 {"L", "list the Log Views open now with their commands (also F9)"},
+                {"S", "log source history: started / stopped sources (also F9)"},
                 {"X", "clear the window"},
                 {"Space", "pause / resume (like " + menu + " V)"},
                 {"Ctrl-A", "go to the next alert"},

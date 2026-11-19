@@ -20,6 +20,7 @@
 #include "statline.h"
 #include "logview.h"
 #include "alerts.h"
+#include "logsrc.h"
 
 #include <algorithm>
 #include <deque>
@@ -419,7 +420,7 @@ static char ownKey(const TEvent &ev)
         return keyClearNotes;
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
-    return strchr("mckotnaxl ", c) && c ? c : 0;
+    return strchr("mckotnaxls ", c) && c ? c : 0;
 }
 
 } // namespace evntview
@@ -482,11 +483,14 @@ void TEventViewer::openMenu(TPoint where)
         *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left") +
         newLine() +
         *new TMenuItem("~L~og View commands", cmLogViewCommands, kbNoKey, hcNoContext, "L") +
+        *new TMenuItem("Log ~s~ource history", cmLogSourceHistory, kbNoKey, hcNoContext, "S") +
         *new TMenuItem("~E~mpty kept messages", cmClearNotes, kbNoKey, hcNoContext, "Shift-N");
     if (ushort cmd = popupMenu(where, items, nullptr))
     {
         if (cmd == cmLogViewCommands)
             printLogViewCommands();
+        else if (cmd == cmLogSourceHistory)
+            printLogSourceHistory();
         else
             message(TProgram::application, evCommand, cmd, this);
     }
@@ -498,6 +502,13 @@ void TEventViewer::printLogViewCommands()
 {
     if (TProgram::deskTop)
         printText(formatEventTime(time(nullptr)) + " " + logViewCommandsText(*TProgram::deskTop));
+}
+
+void TEventViewer::printLogSourceHistory()
+// Like L: one block, shown even while stopped or with T-; nothing is
+// emptied (Shift-N leaves the history).
+{
+    printText(formatEventTime(time(nullptr)) + " " + LogSource::historyText());
 }
 
 void TEventViewer::clear()
@@ -521,6 +532,7 @@ void TEventViewer::handleEvent(TEvent &ev)
             case 't': filter.messages = !filter.messages; break;
             case 'x': clear(); break;
             case 'l': printLogViewCommands(); break;
+            case 's': printLogSourceHistory(); break;
             case 'a':
                 // The application knows the windows (see listAlerts).
                 message(TProgram::application, evCommand, cmShowAlerts, this);
