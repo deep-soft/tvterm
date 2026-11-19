@@ -214,6 +214,8 @@ E93. Event Viewer startup notes (item 61): build type in the build line (`--vers
 E94. Event Viewer L / F9 > Log View commands (item 62): the Log Views open now with their commands, one block per use
 E95. Flight recorder (item 59): `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT
      (startup lines, window and dialog, last 50 messages, last 30 keys / clicks / commands), then the default action
+E96. Crash reports in `~/logs/tvterm/crash/` (item 65): the folder created at start (`crash` mode 700), `/tmp` if it
+     cannot be; startup note `crash reports: <folder>/`
 
 ---
 
@@ -1384,6 +1386,14 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `(double)`), `evCommand` (the number); then the front visible window of the desktop that is not the modal view (kind,
   title, Desk) and the modal view (`TopView`; its title and focused control: `TInputLine` with `data`, `TButton`,
   `TListViewer`). File `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (`HOME`, else `/tmp`), `O_APPEND`, mode 0600.
+  E96 (item 65, agreed in chat 78): the reports go to `~/logs/tvterm/crash/` instead of `~/`. `crashrec::prepareDir`
+  (called by `crashlog::install`, before the application) does `mkdir -p`: `logs` and `tvterm` with mode 0777 (minus the
+  umask, like `mkdir -p`), `crash` with 0700; an existing folder is used as it is (no `chmod`); then `access(W_OK |
+  X_OK)`. On success the path goes into the fixed buffer `crashDir` (read by the handler, `/tmp` after it); else
+  `crashDir` stays empty and `dirProblem` keeps the reason (`cannot create <path>: <strerror>`, `not a folder`, `cannot
+  write in …`, `no home folder (HOME)`). `crashlog::reportDir(problem)` gives the folder with a final `/` (`/tmp/` on
+  failure) for the startup note `crash reports: …` (a `noteLasting`, after `command line:`, so the report header has it
+  too). No `tvterm.ini` key.
 - **Pin, part 2** (E85–E89, item 54, agreed in chat 75 after the real test of E84; E90 = item 57; one patch, separate
   commits, chat 77): E85 Log View F9: the Pin / Unpin item right under `Sa~v~e...` (was the last item, after Alerts...),
   still without a letter.
@@ -2476,6 +2486,11 @@ examples/profiles/example.ini
   `crashrec::handler`, tvision's `handleSignal`, `<signal handler called>`, then the faulting frame. `kill -ABRT` →
   exit 134, report, core; `HOME=/nonexistent`, `kill -BUS` → `/tmp/tvterm-crash-…txt`, exit 135; `kill -TERM` → no
   report.
+- E96 (`t96.sh`), tmux 200x50, `-p none`: a fresh `HOME` → note `crash reports: /tmp/h/logs/tvterm/crash/`, modes 755
+  755 700; `kill -SEGV` → exit 139, `tvterm-crash-…txt` (0600) in that folder, its header has `crash reports: …`;
+  `HOME=/nonexistent` → `crash reports: /tmp/ (cannot create /nonexistent/logs: No such file or directory)`, `kill -BUS`
+  → the report in `/tmp`, exit 135; `~/logs` a file → `(cannot create …/logs: not a folder)`; an existing `crash` with
+  mode 755 → used, mode unchanged; user `nobody` with a home of mode 555 → `(cannot create …/logs: Permission denied)`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
   (`capture-pane -e`); `tvterm.ini` written while running with `cursor-color = black on bright-white`,
   `selection-color = black on cyan` → after the reload `30m 107m` / `30m 46m`, the other lines keep their highlight;
@@ -2605,6 +2620,7 @@ examples/profiles/example.ini
 | Event Viewer startup notes (`far2l-extended`) | E93 | build type in the build line (`release (MinSizeRel)`, `debug info (RelWithDebInfo)`; `--version`, About too); notes `executable:`, `command line:`, `profile at start:`; `profile loaded:` at each Load Profile (replaces the previous one); these are always kept (Shift-N and the 200 limit leave them) |
 | Log View commands (`far2l-extended`) | E94 | Event Viewer `L` / F9 > Log View commands: one block `hh:mm:ss Log Views (N):` + `  #n <title> — <command>` for the Log Views open now (all desktops, Window List order); not kept |
 | Flight recorder (`far2l-extended`) | E95 | on SIGSEGV / SIGILL / SIGBUS / SIGFPE / SIGABRT: `~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (or `/tmp`) with the signal, the startup lines, the window and dialog in front (focused control), the last 50 Event Viewer messages, the last 30 keys / clicks / commands (not the characters typed into a terminal); then the default action (core, exit 128 + signal) |
+| Crash reports folder (`far2l-extended`) | E96 | crash reports in `~/logs/tvterm/crash/` (created at start, `crash` mode 700; `/tmp` if it cannot be); startup note `crash reports: <folder>/` |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |
 | Editor whitespace view (`far2l-extended`) | E83 | Ctrl-Space (`[keys] key-editor-whitespace`) / F9 > Whitespace: spaces `·`, tabs `→`, line ends LF `¶`, CRLF `¤`, lone CR `←` (`[editor] whitespace-symbols`, `whitespace-color` bright-black), only the drawing changes; `[WS]` in the title; read only allowed; `[editor] show-whitespace`; profile `whitespace = yes`; `tvterm.ini` format 8 |
 | Unindent of leading Tabs (`far2l-extended`) | E82 | Alt-U on a line whose leading blanks hold a Tab: they become spaces as wide as shown (Tab stops every 8; was: the first Tab made 4 spaces), then one is removed, so the text always moves one column |

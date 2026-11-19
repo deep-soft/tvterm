@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 // See crashlog.h. The buffers are written by the main thread only (between
 // events); the handler reads them. A crash in the middle of a copy can
@@ -37,7 +39,10 @@ static char messages[messageSlots][messageSize];
 static volatile sig_atomic_t messageCount = 0;   // Total added.
 static char inputs[inputSlots][inputSize];
 static volatile sig_atomic_t inputCount = 0;
-static char homeDir[pathSize];
+// The folder of the reports (E96: ~/logs/tvterm/crash), empty if it could
+// not be created; 'dirProblem' then tells why (outside the handler only).
+static char crashDir[pathSize];
+static std::string dirProblem;
 // Seconds east of UTC, taken outside the handler (localtime is not
 // signal-safe).
 static volatile long gmtOffset = 0;
@@ -168,8 +173,51 @@ static const char *signalName(int sig)
     }
 }
 
+static bool makeDir(const std::string &path, mode_t mode)
+// One folder of 'mkdir -p': true if it exists (as a folder) or was made.
+{
+    if (::mkdir(path.c_str(), mode) == 0)
+        return true;
+    int err = errno;
+    struct stat st;
+    if (err == EEXIST && ::stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+        return true;
+    dirProblem = "cannot create " + path + ": " + (err == EEXIST ? std::string("not a folder") : strerror(err));
+    return false;
+}
+
+static void prepareDir(const char *home)
+// $HOME/logs/tvterm/crash (E96): 'logs' and 'tvterm' with the usual mode
+// (0777 minus the umask), 'crash' with 700 (the reports are only for the
+// user); an existing folder is used as it is.
+{
+    std::string base = home && *home ? home : "";
+    while (base.size() > 1 && base.back() == '/')
+        base.pop_back();
+    if (base.empty() || base == "/")
+    {
+        dirProblem = "no home folder (HOME)";
+        return;
+    }
+    std::string logs = base + "/logs", tvt = logs + "/tvterm", dir = tvt + "/crash";
+    if (dir.size() >= pathSize - 64)
+    {
+        dirProblem = "the home folder path is too long";
+        return;
+    }
+    if (!makeDir(logs, 0777) || !makeDir(tvt, 0777) || !makeDir(dir, 0700))
+        return;
+    if (::access(dir.c_str(), W_OK | X_OK) != 0)
+    {
+        dirProblem = "cannot write in " + dir + ": " + strerror(errno);
+        return;
+    }
+    copy(crashDir, sizeof(crashDir), dir);
+}
+
 static int openReport(const Stamp &st)
-// ~/tvterm-crash-YYYY-MM-DD-hhmmss.txt, else the same name in /tmp.
+// <crashDir>/tvterm-crash-YYYY-MM-DD-hhmmss.txt, else the same name in
+// /tmp.
 {
     char name[64];
     // "tvterm-crash-" + date + ".txt", built by hand.
@@ -181,7 +229,7 @@ static int openReport(const Stamp &st)
     put2(st.h); put2(st.mi); put2(st.s);
     put(".txt");
     *p = '\0';
-    const char *dirs[] = {homeDir, "/tmp"};
+    const char *dirs[] = {crashDir, "/tmp"};
     for (const char *dir : dirs)
     {
         char path[pathSize + 64];
@@ -304,8 +352,7 @@ namespace crashlog
 void install()
 {
     using namespace crashrec;
-    const char *home = getenv("HOME");
-    copy(homeDir, sizeof(homeDir), home && *home ? home : "/tmp");
+    prepareDir(getenv("HOME"));
     updateOffset();
     // An alternate stack, so that a stack overflow can still be reported
     // when this handler is called directly (before or after tvision's).
@@ -321,6 +368,13 @@ void install()
     sigemptyset(&sa.sa_mask);
     for (int sig : signals)
         sigaction(sig, &sa, nullptr);
+}
+
+std::string reportDir(std::string &problem)
+{
+    using namespace crashrec;
+    problem = dirProblem;
+    return crashDir[0] ? std::string(crashDir) + "/" : std::string("/tmp/");
 }
 
 void setInfo(const std::string &text, bool loadedProfile)

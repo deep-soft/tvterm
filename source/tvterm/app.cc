@@ -388,6 +388,12 @@ TVTermApp::TVTermApp(const char *profileName, bool useDefaultProfile) :
     noteLasting(buildLine());
     noteLasting("executable: " + appstart::executable);
     noteLasting("command line: " + appstart::commandLine);
+    // Where a crash report would go (E96).
+    {
+        std::string problem;
+        std::string dir = crashlog::reportDir(problem);
+        noteLasting("crash reports: " + dir + (problem.empty() ? "" : " (" + problem + ")"));
+    }
     disableCommands(tileCmds);
     for (ushort cmd : TerminalWindow::appConsts.focusedCmds())
         disableCommand(cmd);

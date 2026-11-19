@@ -90,6 +90,7 @@ If the profile cannot be opened, a normal terminal opens and the reason is shown
 | `~/.config/tvterm/tvterm.ini` | settings ([chapter 6](#6-settings-file-tvtermini)) |
 | `~/.config/tvterm/profiles/*.ini` | profiles ([chapter 7](#7-profiles)) |
 | `~/.config/tvterm/history` | the lists of the input fields, kept between runs ([Field lists](#field-lists-history)); written by tvterm |
+| `~/logs/tvterm/crash/` | crash reports `tvterm-crash-YYYY-MM-DD-hhmmss.txt` ([Crash report](#crash-report)); created at start |
 
 With `XDG_CONFIG_HOME` set, `$XDG_CONFIG_HOME/tvterm/` is used instead of `~/.config/tvterm/`.
 `examples/tvterm.ini` and `examples/profiles/example.ini` in the sources describe both formats.
@@ -133,13 +134,15 @@ Versions are tagged on GitHub (`v0.2.0`, `v0.3.0`, signed); the release page of 
 ### Crash report
 
 If tvterm crashes (SIGSEGV, SIGILL, SIGBUS, SIGFPE or SIGABRT), it first writes
-`~/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (local time; in `/tmp` if the home directory cannot be written; readable only by
-you), then the crash goes on as before: the terminal is restored, a core file is written if enabled (`ulimit -c`), and
+`~/logs/tvterm/crash/tvterm-crash-YYYY-MM-DD-hhmmss.txt` (local time; readable only by you), then the crash goes on as before: the terminal is restored, a core file is written if enabled (`ulimit -c`), and
 the exit status is 128 + the signal (139 for SIGSEGV). Every build does it (static, dynamic, dbg); there is no setting.
-The report has:
+The folder is created when tvterm starts (like `mkdir -p`; `crash` with mode 700, an existing folder is used as it
+is); if it cannot be created or written, the reports go to `/tmp`. The Event Viewer startup notes say where:
+`crash reports: /root/logs/tvterm/crash/`, or `crash reports: /tmp/ (cannot create /root/logs: …)`. Until E96 the
+reports were written in the home directory (`~/tvterm-crash-…txt`). The report has:
 
 - the signal, and the address for a crash (or the process that sent it, e.g. `kill -SEGV`), the time and the pid;
-- the startup lines of the Event Viewer (version, build, executable, command line, profile at start) and the last
+- the startup lines of the Event Viewer (version, build, executable, command line, crash reports, profile at start) and the last
   `profile loaded`;
 - the window in front and the dialog open over it, with the focused control (an input line with its text, a button, a
   list);
@@ -1150,6 +1153,7 @@ tvterm: 08:15:02 tvterm v0.3.0 (deep-soft), far2l-extended 1a2b3c4
 tvterm: 08:15:02 built 2026-11-18 08:00 EET, static, debug info (RelWithDebInfo), x86_64, musl
 tvterm: 08:15:02 executable: /root/prog/tvterm-bin/tvterm-e95-dbg
 tvterm: 08:15:02 command line: ./tvterm-e95-dbg -p mon
+tvterm: 08:15:02 crash reports: /root/logs/tvterm/crash/
 tvterm: 08:15:02 profile at start: /root/.config/tvterm/mon.ini
 ```
 
