@@ -469,6 +469,10 @@ comes first in the text (the window then starts at the first line); `no` (the de
 The Help window is a viewer (title `Help: tvterm keys`, like View file): `/` and F3 search, Ctrl-C copies, Ctrl-W
 closes. There is one at a time: F1 again (also inside it) replaces it.
 
+It opens over the Event Viewer, with the same position and size (E102); when the Event Viewer is maximized, with the
+position and size it had before. Without an Event Viewer, Help opens where Ctrl-B V would open one (70 columns on the
+right of a desktop wider than 100 columns, the whole height). F5 (zoom) and moving work as in any window.
+
 ### Quitting
 
 **Ctrl-B Q** lists the open terminals and Log Views with their desktop and what runs in each (e.g.

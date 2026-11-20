@@ -224,6 +224,8 @@ E100. F1 Help, Global keys: the keys of the dialog text fields (item 70): Down, 
       from the history file), Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C
 E101. Window List header (item 55): a click on P / Alert filters (only pinned / alerted, on / off), on Name / Command
       sorts (ascending, descending, off); Alt-1…Alt-4; marks `P*`, `Alert*`, `Name▲` / `▼`; kept while tvterm runs
+E102. Help window bounds (item 71, replaces item 43): F1 / More... > Keys open Help over the Event Viewer, with its
+      bounds (before zoom when maximized); without one, where Ctrl-B V would open it
 
 ---
 
@@ -1073,6 +1075,13 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   desktop, `setHelpView` (title `Help: tvterm keys N/N`); `LogViewWindow::showAt(top, cursor)` puts that section at the
   top and the cursor on its first key (with `help-current-first = yes`, `top` = 0: the section is first in the text).
   One Help window: an open one is closed first (opened from inside it: section Viewer).
+- **E102** (item 71, agreed in chat 80, clarified in chat 81; replaces item 43, Help below the Event Viewer):
+  `help::bounds()` gives the new Help window the bounds of the Event Viewer (`cmFindEventViewer`; it is on every Desk),
+  so that Help opens over it; when the viewer is maximized (its size = the desktop's) the bounds it had before
+  (`TWindow::zoomRect`). Without an Event Viewer (or a viewer smaller than 20x4): `TVTermApp::eventViewerRect()` =
+  `eventViewerBounds()` of `app.cc`, where Ctrl-B V opens one (70 columns on the right of a desktop wider than 100,
+  the whole height). Before E102 Help had the size of the desktop. F5 / zoom and moving are unchanged; F1 again still
+  closes the open Help and opens a new one (with the bounds of now).
 - F1: `TVTermApp::handleEvent`, `evKeyDown` left over by the windows (a terminal sends F1 to its program, so only the
   other windows reach it); More... `~K~eys (Help)...` (shown key F1) and About `~K~eys...` (`cmYes`, opened after the
   dialog closes; `showAbout` returns whether it was used) send `cmHelpKeys`.
@@ -2551,6 +2560,10 @@ examples/profiles/example.ini
   in a gap: nothing; the focus stays on the same window after each change; Esc + Ctrl-B W → the state kept, the text
   empty; Close on a sorted list → reopens on the row shown after it; `window-list-columns = 0 auto auto *` (Alert
   hidden) → Alt-2 still filters, title `Windows 1/5`; Alert width 3 → `Al*`; F1 → the four Help lines.
+- E102 (`t102.py`), tmux 140x35: `-p none`, More... > Keys → Help at columns 70–139, rows 1–33, the same frame as the
+  Event Viewer opened next with Ctrl-B V; a profile with the Event Viewer at `pos = 10 20 50 50` and a small editor:
+  F1 in the editor → Help frame = the viewer's (14,8)–(83,23); a profile with only that viewer, Ctrl-B Z Z (maximized),
+  F1 → Help at (14,8)–(83,23) again.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2686,6 +2699,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Help window bounds (`far2l-extended`) | E102 | F1 / More... > Keys: Help opens over the Event Viewer with its bounds (before zoom when maximized); without one, where Ctrl-B V would open it (was: the whole desktop) |
 | Window List header (`far2l-extended`) | E101 | Window List: a click on the column names or Alt-1…Alt-4: P / Alert = only the pinned / alerted windows (on / off, with the text filter), Name / Command = sort ascending, descending, off; header `P*`, `Alert*`, `Name▲`, `Command▼`; kept while tvterm runs; P two columns wide; Close reopens on the next row shown |
 | Help: dialog keys (`far2l-extended`) | E100 | F1 Help, Global keys: the text fields of dialogs (Down, Ctrl-Del in an open list, also from the history file, Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C) |
 | Pin (`far2l-extended`) | E84 | a pinned Log View or terminal is not closed by Ctrl-W, the close button, Close Term or Window List > Close (status line + Event Viewer note); Log View F6 (`[keys] key-logview-pin`) / F9 > Pin, Ctrl-B Z P (Windows ► Pin) for the focused Log View or terminal; `[P]` in the title, `P` in the Window List and the Log Views table / list; profiles `pinned = yes`; Load Profile: Keep / Close all / Cancel, a profile window with the title and command of a kept pinned one is skipped; Quit and the end of a program unchanged; `tvterm.ini` format 9 |

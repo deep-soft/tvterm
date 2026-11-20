@@ -1220,6 +1220,11 @@ TRect TVTermApp::editorRect()
     return editorBounds(TProgram::deskTop->getExtent());
 }
 
+TRect TVTermApp::eventViewerRect()
+{
+    return eventViewerBounds(TProgram::deskTop->getExtent());
+}
+
 void TVTermApp::toggleEventViewer()
 {
     // If an Event Viewer is already open, pause/resume it.

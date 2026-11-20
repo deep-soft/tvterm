@@ -18,6 +18,7 @@
 // window at a time: opening it again closes the old one.
 
 #define Uses_TWindow
+#define Uses_TRect
 #include <tvision/tv.h>
 
 #include <string>
@@ -35,8 +36,13 @@ Section sectionOf(TWindow *w);
 // title is marked (its line number, 0-based, in 'markLine'; -1: none).
 std::string text(Section current, bool currentFirst, int &markLine);
 
+// The bounds of the Help window (E102, item 71): those of the Event Viewer
+// (on every Desk), so that it opens over it; when the viewer is maximized,
+// its bounds before. Without an Event Viewer: where Ctrl-B V would open one.
+TRect bounds();
+
 // Opens the Help window (closing an open one), for the window 'from' (may
-// be null).
+// be null), with bounds().
 void open(TWindow *from);
 
 // Whether 'w' is the Help window.

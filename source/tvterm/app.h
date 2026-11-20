@@ -54,6 +54,10 @@ struct TVTermApp : public TApplication
     void viewFile();
     // Where a new editor goes (80 columns on the right of a wide desktop).
     static TRect editorRect();
+    // Where a new Event Viewer goes (Ctrl-B V): 70 columns on the right of a
+    // wide desktop, its whole height. Also the Help window when there is no
+    // Event Viewer (E102).
+    static TRect eventViewerRect();
     void toggleEventViewer();
     void newLogView();
     void loadProfile();

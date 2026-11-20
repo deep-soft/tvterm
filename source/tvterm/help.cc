@@ -6,6 +6,7 @@
 
 #include "help.h"
 #include "app.h"
+#include "cmds.h"
 #include "editwnd.h"
 #include "evntview.h"
 #include "logsrc.h"
@@ -247,6 +248,23 @@ std::string text(Section current, bool currentFirst, int &markLine)
     return out;
 }
 
+TRect bounds()
+{
+    TDeskTop *desk = TProgram::deskTop;
+    auto *viewer = (TWindow *) message(desk, evBroadcast, cmFindEventViewer, nullptr);
+    if (!viewer)
+        return TVTermApp::eventViewerRect();
+    // Maximized (tvision's zoom: the size of the desktop): the bounds it
+    // had before, kept by zoom in zoomRect.
+    TRect r = viewer->getBounds();
+    if (viewer->size == desk->size && !viewer->zoomRect.isEmpty() && viewer->zoomRect != r)
+        r = viewer->zoomRect;
+    r.intersect(desk->getExtent());
+    if (r.b.x - r.a.x < 20 || r.b.y - r.a.y < 4)
+        return TVTermApp::eventViewerRect();
+    return r;
+}
+
 bool isHelpWindow(TWindow *w)
 {
     auto *lw = dynamic_cast<LogViewWindow *>(w);
@@ -283,7 +301,8 @@ void open(TWindow *from)
     LogViewOptions o;
     o.command = helpTitle;
     o.title = helpTitle;
-    auto *w = new LogViewWindow(TProgram::deskTop->getExtent(), o,
+    // Over the Event Viewer, with its bounds (E102, item 71).
+    auto *w = new LogViewWindow(bounds(), o,
                                 LogSource::createFixed(helpTitle, std::move(lines)));
     w->setHelpView(true);
     TProgram::application->insertWindow(w);
