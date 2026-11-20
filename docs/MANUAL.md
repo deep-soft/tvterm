@@ -664,8 +664,9 @@ line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selec
 **Alt-C** inserts a comment line with the date and time ([Comment line](#comment-line)).
 **Alt-I / Alt-U** indent / unindent the line or the selected lines by one space ([Indent and unindent](#indent-and-unindent)).
 **Ctrl-Space** shows / hides the spaces, tabs and line ends ([Whitespace](#whitespace)).
+**Alt-L** shows / hides the line numbers ([Line numbers](#line-numbers)).
 **F9** opens the editor's menu: Read only, Pin ([Pin](#pin)), Save, Save as (**F12**), Open (**Ctrl-F12**), Reload,
-Find, Replace, Go to line, Whitespace ([Read only](#read-only), [Open and Reload](#open-and-reload)).
+Find, Replace, Go to line, Whitespace, Line numbers ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
 
 ### Open and Reload
@@ -889,6 +890,33 @@ turns the view on and off, as before. Save Profile As writes `whitespace = 2` fo
 profile with `whitespace = 2` while `whitespace-color-2` is not set opens the view in the first color, with a note in
 the Event Viewer.
 
+### Line numbers
+
+**Alt-L** (or **F9 > Line numbers**, `n`) shows a column with the number of each line at the left of the text, and
+hides it again; each editor window has its own state, also in read only and in the Settings editor. The numbers are
+right-aligned in `line-numbers-width` digits (default 4), and one space always separates them from the text: with 4,
+the column is 5 characters wide. A text with more lines widens the column by itself (10000 lines: 5 digits), and it
+becomes narrower again when the lines are removed. The number of the cursor's line is in `line-numbers-current-color`,
+the others in `line-numbers-color`; no number below the last line.
+
+```
+   1 ## tvterm settings
+   2 ## format 11, created by tvterm v0.3.0 (…)
+   3
+ 208 [editor]
+```
+
+The column stays in place when the text scrolls right. A **click on a number** moves the cursor to the start of that
+line; the wheel over the column scrolls the text. The status line says `Line numbers shown.` / `Line numbers hidden.`,
+and the F9 item `on, Alt-L` / `off, Alt-L`; there is no mark in the title. A window too narrow for the column refuses
+it (`The window is too narrow for line numbers.`).
+
+`tvterm.ini` `[editor]`: `line-numbers = yes` turns them on in every new editor window; `line-numbers-width` (1 to 9);
+`line-numbers-color` (default `cyan`) and `line-numbers-current-color` (default `bright-white`) take `<color>` (on the
+editor's background) or `<color> on <color>`, as `whitespace-color`. The key is `key-editor-line-numbers` in `[keys]`
+(`none`: no key, F9 still works). Save Profile As writes `line-numbers = yes` for an editor window with them on
+(`line-numbers = no` when they are off and `line-numbers = yes` is in `tvterm.ini`).
+
 ### Opening and viewing files
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
@@ -936,12 +964,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 10, created by tvterm v0.3.0 (2b5e5d2, built 2026-11-20 10:00 EET)`: the format of the file, then the
+  `## format 11, created by tvterm v0.3.0 (2b5e5d2, built 2026-11-20 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`; format 11: `line-numbers`, `line-numbers-width`, `line-numbers-color`, `line-numbers-current-color`, `key-editor-line-numbers`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -1005,6 +1033,9 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `whitespace-symbols` | `· → ¶ ¤ ←` | the symbols of Space, Tab, LF, CRLF and a lone CR: five one-column characters separated by spaces; invalid: the previous value |
 | | `whitespace-color` | `bright-black` | color of the symbols: `<color>` (on the editor's background) or `<color> on <color>`; selected text keeps the selection color |
 | | `whitespace-color-2` | (none) | a second color for the symbols, the same form (E103): the key then cycles off → `whitespace-color` → `whitespace-color-2` → off (`[WS2]`); empty: on / off only ([Whitespace](#whitespace)) |
+| | `line-numbers` | `no` | `yes`: new editor windows start with the line numbers on ([Line numbers](#line-numbers)) |
+| | `line-numbers-width` | `4` | digits of the line numbers, 1–9 (more when the text has more lines); a space always follows |
+| | `line-numbers-color` / `line-numbers-current-color` | `cyan` / `bright-white` | the numbers / the cursor line's number: `<color>` (on the editor's background) or `<color> on <color>` |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
 | | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
@@ -1021,6 +1052,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `key-logview-pin` | `F6` | in a Log View: Pin / Unpin ([Pin](#pin)); `none`: no key (F9 > Pin still works) |
 | | `key-editor-pin` | `F6` | in an editor: Pin / Unpin (E107, [Pin](#pin)); `none`: no key (F9 > Pin still works) |
+| | `key-editor-line-numbers` | `Alt-L` | in an editor: shows / hides the line numbers (E108, [Line numbers](#line-numbers)); `none`: no key |
 | | `key-eventviewer-mute` | `Ctrl-M` | in the Event Viewer: Mute alerts above level... (E106, [Mute](#mute)); Ctrl-M differs from Enter only through far2l's extensions; `none`: no key (F9 still works) |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
@@ -1140,7 +1172,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `2` / `no` (the whitespace view, `2`: in `whitespace-color-2`; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `2` / `no` (the whitespace view, `2`: in `whitespace-color-2`; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `line-numbers = yes` / `no` (without it, `line-numbers` of `tvterm.ini`, [Line numbers](#line-numbers)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

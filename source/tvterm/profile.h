@@ -61,6 +61,9 @@ struct WindowProfile
     // in the profile ([editor] show-whitespace of tvterm.ini); 2 (E103):
     // on, in [editor] whitespace-color-2.
     int whitespace {-1};
+    // [editor] line-numbers (E108): 1 yes, 0 no, -1 not in the profile
+    // ([editor] line-numbers of tvterm.ini).
+    int lineNumbers {-1};
     // Event Viewer.
     EventFilter filter;
     // All windows: position and size in percent of the desktop, if 'hasPos'.

@@ -499,6 +499,8 @@ void TVTermApp::reloadSettings(bool manual, bool startup)
             if (auto *w = dynamic_cast<TVTermEditWindow *>(v))
             {
                 w->applyUndoLimits();
+                // E108: line-numbers-width may have changed.
+                w->updateLineNumbers();
                 // The editor itself: the window keeps a buffer of its last drawing.
                 if ((w->state & sfVisible) && w->editor)
                     w->editor->drawView();
@@ -1750,6 +1752,8 @@ void TVTermApp::openProfile(const Profile &profile)
                          "in tvterm.ini; the first color is used");
                 if (win.whitespace >= 0)
                     edit->setWhitespaceLevel(win.whitespace);
+                if (win.lineNumbers >= 0)
+                    edit->setLineNumbers(win.lineNumbers > 0);
                 edit->setPinned(win.pinned);
                 window = edit;
                 break;
@@ -2263,6 +2267,9 @@ void TVTermApp::saveProfile(bool as)
                         win.whitespace = rw->whitespaceLevel();
                     else if (TVTermApp::settings().showWhitespace)
                         win.whitespace = 0;
+                    // E108: the same for the line numbers.
+                    if (rw->showsLineNumbers() != TVTermApp::settings().lineNumbers)
+                        win.lineNumbers = rw->showsLineNumbers() ? 1 : 0;
                 }
                 if (win.file.empty() && edit->editor->bufLen > 0)
                     ++untitledWithText;

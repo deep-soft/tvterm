@@ -647,6 +647,34 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                     settings.whitespaceColor2 = previous.whitespaceColor2,
                     settings.whitespaceColor2Fore = previous.whitespaceColor2Fore;
             }
+            else if (key == "line-numbers")
+            {
+                // E108.
+                if (!parseBool(value, settings.lineNumbers))
+                    invalid("use yes or no"), settings.lineNumbers = previous.lineNumbers;
+            }
+            else if (key == "line-numbers-width")
+            {
+                if (!parseInt(value, 1, 9, settings.lineNumbersWidth))
+                    invalid("1 to 9"), settings.lineNumbersWidth = previous.lineNumbersWidth;
+            }
+            else if (key == "line-numbers-color" || key == "line-numbers-current-color")
+            {
+                bool current = key == "line-numbers-current-color";
+                int &color = current ? settings.lineNumbersCurrentColor : settings.lineNumbersColor;
+                bool &fore = current ? settings.lineNumbersCurrentColorFore : settings.lineNumbersColorFore;
+                std::string error;
+                int attr = 0;
+                if (parseColorName(value, attr, error))
+                {
+                    color = attr;
+                    fore = lower(value).find(" on ") == std::string::npos;
+                }
+                else
+                    invalid(error + (current ? "; e.g. bright-white, or black on cyan" : "; e.g. cyan, or white on blue")),
+                    color = current ? previous.lineNumbersCurrentColor : previous.lineNumbersColor,
+                    fore = current ? previous.lineNumbersCurrentColorFore : previous.lineNumbersColorFore;
+            }
             else if (key == "whitespace-color")
             {
                 std::string error;
@@ -719,7 +747,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "key-editor-whitespace" ? &settings.keyEditorWhitespace :
                            key == "key-logview-pin" ? &settings.keyLogViewPin :
                            key == "key-eventviewer-mute" ? &settings.keyEventViewerMute :
-                           key == "key-editor-pin" ? &settings.keyEditorPin : nullptr;
+                           key == "key-editor-pin" ? &settings.keyEditorPin :
+                           key == "key-editor-line-numbers" ? &settings.keyEditorLineNumbers : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
@@ -731,7 +760,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                                key == "key-editor-whitespace" ? &previous.keyEditorWhitespace :
                                key == "key-logview-pin" ? &previous.keyLogViewPin :
                                key == "key-eventviewer-mute" ? &previous.keyEventViewerMute :
-                               key == "key-editor-pin" ? &previous.keyEditorPin : nullptr;
+                               key == "key-editor-pin" ? &previous.keyEditorPin :
+                               key == "key-editor-line-numbers" ? &previous.keyEditorLineNumbers : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -965,6 +995,17 @@ std::string settingsTemplate()
         "  # cycles off -> whitespace-color -> whitespace-color-2 -> off ([WS2] in the\n"
         "  # title; a profile keeps it as whitespace = 2). Empty: on / off only.\n"
         " #whitespace-color-2 =\n"
+        "  # Line numbers at the left of the editor windows (key-editor-line-numbers\n"
+        "  # in [keys], Alt-L, or F9 > Line numbers): their state in a new editor\n"
+        "  # window, yes or no; a profile keeps it per window.\n"
+        " #line-numbers = " + std::string(d.lineNumbers ? "yes" : "no") + "\n"
+        "  # Digits of the line numbers, 1 to 9 (more when the text has more lines);\n"
+        "  # a space always follows them.\n"
+        " #line-numbers-width = " + std::to_string(d.lineNumbersWidth) + "\n"
+        "  # Color of the line numbers and of the current line's number: <color> (on\n"
+        "  # the editor's background) or <color> on <color>.\n"
+        " #line-numbers-color = cyan\n"
+        " #line-numbers-current-color = bright-white\n"
         "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"
@@ -1059,6 +1100,9 @@ std::string settingsTemplate()
         " #key-logview-pin = " + keyName(d.keyLogViewPin) + "\n"
         "  # Key that pins / unpins an editor window (also F9 > Pin), e.g. F6 or none.\n"
         " #key-editor-pin = " + keyName(d.keyEditorPin) + "\n"
+        "  # Key that shows / hides the line numbers of an editor window, e.g. Alt-L\n"
+        "  # or none.\n"
+        " #key-editor-line-numbers = " + keyName(d.keyEditorLineNumbers) + "\n"
         "  # Key that, in the Event Viewer, opens Mute alerts above level... (also\n"
         "  # F9). Ctrl-M differs from Enter only through far2l's extensions\n"
         "  # (putty4far2l); in other terminals it is Enter. E.g. Ctrl-M or none.\n"

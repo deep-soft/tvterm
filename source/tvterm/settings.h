@@ -36,8 +36,10 @@ const int minFileDialogHeight = 19;
 // show-whitespace, whitespace-symbols, whitespace-color, [keys]
 // key-editor-whitespace (E83); 9: [keys] key-logview-pin (E84); 10:
 // [editor] whitespace-color-2 (E103), [keys] key-eventviewer-mute (E106),
-// key-editor-pin (E107).
-const int settingsFormat = 10;
+// key-editor-pin (E107); 11: [editor] line-numbers, line-numbers-width,
+// line-numbers-color, line-numbers-current-color, [keys]
+// key-editor-line-numbers (E108).
+const int settingsFormat = 11;
 
 struct Settings
 {
@@ -116,6 +118,17 @@ struct Settings
     // whitespace-color); -1: not set (the key turns the view on / off).
     int whitespaceColor2 {-1};
     bool whitespaceColor2Fore {true};
+    // [editor] line numbers (E108, item 53). line-numbers: the state in a
+    // new editor window; line-numbers-width: the digits of the column (1-9,
+    // more when the text has more lines; a space always follows);
+    // line-numbers-color / line-numbers-current-color: as whitespace-color
+    // (Fore: only the foreground, on the editor's background).
+    bool lineNumbers {false};
+    int lineNumbersWidth {4};
+    int lineNumbersColor {0x03};
+    bool lineNumbersColorFore {true};
+    int lineNumbersCurrentColor {0x0F};
+    bool lineNumbersCurrentColorFore {true};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};
@@ -174,6 +187,8 @@ struct Settings
     TKey keyEventViewerMute {'M', kbCtrlShift};
     // key-editor-pin (E107): Pin / Unpin of an editor window (as F9 > Pin).
     TKey keyEditorPin {kbF6};
+    // key-editor-line-numbers (E108): the line numbers of an editor on/off.
+    TKey keyEditorLineNumbers {'L', kbAltShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

@@ -236,6 +236,9 @@ E106. Event Viewer Mute key (item 50): `[keys] key-eventviewer-mute = Ctrl-M` (t
       another key) and F9 > Mute alerts above level...
 E107. Editor Pin key (item 58): `[keys] key-editor-pin = F6` (`none` = no key), shown in the editor's F9 Pin item and in
       F1
+E108. Editor line numbers (item 53): Alt-L / F9 > Line numbers, a column at the left (`line-numbers-width` digits + a
+      space, wider for more lines), the cursor line's number in its own color, a click goes to the line; `[editor]
+      line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11
 
 ---
 
@@ -1505,6 +1508,20 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   default F6, which did nothing in editors; `tvterm.ini` format 10): `editwnd::editorKey` returns `ekPin` (not an
   editing key, so it works in read only), `editorKeys` calls `pin::toggle(this)` as F9 > Pin. The F9 item shows the key
   (`Pin (not closed by Ctrl-W)  F6` / `Unpin  F6`; nothing with `none`). F1: the line in the Editor section.
+- **E108** (item 53, agreed in chat 75, details in chat 82): editor line numbers. `editwnd::LineNumbers` is a `TView`
+  of its own at the left of the editor (the window's child, `gfGrowHiY`, not selectable); turning it on moves the
+  editor's left edge right by the column's width (`locate`), so tvision's editor keeps its own coordinates (cursor,
+  mouse, horizontal scroll, Find) unchanged. Width = max(`line-numbers-width`, digits of `limit.y`) + 1 (the space);
+  `updateLineNumbers` (called from `updateWidthLimit`, i.e. after every change of the text, and after Reload settings)
+  resizes both views when it changes. The column is drawn again after the editor's own `draw` (`WsEditor::gutter`;
+  scrolling) and at the end of each event of the window (the cursor's line: tvision draws only that line when the
+  cursor moves). Row y = line `delta.y + y`, number from `TVTermEditWindow::numberOfLine` (line + 1 here; E109 maps it).
+  Colors as `whitespace-color` (`<color>` = foreground on the editor's background). A click: the cursor to the start of
+  the line (`nextLines`), the focus stays in the editor; the wheel is not positional in tvision (the scroll bars get it
+  anywhere), so it needs nothing. `[editor] line-numbers`, `line-numbers-width` (1-9), `line-numbers-color` (`cyan`),
+  `line-numbers-current-color` (`bright-white`), `[keys] key-editor-line-numbers` (Alt-L); `tvterm.ini` format 11.
+  Profiles: `line-numbers = yes` / `no` when the window differs from `[editor] line-numbers`. F9 item `Line numbers`
+  (`n`), F1 line. Too narrow (the text would keep less than one column): refused with a message.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2629,6 +2646,16 @@ examples/profiles/example.ini
 - E107 (`t107.py`), tmux 140x35, `/tmp/ws.txt` in an editor: F6 → `[P]`; Ctrl-W → still open; F9 → `Unpin  F6`; F6 →
   unpinned; F9 > Read only, F6 → `[RO] [P]`; `key-editor-pin = none` → F6 does nothing, F9 `Pin (not closed by Ctrl-W)`
   without a key; `key-editor-pin = Ctrl-F6` → Ctrl-F6 pins; F1 → `Ctrl-F6 … key-editor-pin`.
+- E108 (`t108.py`), tmux 100x30, a 93-line `.ini` in a full-size editor (profile): Alt-L → `   1 ## …` (4 digits + a
+  space), current number `97m`, others `36m` (`capture-pane -e`); Down ×3 → `4` in `97m`, `1` in `36m`; PgDn and the
+  wheel (SGR 65 through `TIOCSTI`, over the text and over the column) move the numbers with the text; a click on the
+  column (row of line 8) → indicator `8:1`, the focus in the editor (a click in the text after it still moves the
+  cursor). A 9998-line file: Ctrl-End → `9999` (4 digits), Enter ×2 → `10001`, the column 6 wide; Backspace ×2 → 4
+  digits again; Ctrl-Z → 5 digits. Profile `line-numbers = yes` → on at start; `tvterm.ini` `line-numbers = yes`,
+  `line-numbers-width = 2`, `line-numbers-color = black on cyan`, `line-numbers-current-color = red` → ` 1 …`, the
+  colors. F9 → `Line numbers  on, Alt-L`; F1 → `Alt-L … key-editor-line-numbers`; read only + Alt-L ×2 → on / off;
+  Save Profile As → `line-numbers = yes` in the file. `line-numbers-width = 9` on a 40-column screen: 9 digits, the
+  text still shown (the refusal itself needs a window narrower than tvision allows here; not reached).
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2764,6 +2791,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Editor line numbers (`far2l-extended`) | E108 | editor Alt-L (`[keys] key-editor-line-numbers`) / F9 > Line numbers: a column with the line numbers (`line-numbers-width` digits + a space, wider for more lines; `line-numbers-color`, `line-numbers-current-color`); a click goes to the line; `[editor] line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11 |
 | Editor Pin key (`far2l-extended`) | E107 | editor F6 (`[keys] key-editor-pin`, `none` = no key): Pin / Unpin as F9 > Pin, also in read only; the key in the F9 item and F1; `tvterm.ini` format 10 |
 | Event Viewer Mute key (`far2l-extended`) | E106 | Event Viewer Ctrl-M (`[keys] key-eventviewer-mute`, through far2l's extensions; Enter never mutes) and F9 > Mute alerts above level...: the Mute dialog of More...; `tvterm.ini` format 10 |
 | Save Profile (`far2l-extended`) | E105 | MainMenu Save Profile (no letter): the current profile's file (last loaded or saved as) after a question, else Save As; Save Profile (As) end with the status line + an Event Viewer note instead of the `Saved N window(s)` dialog |

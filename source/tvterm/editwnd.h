@@ -69,6 +69,23 @@ public:
     // Level 2 without whitespace-color-2: level 1.
     void setWhitespaceLevel(int level);
 
+    // Line numbers (E108, item 53; key-editor-line-numbers Alt-L, F9 > Line
+    // numbers): a column at the left of the text with the number of each
+    // line, right-aligned in [editor] line-numbers-width digits (more when
+    // the text has more lines) and a space; the current line's number in
+    // line-numbers-current-color. A click on a number moves the cursor to
+    // the start of that line. Starts as [editor] line-numbers; profiles keep
+    // it ('line-numbers = yes'). Allowed in read only.
+    bool showsLineNumbers() const noexcept { return gutter != nullptr; }
+    void setLineNumbers(bool on);
+    // The column's width follows the number of lines (and the settings);
+    // drawn again. Called after the text changes and when the settings are
+    // reloaded.
+    void updateLineNumbers();
+    // The number shown for the editor's line 'line' (0-based): line + 1;
+    // 0 = no number.
+    long numberOfLine(int line) const;
+
     // The file name, or "Untitled"; " [RO]" added while read only, " [WS]"
     // while the whitespace view is on (" [WS2]": second color), " [P]" while
     // pinned.
@@ -138,6 +155,8 @@ private:
     // editor is already gone while broadcasts still reach the window).
     int whitespace {0};
     std::string titleBuf;
+    // The line numbers' column (E108), null while they are hidden.
+    TView *gutter {nullptr};
     // The file whose backups this window made (or that it wrote first by
     // Save As): no more backups for it from this window.
     std::string backedUpFile;
@@ -149,6 +168,11 @@ private:
     // Ctrl-Space").
     void toggleWhitespace();
     std::string whitespaceItemText() const;
+    // The line numbers on / off with the message (E108); the text of the F9
+    // item; the column's width (digits and the space).
+    void toggleLineNumbers();
+    std::string lineNumbersItemText() const;
+    int lineNumbersWidth() const;
     // The "modified" question before Open: false = do not go on.
     bool saveChangesOrDrop();
     // Loads 'path' into the editor (openFile's last step).

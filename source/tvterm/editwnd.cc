@@ -1043,7 +1043,7 @@ static std::vector<TVTermEditWindow *> openWindows;
 enum : ushort
 {
     cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
-    cmEditOpen, cmEditReload, cmEditWhitespace, cmEditPin,
+    cmEditOpen, cmEditReload, cmEditWhitespace, cmEditPin, cmEditLineNumbers,
 };
 
 // The directory of 'path' (as the editor expanded it), "" without one.
@@ -1098,7 +1098,7 @@ static bool isEditingCommand(ushort cmd)
 }
 
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment,
-                 ekIndent, ekUnindent, ekWhitespace, ekPin };
+                 ekIndent, ekUnindent, ekWhitespace, ekPin, ekLineNumbers };
 
 // Ctrl-Space in the three forms it arrives in: Ctrl + the Space character;
 // Ctrl-@ (a terminal without far2l's extensions sends NUL, read by tvision
@@ -1152,6 +1152,10 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
     TKey pinKey = TVTermApp::settings().keyEditorPin;
     if (pinKey.code != 0 && k == pinKey)
         return ekPin;
+    // key-editor-line-numbers (E108; Alt-L).
+    TKey lineNumbers = TVTermApp::settings().keyEditorLineNumbers;
+    if (lineNumbers.code != 0 && k == lineNumbers)
+        return ekLineNumbers;
     // key-editor-whitespace (E83; Ctrl-Space).
     TKey whitespace = TVTermApp::settings().keyEditorWhitespace;
     if (whitespace.code != 0 && (k == whitespace || (whitespace == TKey(' ', kbCtrlShift) && isCtrlSpace(ev))))
@@ -1174,8 +1178,20 @@ public:
     bool showWs {false};
     // E103: true = [editor] whitespace-color-2.
     bool secondColor {false};
+    // E108: the line numbers' column of the window (null: hidden), drawn
+    // again with the text (scrolling moves the numbers too).
+    TView *gutter {nullptr};
 
     void draw() override
+    {
+        drawText();
+        if (gutter)
+            gutter->drawView();
+    }
+
+private:
+
+    void drawText()
     {
         if (!showWs)
         {
@@ -1199,8 +1215,6 @@ public:
             linePtr = nextLine(linePtr);
         }
     }
-
-private:
 
     enum { symSpace, symTab, symLf, symCrLf, symCr };
 
@@ -1247,6 +1261,87 @@ private:
     }
 };
 
+// The line numbers' column (E108): left of the editor, as high as it. Row
+// y shows the number of the editor's line delta.y + y (the window decides
+// the number, TVTermEditWindow::numberOfLine), right-aligned in the
+// column's width less one (the space before the text); nothing below the
+// last line. Not selectable: a click moves the editor's cursor to the start
+// of the line and leaves the focus in the editor.
+class LineNumbers : public TView
+{
+public:
+
+    LineNumbers(const TRect &r, TVTermEditWindow &w) noexcept :
+        TView(r),
+        window(w)
+    {
+        growMode = gfGrowHiY;
+    }
+
+    void draw() override
+    {
+        TEditor *e = window.editor;
+        if (!e)
+            return;
+        const Settings &st = TVTermApp::settings();
+        TColorAttr normal = TColorAttr(e->getColor(0x0201));
+        auto colorOf = [&] (int attr, bool fore) {
+            TColorAttr c = TColorAttr(attr);
+            if (fore)
+            {
+                c = normal;
+                c.setForeground(TColorBIOS(attr & 0x0F));
+            }
+            return c;
+        };
+        TColorAttr numColor = colorOf(st.lineNumbersColor, st.lineNumbersColorFore);
+        TColorAttr curColor = colorOf(st.lineNumbersCurrentColor, st.lineNumbersCurrentColorFore);
+        int digits = size.x - 1;
+        for (int y = 0; y < size.y; ++y)
+        {
+            TDrawBuffer b;
+            b.moveChar(0, ' ', normal, size.x);
+            int line = e->delta.y + y;
+            long n = line < e->limit.y ? window.numberOfLine(line) : 0;
+            if (n > 0)
+            {
+                std::string text = std::to_string(n);
+                int x = std::max(0, digits - (int) text.size());
+                b.moveStr(x, text, line == e->curPos.y ? curColor : numColor);
+            }
+            writeLine(0, y, size.x, 1, b);
+        }
+    }
+
+    void handleEvent(TEvent &ev) override
+    {
+        TView::handleEvent(ev);
+        TEditor *e = window.editor;
+        if (!e)
+            return;
+        // The wheel is not a positional event: the window's scroll bars get
+        // it wherever the mouse is.
+        if (ev.what != evMouseDown)
+            return;
+        TPoint m = makeLocal(ev.mouse.where);
+        int line = e->delta.y + m.y;
+        clearEvent(ev);
+        if (line >= 0 && line < e->limit.y)
+        {
+            e->lock();
+            e->setCurPtr(nextLines(*e, 0, (uint) line), 0);
+            e->trackCursor(False);
+            e->unlock();
+        }
+        e->select();
+        drawView();
+    }
+
+private:
+
+    TVTermEditWindow &window;
+};
+
 } // namespace editwnd
 
 TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept :
@@ -1275,6 +1370,9 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
         undoList.reset(*editor);
     applyUndoLimits();
     updateWidthLimit();
+    // [editor] line-numbers (E108).
+    if (TVTermApp::settings().lineNumbers)
+        setLineNumbers(true);
     editwnd::openWindows.push_back(this);
 }
 
@@ -1353,6 +1451,95 @@ void TVTermEditWindow::setWhitespaceLevel(int level)
         frame->drawView();
 }
 
+int TVTermEditWindow::lineNumbersWidth() const
+{
+    long lines = editor ? std::max<long>(editor->limit.y, 1) : 1;
+    int digits = 0;
+    for (; lines > 0; lines /= 10)
+        ++digits;
+    return std::max(digits, TVTermApp::settings().lineNumbersWidth) + 1;
+}
+
+long TVTermEditWindow::numberOfLine(int line) const
+{
+    return line >= 0 ? (long) line + 1 : 0;
+}
+
+void TVTermEditWindow::setLineNumbers(bool on)
+{
+    auto *e = dynamic_cast<editwnd::WsEditor *>(editor);
+    if (!e || showsLineNumbers() == on)
+        return;
+    TRect r = e->getBounds();
+    if (on)
+    {
+        int width = lineNumbersWidth();
+        // The text keeps at least one column.
+        if (r.b.x - r.a.x - width < 1)
+            return;
+        gutter = new editwnd::LineNumbers(TRect(r.a.x, r.a.y, r.a.x + width, r.b.y), *this);
+        r.a.x += width;
+        e->locate(r);
+        insert(gutter);
+        e->gutter = gutter;
+    }
+    else
+    {
+        r.a.x = gutter->origin.x;
+        e->gutter = nullptr;
+        TView *g = gutter;
+        gutter = nullptr;
+        destroy(g);
+        e->locate(r);
+    }
+    e->drawView();
+}
+
+void TVTermEditWindow::updateLineNumbers()
+{
+    if (!gutter || !editor)
+        return;
+    int width = lineNumbersWidth();
+    if (width != gutter->size.x)
+    {
+        TRect g = gutter->getBounds();
+        TRect r = editor->getBounds();
+        int right = r.b.x;
+        g.b.x = std::min(g.a.x + width, right - 1);
+        r.a.x = g.b.x;
+        if (g.b.x > gutter->origin.x + gutter->size.x)
+        {
+            editor->locate(r);
+            gutter->locate(g);
+        }
+        else
+        {
+            gutter->locate(g);
+            editor->locate(r);
+        }
+    }
+    gutter->drawView();
+}
+
+void TVTermEditWindow::toggleLineNumbers()
+{
+    bool on = !showsLineNumbers();
+    setLineNumbers(on);
+    if (showsLineNumbers() != on)
+        editwnd::showStatus("The window is too narrow for line numbers.");
+    else
+        editwnd::showStatus(on ? "Line numbers shown." : "Line numbers hidden.");
+}
+
+std::string TVTermEditWindow::lineNumbersItemText() const
+{
+    std::string text = showsLineNumbers() ? "on" : "off";
+    TKey key = TVTermApp::settings().keyEditorLineNumbers;
+    if (key.code != 0)
+        text += ", " + keyName(key);
+    return text;
+}
+
 void TVTermEditWindow::setPinned(bool on)
 {
     if (pinned == on)
@@ -1425,7 +1612,8 @@ void TVTermEditWindow::openMenu()
         *new TMenuItem("R~e~place...", cmEditReplace, kbNoKey, hcNoContext, "Ctrl-F7") +
         *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8") +
         newLine() +
-        *new TMenuItem("~W~hitespace", cmEditWhitespace, kbNoKey, hcNoContext, whitespaceItemText());
+        *new TMenuItem("~W~hitespace", cmEditWhitespace, kbNoKey, hcNoContext, whitespaceItemText()) +
+        *new TMenuItem("Line ~n~umbers", cmEditLineNumbers, kbNoKey, hcNoContext, lineNumbersItemText());
     // Reload: nothing for Untitled (shown disabled; commands above 255
     // cannot be disabled through the command set, so the item is marked).
     bool untitled = !editor || !*editor->fileName;
@@ -1454,6 +1642,9 @@ void TVTermEditWindow::openMenu()
             break;
         case cmEditWhitespace:
             toggleWhitespace();
+            break;
+        case cmEditLineNumbers:
+            toggleLineNumbers();
             break;
     }
 }
@@ -1603,6 +1794,8 @@ void TVTermEditWindow::updateWidthLimit()
 {
     if (!editor)
         return;
+    // E108: the line numbers' column follows the number of lines.
+    updateLineNumbers();
     TEditor &e = *editor;
     // One column more than the widest line: the cursor after its end.
     int limit = std::max<int>(maxLineLength, editwnd::widestLine(e) + 1);
@@ -1693,6 +1886,9 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
             break;
         case editwnd::ekPin:
             pin::toggle(this);
+            break;
+        case editwnd::ekLineNumbers:
+            toggleLineNumbers();
             break;
         default:
             break;
@@ -1823,6 +2019,10 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     // drawLines: the editor is drawn again with the symbols (E83).
     if (!destroyed && track && whitespace && editor)
         editor->drawView();
+    // E108: the current line's number follows the cursor (tvision draws
+    // only the line when the cursor moves to another one).
+    if (!destroyed && gutter)
+        gutter->drawView();
 }
 
 static ushort editorDialog(int dialog, ...)
