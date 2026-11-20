@@ -346,7 +346,8 @@ Event Viewer (`not closed: …`, shown once: not kept, so N does not show it aga
 
 - a Log View: **F6** (`key-logview-pin` in `[keys]`, [Settings](#6-settings-file-tvtermini)) or **F9 > Pin** / **Unpin**
   (right under Save...);
-- an editor (the Settings editor too): **F9 > Pin** / **Unpin** (`p`, right under Read only);
+- an editor (the Settings editor too): **F6** (E107, `key-editor-pin` in `[keys]`; also in read only) or **F9 > Pin** /
+  **Unpin** (`p`, right under Read only; the item shows the key);
 - all at once: **Ctrl-B Z I** (Windows ► Pin all) / **Ctrl-B Z U** (Unpin all): every terminal, Log View and editor, on
   every desktop; the status line says how many changed (`5 window(s) pinned.`).
 - the focused Log View, terminal or editor: **Ctrl-B Z P** (Windows ► Pin / Unpin; gray for the other windows). In a
@@ -940,7 +941,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -1019,6 +1020,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `key-editor-whitespace` | `Ctrl-Space` | shows / hides the spaces, tabs and line ends of an editor ([Whitespace](#whitespace)); `none`: no key |
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `key-logview-pin` | `F6` | in a Log View: Pin / Unpin ([Pin](#pin)); `none`: no key (F9 > Pin still works) |
+| | `key-editor-pin` | `F6` | in an editor: Pin / Unpin (E107, [Pin](#pin)); `none`: no key (F9 > Pin still works) |
 | | `key-eventviewer-mute` | `Ctrl-M` | in the Event Viewer: Mute alerts above level... (E106, [Mute](#mute)); Ctrl-M differs from Enter only through far2l's extensions; `none`: no key (F9 still works) |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |

@@ -1098,7 +1098,7 @@ static bool isEditingCommand(ushort cmd)
 }
 
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment,
-                 ekIndent, ekUnindent, ekWhitespace };
+                 ekIndent, ekUnindent, ekWhitespace, ekPin };
 
 // Ctrl-Space in the three forms it arrives in: Ctrl + the Space character;
 // Ctrl-@ (a terminal without far2l's extensions sends NUL, read by tvision
@@ -1148,6 +1148,10 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
     TKey unindent = TVTermApp::settings().keyEditorUnindent;
     if (unindent.code != 0 && k == unindent)
         return ekUnindent;
+    // key-editor-pin (E107; F6).
+    TKey pinKey = TVTermApp::settings().keyEditorPin;
+    if (pinKey.code != 0 && k == pinKey)
+        return ekPin;
     // key-editor-whitespace (E83; Ctrl-Space).
     TKey whitespace = TVTermApp::settings().keyEditorWhitespace;
     if (whitespace.code != 0 && (k == whitespace || (whitespace == TKey(' ', kbCtrlShift) && isCtrlSpace(ev))))
@@ -1403,10 +1407,14 @@ bool TVTermEditWindow::isEditingEvent(const TEvent &ev)
 void TVTermEditWindow::openMenu()
 {
     using namespace editwnd;
+    // key-editor-pin (E107), shown next to Pin / Unpin.
+    TKey pinKey = TVTermApp::settings().keyEditorPin;
+    std::string pinKeyText = pinKey.code != 0 ? keyName(pinKey) : std::string();
     TMenuItem &items =
         *new TMenuItem("~R~ead only", cmEditReadOnly, kbNoKey, hcNoContext, readOnly ? "on" : "off") +
         // Pin (E86): under Read only.
-        *new TMenuItem(pinned ? "Un~p~in" : "~P~in (not closed by Ctrl-W)", cmEditPin, kbNoKey) +
+        *new TMenuItem(pinned ? "Un~p~in" : "~P~in (not closed by Ctrl-W)", cmEditPin, kbNoKey, hcNoContext,
+                       pinKeyText.empty() ? nullptr : pinKeyText.c_str()) +
         newLine() +
         *new TMenuItem("~S~ave", cmEditSave, kbNoKey, hcNoContext, "F2") +
         *new TMenuItem("Save ~a~s...", cmEditSaveAs, kbNoKey, hcNoContext, "F12") +
@@ -1682,6 +1690,9 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
             break;
         case editwnd::ekWhitespace:
             toggleWhitespace();
+            break;
+        case editwnd::ekPin:
+            pin::toggle(this);
             break;
         default:
             break;

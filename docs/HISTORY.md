@@ -234,6 +234,8 @@ E105. Save Profile (item 49): MainMenu item under Save Profile As... (no letter)
       question; no profile → Save As. Both without the final `Saved N window(s)` dialog: status line + Event Viewer note
 E106. Event Viewer Mute key (item 50): `[keys] key-eventviewer-mute = Ctrl-M` (through far2l's extensions; Enter is
       another key) and F9 > Mute alerts above level...
+E107. Editor Pin key (item 58): `[keys] key-editor-pin = F6` (`none` = no key), shown in the editor's F9 Pin item and in
+      F1
 
 ---
 
@@ -1499,6 +1501,10 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   E90 (item 57, chat 77) Scroll Log Views to last: `LogViewWindow::keptReason` (`selection` / `search` / null) is
   read before `moveToEnd`; the windows kept are listed in one `noteOnce` (`Scroll to last: kept 2: "Log: L1"
   (selection), "Log: L2" (search, D2)`; the Desk only when it is not the one shown). The status line is unchanged.
+- **E107** (item 58, from the real test of E85–E91 in chat 77): `[keys] key-editor-pin` (`Settings::keyEditorPin`,
+  default F6, which did nothing in editors; `tvterm.ini` format 10): `editwnd::editorKey` returns `ekPin` (not an
+  editing key, so it works in read only), `editorKeys` calls `pin::toggle(this)` as F9 > Pin. The F9 item shows the key
+  (`Pin (not closed by Ctrl-W)  F6` / `Unpin  F6`; nothing with `none`). F1: the line in the Editor section.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2620,6 +2626,9 @@ examples/profiles/example.ini
   `0x320d` = `Ctrl-M`, `kbEnter` ≠ `Ctrl-M`; tmux: Event Viewer F9 → `Mute alerts above level...  Ctrl-M`, `m` → the
   Mute dialog; Enter (tmux `C-m` = CR) → no dialog; `key-eventviewer-mute = Ctrl-K` → Ctrl-K opens it; `none` → the F9
   item without a key; F1 → the line with `key-eventviewer-mute`.
+- E107 (`t107.py`), tmux 140x35, `/tmp/ws.txt` in an editor: F6 → `[P]`; Ctrl-W → still open; F9 → `Unpin  F6`; F6 →
+  unpinned; F9 > Read only, F6 → `[RO] [P]`; `key-editor-pin = none` → F6 does nothing, F9 `Pin (not closed by Ctrl-W)`
+  without a key; `key-editor-pin = Ctrl-F6` → Ctrl-F6 pins; F1 → `Ctrl-F6 … key-editor-pin`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2755,6 +2764,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Editor Pin key (`far2l-extended`) | E107 | editor F6 (`[keys] key-editor-pin`, `none` = no key): Pin / Unpin as F9 > Pin, also in read only; the key in the F9 item and F1; `tvterm.ini` format 10 |
 | Event Viewer Mute key (`far2l-extended`) | E106 | Event Viewer Ctrl-M (`[keys] key-eventviewer-mute`, through far2l's extensions; Enter never mutes) and F9 > Mute alerts above level...: the Mute dialog of More...; `tvterm.ini` format 10 |
 | Save Profile (`far2l-extended`) | E105 | MainMenu Save Profile (no letter): the current profile's file (last loaded or saved as) after a question, else Save As; Save Profile (As) end with the status line + an Event Viewer note instead of the `Saved N window(s)` dialog |
 | Rename Desk (`far2l-extended`) | E104 | Desk list F2: Rename Desk (at most 12 columns, was 8; empty = no name), the top bar at once, the list again; Save Profile writes `desktop-name-N` |
