@@ -83,6 +83,9 @@ static std::vector<Entry> entries(help::Section s)
                 {"Alt-1", "P: only the pinned windows, again: all (P* in the header)"},
                 {"Alt-2", "Alert: only the windows with an alert, again: all (Alert*)"},
                 {"Alt-3 / Alt-4", "sort by Name / Command: ascending (\u25B2), descending (\u25BC), off"},
+                // Rename Desk (E104, item 48).
+                {"", "In the Desk list (" + menu + " D, DeskList):"},
+                {"F2", "rename the Desk of the row (at most 12 columns; empty: no name)"},
             };
         case help::Terminal:
             return {

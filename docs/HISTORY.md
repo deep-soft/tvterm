@@ -228,6 +228,8 @@ E102. Help window bounds (item 71, replaces item 43): F1 / More... > Keys open H
       bounds (before zoom when maximized); without one, where Ctrl-B V would open it
 E103. Whitespace second color (item 44): `[editor] whitespace-color-2`; the key cycles off → color 1 → color 2 → off,
       `[WS2]`, profile `whitespace = 2`; `tvterm.ini` format 10
+E104. Rename Desk (item 48): F2 in the Desk list (Ctrl-B D, DeskList), at most 12 columns (was 8), empty = no name; the
+      top bar at once; Save Profile writes `desktop-name-N`
 
 ---
 
@@ -972,6 +974,13 @@ E35 (the lists; agreed in chat 41):
   `Desktop 2: mail` in Desktop... and Ctrl-B Y; "Window moved to desktop 2 (mail)." Top bar: when the buttons with the
   names would leave less room than `Ctrl-B Menu` + `WinList` need, every button is short (` D2 `); the bar redraws when a
   name changes (`namesVersion` in its state). Renaming from inside tvterm: later.
+- **E104** (item 48, agreed in chat 75): Rename Desk. `desktops::nameMax` 8 → 12. `chooseDesktop` loops over
+  `chooseDesktopOnce`: the popup (`DesktopMenuPopup`, `rename` = not Ctrl-B Y) turns F2 on a desktop row into Enter and
+  keeps the row's desktop (`renameDesk`); `renameDesktop(n)` asks with `inputBox` (`Rename Desk N`, the current name),
+  `desktops::setName` (spaces at the ends removed, cut to 12 columns: status `… renamed, cut to 12 columns: …`), and
+  the menu opens again. The top bar redraws through `namesVersion`. Header `S C Win Title (F2: rename)`. Save Profile
+  already writes every named desktop (`desktop-name-N`), also those without windows. F1 Help: two lines under Global
+  keys.
 - **Desktop list with columns** (E39, agreed in chat 43): Desktop... and Ctrl-B Y show a header `S C Win Title` (Ctrl-B Y:
   `S C Win Title (move window to)`) and one row per desktop, e.g. `2 +   2 :mail`: S the digit (highlighted like a
   hot key; still the key that chooses), C `+` for the current desktop, Win the windows in 3 columns (right-aligned, the
@@ -2579,6 +2588,10 @@ examples/profiles/example.ini
   `on, color 2`; Save Profile As → `whitespace = 2`; a profile with `whitespace = 2` → `[WS2]`; the same profile without
   the color → `[WS]` and the note; `whitespace-color-2 = pinky` → `invalid whitespace-color-2 'pinky'`; F1, `/WS2` → the
   editor line.
+- E104 (`t104.py`), tmux 140x35, `-p none`: Ctrl-B D → header `(F2: rename)`; Down Down F2 → `Rename Desk 2`;
+  `mail-servers1` → the menu again with `:mail-servers`, status `cut to 12 columns`; Save Profile As →
+  `desktop-name-2 = mail-servers`; F2, empty → `Desk 2: no name.`; Desk 1 renamed `web` → `1:web` in the top bar at
+  once; Ctrl-B Y → no hint, F2 does nothing; a profile with `desktop-name-3 = abcdefghijkl` → `3:abcdefghijkl`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2714,6 +2727,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Rename Desk (`far2l-extended`) | E104 | Desk list F2: Rename Desk (at most 12 columns, was 8; empty = no name), the top bar at once, the list again; Save Profile writes `desktop-name-N` |
 | Whitespace second color (`far2l-extended`) | E103 | `[editor] whitespace-color-2`: the whitespace key cycles off → `whitespace-color` → `whitespace-color-2` → off, `[WS2]` in the title, F9 `on, color 2`; profile `whitespace = 2`; `tvterm.ini` format 10 |
 | Help window bounds (`far2l-extended`) | E102 | F1 / More... > Keys: Help opens over the Event Viewer with its bounds (before zoom when maximized); without one, where Ctrl-B V would open it (was: the whole desktop) |
 | Window List header (`far2l-extended`) | E101 | Window List: a click on the column names or Alt-1…Alt-4: P / Alert = only the pinned / alerted windows (on / off, with the text filter), Name / Command = sort ascending, descending, off; header `P*`, `Alert*`, `Name▲`, `Command▼`; kept while tvterm runs; P two columns wide; Close reopens on the next row shown |

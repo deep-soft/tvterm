@@ -397,10 +397,15 @@ lists its windows (` D2: 2 windows, 1 with an alert: logs, [!] mail `).
   current desktop only.
 - **Ctrl-B G** goes to the window with the most urgent alert (the oldest of that level), showing its desktop. The Window List and the Go to button of
   the Quit list do the same; the alert counter counts every desktop.
-- **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 8 columns (a longer name is cut, with a
-  note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
+- **Names**: `desktop-name-2 = mail` in a profile ([Profiles](#format)), at most 12 columns (8 until E104; a longer
+  name is cut, with a note in the Event Viewer). The name is shown as `2:mail` in the top bar, the Window List and the Quit list, and as
   `:mail` in Desktop... and Ctrl-B Y. When the buttons with the names do not leave room for `Ctrl-B Menu` and
-  `WinList`, all the buttons are shown short (` D2 `); `DeskList` is left out before that. Names cannot be changed from inside tvterm yet.
+  `WinList`, all the buttons are shown short (` D2 `); `DeskList` is left out before that.
+- **Rename Desk** (E104): in the Desk list (Desktop... / Ctrl-B D, or a click on `DeskList`; its header shows
+  `F2: rename`) **F2** on a row opens `Rename Desk N`: at most 12 columns (a longer name is cut, with a message in the
+  status line), empty = no name. The top bar shows the new name at once and the Desk list opens again. Save Profile
+  (As) writes it as `desktop-name-N`, so editing the profile and loading it again (which restarts the terminals and
+  empties the Log Views) is no longer needed. Not in Ctrl-B Y (Move Window to Desktop).
 - Profiles keep the desktop of each window and the names ([Profiles](#format)).
 
 ### Grab Input
@@ -1084,7 +1089,7 @@ in Editor...) opens a profile file of the same directory in a tvterm editor, to 
 | `focus` | last window | window focused at start, 1 = the first window section |
 | `desktop` | `1` | desktop shown after loading (1–9) |
 | `desktop-main` | (none) | written by hand: the desktop always shown after loading (1–9, or a desktop name: the first desktop with that name, A–Z without case, after the profile's `desktop-name-N`; an unknown name: a note in the Event Viewer, as without it), instead of `desktop` (which Save Profile As sets to the desktop shown at that moment); the focus goes to the `focus` window if it is on that desktop, otherwise to that desktop's front window; `0` or missing: `desktop` and `focus` as saved. Never set by tvterm; kept by Save Profile As (like `window-list-size`, a profile without it keeps the value of the profile loaded before) |
-| `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 8 columns, e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
+| `desktop-name-1` … `desktop-name-9` | (none) | name of that desktop, at most 12 columns (also set with F2 in the Desk list, E104), e.g. `desktop-name-2 = mail` ([Desktops](#desktops)); a profile sets only the names it has, an empty value removes the name |
 | `window-list-size` | `90x20` | size of the Window List, columns x rows (at least `50x10`) |
 | `window-list-columns` | `auto auto auto *` | widths of the Window List columns Alert, Desk and Name: a number of columns (0–200; `0` hides the column) or `auto`; Command always gets the rest (the final `*` may be left out), e.g. `window-list-columns = auto auto 30 *`; kept until tvterm exits and saved by Save Profile As |
 

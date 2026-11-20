@@ -106,8 +106,11 @@ struct TVTermApp : public TApplication
     void logViewsToEnd();
     void desktopMenu();
     void moveWindowMenu();
-    // A menu of the desktops 1-9; returns the chosen one, or 0.
+    // A menu of the desktops 1-9; returns the chosen one, or 0. F2 on a
+    // row (E104, not 'moving'): Rename Desk, then the menu again.
     int chooseDesktop(bool moving);
+    int chooseDesktopOnce(bool moving, int &rename);
+    void renameDesktop(int n);
 
     // Current settings (tvterm.ini).
     static const Settings &settings();

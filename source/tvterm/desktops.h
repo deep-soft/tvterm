@@ -65,8 +65,9 @@ void setPrevious(int n);
 // Shows the previous desktop. Returns false if there is none.
 bool switchToPrevious(TDeskTop &desk);
 
-// Desktop names (desktop-name-N in profiles), at most nameMax columns.
-enum { nameMax = 8 };
+// Desktop names (desktop-name-N in profiles; Desk list F2, E104), at most
+// nameMax columns (8 until E104).
+enum { nameMax = 12 };
 // The name of desktop 'n' (empty: none).
 const std::string &name(int n);
 // Sets the name of desktop 'n' (spaces at the ends removed, control

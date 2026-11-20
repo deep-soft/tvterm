@@ -2451,10 +2451,15 @@ class DesktopMenuPopup : public CenteredMenuPopup
 {
 public:
 
-    DesktopMenuPopup(TMenu *aMenu) noexcept :
-        CenteredMenuPopup(aMenu)
+    DesktopMenuPopup(TMenu *aMenu, bool aRename) noexcept :
+        CenteredMenuPopup(aMenu),
+        rename(aRename)
     {
     }
+
+    // F2 (E104, item 48; Desk list only): the desktop of the focused row,
+    // to rename (the menu closes as with Enter); 0: none.
+    int renameDesk {0};
 
     void getEvent(TEvent &event) override
     {
@@ -2474,6 +2479,15 @@ public:
             drawView();
         }
         CenteredMenuPopup::getEvent(event);
+        if ( rename && event.what == evKeyDown && TKey(event.keyDown) == TKey(kbF2) && current &&
+             current->command > cmDesktopPick && current->command <= cmDesktopPick + desktops::count )
+        {
+            // As Enter on the row: the menu returns its command.
+            renameDesk = current->command - cmDesktopPick;
+            event.keyDown.keyCode = kbEnter;
+            event.keyDown.controlKeyState = 0;
+            event.keyDown.textLength = 0;
+        }
         if (event.what == evKeyDown)
         {
             ushort key = ctrlToArrow(event.keyDown.keyCode);
@@ -2486,6 +2500,7 @@ public:
 
 private:
 
+    bool rename;
     bool lastWasKey {false};
     bool lastUp {false};
 };
@@ -2495,9 +2510,46 @@ private:
 int TVTermApp::chooseDesktop(bool moving)
 // A menu with the desktops 1-9; the digits choose. Columns: S (the digit),
 // C (+ the current desktop), Win (its windows), Title (:name or :D2).
+// F2 on a row (E104, not when moving a window): Rename Desk, then the menu
+// again.
 {
+    for (;;)
+    {
+        int rename = 0;
+        int n = chooseDesktopOnce(moving, rename);
+        if (!rename)
+            return n;
+        renameDesktop(rename);
+    }
+}
+
+void TVTermApp::renameDesktop(int n)
+// E104 (item 48): the name of desktop 'n', at most desktops::nameMax
+// columns; empty: no name. The top bar shows it at once; Save Profile (As)
+// writes it (desktop-name-N).
+{
+    char buf[128];
+    strnzcpy(buf, desktops::name(n), sizeof(buf));
+    std::string title = "Rename Desk " + std::to_string(n);
+    std::string label = "~N~ame (at most " + std::to_string((int) desktops::nameMax) + " columns; empty: none)";
+    if (inputBox(title.c_str(), label.c_str(), buf, sizeof(buf) - 1) == cmCancel)
+        return;
+    bool whole = desktops::setName(n, buf);
+    const std::string &name = desktops::name(n);
+    if (name.empty())
+        appsettings::showStatus("Desk " + std::to_string(n) + ": no name.");
+    else if (!whole)
+        appsettings::showStatus( "Desk " + std::to_string(n) + " renamed, cut to " +
+                                 std::to_string((int) desktops::nameMax) + " columns: " + name + "." );
+    else
+        appsettings::showStatus("Desk " + std::to_string(n) + " renamed: " + name + ".");
+}
+
+int TVTermApp::chooseDesktopOnce(bool moving, int &rename)
+{
+    rename = 0;
     auto counts = desktops::windowCounts(*deskTop);
-    TMenuItem *first = new TMenuItem(moving ? "S C Win Title (move window to)" : "S C Win Title",
+    TMenuItem *first = new TMenuItem(moving ? "S C Win Title (move window to)" : "S C Win Title (F2: rename)",
                                      cmDesktopPick, kbNoKey);
     first->disabled = True;
     TMenuItem *last = first;
@@ -2519,9 +2571,10 @@ int TVTermApp::chooseDesktop(bool moving)
     for (int n = 1; n < desktops::current() && item->next; ++n)
         item = item->next;
     menu->deflt = item;
-    TMenuPopup *popup = new desktopmenu::DesktopMenuPopup(menu);
+    auto *popup = new desktopmenu::DesktopMenuPopup(menu, !moving);
     popup->helpCtx = hcMenu;
     ushort cmd = execView(popup);
+    rename = cmd > cmDesktopPick && cmd <= cmDesktopPick + desktops::count ? popup->renameDesk : 0;
     TObject::destroy(popup);
     if (cmd > cmDesktopPick && cmd <= cmDesktopPick + desktops::count)
         return cmd - cmDesktopPick;
