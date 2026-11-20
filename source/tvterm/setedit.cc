@@ -178,12 +178,8 @@ void SettingsEditWindow::detach()
 
 std::string SettingsEditWindow::text() const
 {
-    // The editor's buffer has a gap at the cursor.
-    std::string s;
-    s.reserve(editor->bufLen);
-    s.append(editor->buffer, editor->curPtr);
-    s.append(editor->buffer + editor->curPtr + editor->gapLen, editor->bufLen - editor->curPtr);
-    return s;
+    // E109: the whole text also while comments are hidden.
+    return fullText();
 }
 
 bool SettingsEditWindow::hasChanges()
@@ -204,7 +200,7 @@ void SettingsEditWindow::handleEvent(TEvent &ev)
 {
     // Read only: F2 is Save As (TVTermEditWindow::handleEvent).
     if ( ev.what == evCommand && ev.message.command == cmSave &&
-         editsSettings() && (state & sfFocused) && !isReadOnly() )
+         editsSettings() && (state & sfFocused) && !isReadOnly() && !hidesComments() )
     {
         saveChecked();
         clearEvent(ev);
@@ -218,6 +214,9 @@ void SettingsEditWindow::handleEvent(TEvent &ev)
 
 Boolean SettingsEditWindow::valid(ushort command)
 {
+    // E109: "Save?" saves the whole text.
+    if (hidesComments() && command != cmValid && editor->modified)
+        setCommentsHidden(false);
     if (command != cmValid && editsSettings() && hasChanges())
     {
         // Like the editor's question, but saving checks the file on disk.
@@ -297,6 +296,9 @@ bool SettingsEditWindow::reloadFile()
 
 void SettingsEditWindow::reloadFromDisk()
 {
+    // E109: the file replaces the whole text; the view is made again after.
+    bool hide = hidesComments();
+    setCommentsHidden(false);
     uint oldPtr = editor->curPtr;
     if (editor->loadFile())
     {
@@ -312,6 +314,8 @@ void SettingsEditWindow::reloadFromDisk()
     diskStamp = FileStamp::of(path);
     seenStamp = diskStamp;
     removeOwnMarker();
+    if (hide)
+        setCommentsHidden(true);
 }
 
 void SettingsEditWindow::removeOwnMarker()

@@ -1,5 +1,6 @@
 #define Uses_TEditWindow
 #define Uses_TFileEditor
+#define Uses_TIndicator
 #define Uses_TFileDialog
 #define Uses_TProgram
 #define Uses_TDeskTop
@@ -29,6 +30,7 @@
 #include "app.h"
 #include "settings.h"
 #include "pin.h"
+#include "nocomments.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -477,6 +479,80 @@ static uint nextLines(TEditor &e, uint line, uint count)
     return line;
 }
 
+// The whole text of the editor (its buffer has a gap at the cursor).
+static std::string bufferText(const TEditor &e)
+{
+    std::string s;
+    s.reserve(e.bufLen);
+    s.append(e.buffer, e.curPtr);
+    s.append(e.buffer + e.curPtr + e.gapLen, e.bufLen - e.curPtr);
+    return s;
+}
+
+// Puts 'text' in the editor in place of its text (E109), as loadFile does:
+// the text at the end of the buffer, then setBufLen (cursor at the start,
+// 'modified' off, the line end type detected again). The buffer only grows
+// (never for the view, which is shorter than the whole text).
+static bool replaceText(TEditor &e, const std::string &text)
+{
+    if (text.size() > e.bufSize && !e.setBufSize((uint) text.size()))
+        return false;
+    if (!text.empty())
+        memcpy(&e.buffer[e.bufSize - text.size()], text.data(), text.size());
+    e.setBufLen((uint) text.size());
+    return true;
+}
+
+// The cursor on line 'line' (or the last one), column 'col', at row 'row' of
+// the window when it can be, scrolled right as before ('deltaX').
+static void placeCursor(TEditor &e, uint line, int col, int row, int deltaX)
+{
+    uint p = e.charPtr(nextLines(e, 0, line), col);
+    e.lock();
+    e.setCurPtr(p, 0);
+    int dy = std::max(0, e.curPos.y - std::max(0, row));
+    int dx = std::max(e.curPos.x - e.size.x + 1, std::min(deltaX, e.curPos.x));
+    e.scrollTo(std::max(0, dx), dy);
+    e.unlock();
+}
+
+// In the view without comments (E109): the line of the whole text of view
+// line 'i' ('map' from nocomments::build); an added blank line (-1) gives the
+// next line with one, else the previous one, else 0.
+static long mappedLine(const std::vector<long> &map, size_t i)
+{
+    if (map.empty())
+        return 0;
+    i = std::min(i, map.size() - 1);
+    for (size_t j = i; j < map.size(); ++j)
+        if (map[j] >= 0)
+            return map[j];
+    for (size_t j = i + 1; j-- > 0;)
+        if (map[j] >= 0)
+            return map[j];
+    return 0;
+}
+
+// The view line that shows line 'line' of the whole text, or the next shown
+// line after it (the last shown line when there is none). 'exact': the line
+// itself is shown.
+static uint viewLineOf(const std::vector<long> &map, long line, bool &exact)
+{
+    exact = false;
+    long last = -1;
+    for (size_t i = 0; i < map.size(); ++i)
+        if (map[i] >= 0)
+        {
+            if (map[i] >= line)
+            {
+                exact = map[i] == line;
+                return (uint) i;
+            }
+            last = (long) i;
+        }
+    return last >= 0 ? (uint) last : 0;
+}
+
 // The comment line of key-editor-comment (E66): comment-template through
 // strftime (local time), filled with '-' up to comment-width columns (a
 // UTF-8 character counts as one column).
@@ -751,16 +827,20 @@ static bool parseLineColumn(const char *s, long &line, long &col)
 
 // Alt-F8: Go to line ("120" or "120:15"); past the end: the last line /
 // the end of the line. The line is shown in the middle of the window.
-static void goToLine(TEditor &e)
+// E109: with 'map' (the view without comments), the numbers are those of
+// the whole text ('mapLines' lines); a hidden line goes to the next shown.
+static void goToLine(TEditor &e, const std::vector<long> *map = nullptr, long mapLines = 0)
 {
     uint curLine = lineIndexOf(e, e.curPtr);
     uint lastLine = curLine;
     for (uint end = e.lineEnd(e.curPtr); end < e.bufLen; end = e.lineEnd(e.nextChar(end)))
         ++lastLine;
+    long shownCur = map ? mappedLine(*map, curLine) : (long) curLine;
+    long shownLast = map ? std::max(mapLines, 1L) - 1 : (long) lastLine;
     char text[32] = {};
-    std::string info = "Now " + std::to_string(curLine + 1) + ":" +
+    std::string info = "Now " + std::to_string(shownCur + 1) + ":" +
                        std::to_string(e.curPos.x + 1) + ", last line " +
-                       std::to_string(lastLine + 1) + ".";
+                       std::to_string(shownLast + 1) + ".";
     while (true)
     {
         TDialog *d = newDialog(42, 9, "Go to line");
@@ -784,16 +864,22 @@ static void goToLine(TEditor &e)
         {
             historyAdd(hiEditorGoToLine, t.c_str());
             uint target = (uint) std::min<long>(line - 1, lastLine);
+            bool exact = true;
+            if (map)
+                target = viewLineOf(*map, std::min<long>(line - 1, shownLast), exact);
             uint p = nextLines(e, 0, target);
-            if (col > 0)
+            if (col > 0 && exact)
                 p = e.charPtr(p, (int) std::min<long>(col - 1, INT_MAX));
             e.lock();
             e.setCurPtr(p, 0);
             e.scrollTo( std::max(e.curPos.x - e.size.x + 1, std::min(e.delta.x, e.curPos.x)),
                         e.curPos.y - e.size.y / 2 );
             e.unlock();
-            if (line - 1 > (long) lastLine)
-                showStatus("Past the end: last line " + std::to_string(lastLine + 1) + ".");
+            if (line - 1 > shownLast)
+                showStatus("Past the end: last line " + std::to_string(shownLast + 1) + ".");
+            else if (!exact)
+                showStatus( "Line " + std::to_string(line) + " is hidden (comments hidden): line " +
+                            std::to_string(mappedLine(*map, target) + 1) + "." );
             return;
         }
         messageBox(mfError | mfOKButton,
@@ -1044,6 +1130,7 @@ enum : ushort
 {
     cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
     cmEditOpen, cmEditReload, cmEditWhitespace, cmEditPin, cmEditLineNumbers,
+    cmEditHideComments,
 };
 
 // The directory of 'path' (as the editor expanded it), "" without one.
@@ -1098,7 +1185,7 @@ static bool isEditingCommand(ushort cmd)
 }
 
 enum EditorKey { ekNone, ekColumnDown, ekColumnUp, ekGoToLine, ekDuplicate, ekSelectWord, ekComment,
-                 ekIndent, ekUnindent, ekWhitespace, ekPin, ekLineNumbers };
+                 ekIndent, ekUnindent, ekWhitespace, ekPin, ekLineNumbers, ekHideComments };
 
 // Ctrl-Space in the three forms it arrives in: Ctrl + the Space character;
 // Ctrl-@ (a terminal without far2l's extensions sends NUL, read by tvision
@@ -1152,6 +1239,10 @@ static EditorKey editorKey(const TEditor *e, const TEvent &ev, bool &extend)
     TKey pinKey = TVTermApp::settings().keyEditorPin;
     if (pinKey.code != 0 && k == pinKey)
         return ekPin;
+    // key-editor-hide-comments (E109; Alt-H).
+    TKey hideComments = TVTermApp::settings().keyEditorHideComments;
+    if (hideComments.code != 0 && k == hideComments)
+        return ekHideComments;
     // key-editor-line-numbers (E108; Alt-L).
     TKey lineNumbers = TVTermApp::settings().keyEditorLineNumbers;
     if (lineNumbers.code != 0 && k == lineNumbers)
@@ -1342,6 +1433,36 @@ private:
     TVTermEditWindow &window;
 };
 
+// The window's line:column indicator; in the view without comments (E109)
+// it shows the line of the whole text.
+class LineIndicator : public TIndicator
+{
+public:
+
+    LineIndicator(const TRect &r, TVTermEditWindow &w) noexcept :
+        TIndicator(r),
+        window(w)
+    {
+    }
+
+    void draw() override
+    {
+        if (!window.hidesComments())
+        {
+            TIndicator::draw();
+            return;
+        }
+        TPoint saved = location;
+        location.y = (int) window.originalLineOf(location.y);
+        TIndicator::draw();
+        location = saved;
+    }
+
+private:
+
+    TVTermEditWindow &window;
+};
+
 } // namespace editwnd
 
 TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) noexcept :
@@ -1358,6 +1479,14 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
         TFileEditor *old = editor;
         editor = nullptr;
         destroy(old);
+        // E109: an indicator that knows the view without comments.
+        if (ind)
+        {
+            TRect ib = ind->getBounds();
+            destroy(ind);
+            ind = new editwnd::LineIndicator(ib, *this);
+            insert(ind);
+        }
         auto *e = new editwnd::WsEditor(r, h, v, ind, fileName);
         e->showWs = TVTermApp::settings().showWhitespace;
         whitespace = e->showWs ? 1 : 0;
@@ -1409,10 +1538,11 @@ const char *TVTermEditWindow::getTitle(short maxSize)
 {
     const char *t = TEditWindow::getTitle(maxSize);
     bool ws = showsWhitespace();
-    if (!readOnly && !ws && !pinned)
+    if (!readOnly && !ws && !pinned && !hidden.on)
         return t;
     titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") +
                (whitespace == 2 ? " [WS2]" : ws ? " [WS]" : "") +
+               (hidden.on ? " [#-]" : "") +
                (pinned ? " [P]" : "");
     return titleBuf.c_str();
 }
@@ -1453,7 +1583,7 @@ void TVTermEditWindow::setWhitespaceLevel(int level)
 
 int TVTermEditWindow::lineNumbersWidth() const
 {
-    long lines = editor ? std::max<long>(editor->limit.y, 1) : 1;
+    long lines = hidden.on ? hidden.originalLines : editor ? std::max<long>(editor->limit.y, 1) : 1;
     int digits = 0;
     for (; lines > 0; lines /= 10)
         ++digits;
@@ -1462,7 +1592,117 @@ int TVTermEditWindow::lineNumbersWidth() const
 
 long TVTermEditWindow::numberOfLine(int line) const
 {
-    return line >= 0 ? (long) line + 1 : 0;
+    if (line < 0)
+        return 0;
+    if (!hidden.on)
+        return (long) line + 1;
+    return (size_t) line < hidden.lines.size() && hidden.lines[line] >= 0 ? hidden.lines[line] + 1 : 0;
+}
+
+long TVTermEditWindow::originalLineOf(int line) const
+{
+    if (!hidden.on)
+        return std::max(line, 0);
+    return editwnd::mappedLine(hidden.lines, (size_t) std::max(line, 0));
+}
+
+std::string TVTermEditWindow::fullText() const
+{
+    if (hidden.on)
+        return hidden.full;
+    return editor ? editwnd::bufferText(*editor) : std::string();
+}
+
+void TVTermEditWindow::setCommentsHidden(bool on)
+{
+    using namespace editwnd;
+    if (!editor || hidden.on == on)
+        return;
+    TFileEditor &e = *editor;
+    uint line = lineIndexOf(e, e.curPtr);
+    int col = e.curPos.x;
+    int row = e.curPos.y - e.delta.y;
+    int deltaX = e.delta.x;
+    // Kept as they are: setBufLen clears the mark and detects the line ends
+    // again (an empty view would get the default type).
+    Boolean modified = e.modified;
+    auto eol = e.lineEndingType;
+    uint target;
+    bool exact;
+    if (on)
+    {
+        std::string full = bufferText(e);
+        nocomments::View v = nocomments::build(full);
+        if (!replaceText(e, v.text))
+        {
+            showStatus("Not enough memory for the view without comments.");
+            return;
+        }
+        hidden.full = std::move(full);
+        hidden.lines = std::move(v.lines);
+        hidden.originalLines = v.originalLines;
+        hidden.on = true;
+        target = viewLineOf(hidden.lines, (long) line, exact);
+    }
+    else
+    {
+        exact = line < hidden.lines.size() && hidden.lines[line] >= 0;
+        target = (uint) mappedLine(hidden.lines, line);
+        if (!replaceText(e, hidden.full))
+        {
+            showStatus("Not enough memory to show the whole text.");
+            return;
+        }
+        hidden = HiddenView();
+    }
+    e.lineEndingType = eol;
+    e.modified = modified;
+    placeCursor(e, target, exact ? col : 0, row, exact ? deltaX : 0);
+    updateWidthLimit();
+    e.update(ufView);
+    e.doUpdate();
+    if (frame)
+        frame->drawView();
+}
+
+void TVTermEditWindow::toggleHiddenComments()
+{
+    setCommentsHidden(!hidden.on);
+    if (!hidden.on)
+    {
+        editwnd::showStatus("All lines shown.");
+        return;
+    }
+    long shown = 0;
+    for (long l : hidden.lines)
+        shown += l >= 0;
+    TKey key = TVTermApp::settings().keyEditorHideComments;
+    editwnd::showStatus( "Comments hidden: " + std::to_string(hidden.originalLines - shown) +
+                         " line(s) not shown, read only; " +
+                         (key.code != 0 ? keyName(key) : std::string("F9 > Hide comments")) + " shows all." );
+}
+
+std::string TVTermEditWindow::hiddenItemText() const
+{
+    std::string text = hidden.on ? "on" : "off";
+    TKey key = TVTermApp::settings().keyEditorHideComments;
+    if (key.code != 0)
+        text += ", " + keyName(key);
+    return text;
+}
+
+void TVTermEditWindow::refuseInHiddenView()
+{
+    TKey key = TVTermApp::settings().keyEditorHideComments;
+    editwnd::showStatus( "Comments hidden: " + (key.code != 0 ? keyName(key) : std::string("F9 > Hide comments")) +
+                         " to edit." );
+}
+
+Boolean TVTermEditWindow::valid(ushort command)
+{
+    if (hidden.on && command != cmValid && editor && editor->modified)
+        setCommentsHidden(false);
+    return TEditWindow::valid(command);
 }
 
 void TVTermEditWindow::setLineNumbers(bool on)
@@ -1613,7 +1853,8 @@ void TVTermEditWindow::openMenu()
         *new TMenuItem("~G~o to line...", cmEditGoToLine, kbNoKey, hcNoContext, "Alt-F8") +
         newLine() +
         *new TMenuItem("~W~hitespace", cmEditWhitespace, kbNoKey, hcNoContext, whitespaceItemText()) +
-        *new TMenuItem("Line ~n~umbers", cmEditLineNumbers, kbNoKey, hcNoContext, lineNumbersItemText());
+        *new TMenuItem("Line ~n~umbers", cmEditLineNumbers, kbNoKey, hcNoContext, lineNumbersItemText()) +
+        *new TMenuItem("Hide ~c~omments", cmEditHideComments, kbNoKey, hcNoContext, hiddenItemText());
     // Reload: nothing for Untitled (shown disabled; commands above 255
     // cannot be disabled through the command set, so the item is marked).
     bool untitled = !editor || !*editor->fileName;
@@ -1638,13 +1879,16 @@ void TVTermEditWindow::openMenu()
         case cmEditReplace: message(this, evCommand, cmReplace, nullptr); break;
         case cmEditGoToLine:
             if (editor)
-                goToLine(*editor);
+                goToLine(*editor, hidden.on ? &hidden.lines : nullptr, hidden.originalLines);
             break;
         case cmEditWhitespace:
             toggleWhitespace();
             break;
         case cmEditLineNumbers:
             toggleLineNumbers();
+            break;
+        case cmEditHideComments:
+            toggleHiddenComments();
             break;
     }
 }
@@ -1672,6 +1916,7 @@ bool TVTermEditWindow::saveChangesOrDrop()
 
 void TVTermEditWindow::loadIntoWindow(const std::string &path)
 {
+    setCommentsHidden(false);
     TFileEditor &e = *editor;
     strnzcpy(e.fileName, path, MAXPATH);
     fexpand(e.fileName);
@@ -1693,6 +1938,11 @@ void TVTermEditWindow::openFile()
 {
     if (!editor)
         return;
+    if (hidden.on)
+    {
+        refuseInHiddenView();
+        return;
+    }
     using namespace editwnd;
     // The dialog of Ctrl-B O, listing the folder of the window's file.
     std::string filter = fileopen::firstFileFilter();
@@ -1736,6 +1986,8 @@ bool TVTermEditWindow::reloadFile()
 {
     if (!editor)
         return false;
+    // E109: the file replaces the whole text.
+    setCommentsHidden(false);
     using namespace editwnd;
     TFileEditor &e = *editor;
     uint line = lineIndexOf(e, e.curPtr);
@@ -1768,6 +2020,11 @@ void TVTermEditWindow::reloadFromMenu()
 {
     if (!editor)
         return;
+    if (hidden.on)
+    {
+        refuseInHiddenView();
+        return;
+    }
     using namespace editwnd;
     if (!*editor->fileName)
     {
@@ -1866,7 +2123,7 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
             break;
         }
         case editwnd::ekGoToLine:
-            editwnd::goToLine(e);
+            editwnd::goToLine(e, hidden.on ? &hidden.lines : nullptr, hidden.originalLines);
             break;
         case editwnd::ekDuplicate:
             editwnd::duplicateLines(e);
@@ -1889,6 +2146,9 @@ bool TVTermEditWindow::editorKeys(TEvent &ev)
             break;
         case editwnd::ekLineNumbers:
             toggleLineNumbers();
+            break;
+        case editwnd::ekHideComments:
+            toggleHiddenComments();
             break;
         default:
             break;
@@ -1926,6 +2186,18 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
             return;
         }
     }
+    // E109: the view without comments is not the text: no saving, no
+    // editing (F2, F12, Replace, typing, undo...).
+    if (hidden.on)
+    {
+        bool save = ev.what == evCommand && (ev.message.command == cmSave || ev.message.command == cmSaveAs);
+        if (save || ((state & sfFocused) && isEditingEvent(ev)))
+        {
+            clearEvent(ev);
+            refuseInHiddenView();
+            return;
+        }
+    }
     if (readOnly && (state & sfFocused))
     {
         // F2: Save As (another file; then the editor is no longer read only).
@@ -1948,7 +2220,7 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
     // The undo steps: only for the events that can change the text, not
     // inside a modal box opened by this window (eventDepth > 0), not for
     // Close (the window is gone after it).
-    bool track = eventDepth == 0 && editor &&
+    bool track = eventDepth == 0 && editor && !hidden.on &&
                  (ev.what & (evKeyDown | evCommand | evMouseDown)) &&
                  !(ev.what == evCommand && ev.message.command == cmClose);
     EditUndo::Kind kind = EditUndo::ukOther;
@@ -2012,7 +2284,8 @@ void TVTermEditWindow::handleEvent(TEvent &ev)
         *outerFlag = true;
     --editwnd::handleDepth;
     editwnd::currentEditor = saved;
-    if (!destroyed && track && editor)
+    // E109: not after Alt-H showed the view (its text is not a change).
+    if (!destroyed && track && editor && !hidden.on)
         if (undoList.after(*editor, kind, hadSelection, replaceAllCount))
             updateWidthLimit();
     // tvision draws a line changed by typing with its own (non-virtual)

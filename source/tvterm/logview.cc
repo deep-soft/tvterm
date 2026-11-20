@@ -3066,10 +3066,12 @@ void LogViewWindow::sendToEditor(bool newEditor)
         target = editors[focused];
     }
     if (auto *rw = dynamic_cast<TVTermEditWindow *>(target))
-        if (rw->isReadOnly())
+        if (rw->isReadOnly() || rw->hidesComments())
         {
+            // E109: the view without comments is read only too.
             const char *t = target->getTitle(100);
-            showStatus(std::string(t && *t ? t : "The editor") + ": read only, nothing added.");
+            showStatus( std::string(t && *t ? t : "The editor") +
+                        (rw->isReadOnly() ? ": read only, nothing added." : ": comments hidden, nothing added.") );
             return;
         }
     if (target && target->editor)

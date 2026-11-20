@@ -154,6 +154,7 @@ static std::vector<Entry> entries(help::Section s)
                 {keyOf(st.keyEditorWhitespace), "show / hide spaces, tabs and line ends ([WS]; [WS2]: whitespace-color-2)"},
                 {keyOf(st.keyEditorPin), "pin / unpin: Ctrl-W and Close refuse it ([P]; key-editor-pin)"},
                 {keyOf(st.keyEditorLineNumbers), "show / hide the line numbers (key-editor-line-numbers)"},
+                {keyOf(st.keyEditorHideComments), "view without comments and blank lines, read only ([#-]); again: all"},
                 {"Ctrl-Ins / Shift-Del", "copy / cut (the clipboard)"},
                 {"Shift-Ins", "paste"},
                 {"Shift + arrows, Ctrl-K B / K", "select; Ctrl-K H hides the selection"},

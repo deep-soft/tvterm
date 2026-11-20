@@ -748,7 +748,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "key-logview-pin" ? &settings.keyLogViewPin :
                            key == "key-eventviewer-mute" ? &settings.keyEventViewerMute :
                            key == "key-editor-pin" ? &settings.keyEditorPin :
-                           key == "key-editor-line-numbers" ? &settings.keyEditorLineNumbers : nullptr;
+                           key == "key-editor-line-numbers" ? &settings.keyEditorLineNumbers :
+                           key == "key-editor-hide-comments" ? &settings.keyEditorHideComments : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
@@ -761,7 +762,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                                key == "key-logview-pin" ? &previous.keyLogViewPin :
                                key == "key-eventviewer-mute" ? &previous.keyEventViewerMute :
                                key == "key-editor-pin" ? &previous.keyEditorPin :
-                               key == "key-editor-line-numbers" ? &previous.keyEditorLineNumbers : nullptr;
+                               key == "key-editor-line-numbers" ? &previous.keyEditorLineNumbers :
+                               key == "key-editor-hide-comments" ? &previous.keyEditorHideComments : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -1103,6 +1105,9 @@ std::string settingsTemplate()
         "  # Key that shows / hides the line numbers of an editor window, e.g. Alt-L\n"
         "  # or none.\n"
         " #key-editor-line-numbers = " + keyName(d.keyEditorLineNumbers) + "\n"
+        "  # Key that shows an editor window's text without comments and blank lines\n"
+        "  # (read only; again: the whole text), e.g. Alt-H or none.\n"
+        " #key-editor-hide-comments = " + keyName(d.keyEditorHideComments) + "\n"
         "  # Key that, in the Event Viewer, opens Mute alerts above level... (also\n"
         "  # F9). Ctrl-M differs from Enter only through far2l's extensions\n"
         "  # (putty4far2l); in other terminals it is Enter. E.g. Ctrl-M or none.\n"

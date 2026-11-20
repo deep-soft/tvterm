@@ -38,7 +38,7 @@ const int minFileDialogHeight = 19;
 // [editor] whitespace-color-2 (E103), [keys] key-eventviewer-mute (E106),
 // key-editor-pin (E107); 11: [editor] line-numbers, line-numbers-width,
 // line-numbers-color, line-numbers-current-color, [keys]
-// key-editor-line-numbers (E108).
+// key-editor-line-numbers (E108), key-editor-hide-comments (E109).
 const int settingsFormat = 11;
 
 struct Settings
@@ -189,6 +189,8 @@ struct Settings
     TKey keyEditorPin {kbF6};
     // key-editor-line-numbers (E108): the line numbers of an editor on/off.
     TKey keyEditorLineNumbers {'L', kbAltShift};
+    // key-editor-hide-comments (E109): the view without comments on/off.
+    TKey keyEditorHideComments {'H', kbAltShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };

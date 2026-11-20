@@ -7,6 +7,7 @@
 #include "editundo.h"
 
 #include <string>
+#include <vector>
 
 // A simple text editor window, meant for notes and as an intermediate
 // buffer for the clipboard.
@@ -83,8 +84,33 @@ public:
     // reloaded.
     void updateLineNumbers();
     // The number shown for the editor's line 'line' (0-based): line + 1;
-    // 0 = no number.
+    // 0 = no number. E109: in the view without comments, the number of the
+    // line in the whole text (0 for an added blank line).
     long numberOfLine(int line) const;
+
+    // Hide comments (E109, item 63; key-editor-hide-comments Alt-H, F9 >
+    // Hide comments): the editor shows the text without comment lines ('#'
+    // or ';' after spaces) and blank lines, keeping the '##' block at the
+    // start and adding a blank line before each [section] (nocomments.h).
+    // The view is made from the whole text at each switch; the whole text
+    // is kept here meanwhile, the editor's 'modified' mark and undo steps
+    // stay as they were. The view is read only: typing, F2, F12, Ctrl-F12,
+    // Reload and lines from Log View are refused ("Comments hidden: Alt-H
+    // to edit."). The line numbers (E108), the indicator and Alt-F8 use the
+    // lines of the whole text; the cursor stays on its line both ways (the
+    // next shown line when it was on a hidden one). Not kept in profiles.
+    bool hidesComments() const noexcept { return hidden.on; }
+    void setCommentsHidden(bool on);
+    // The line of the whole text (0-based) of the editor's line 'line': the
+    // line itself outside the view; in it, an added blank line gives the
+    // next shown line of the text.
+    long originalLineOf(int line) const;
+    // The whole text (the view's text is not it).
+    std::string fullText() const;
+
+    // Closing / quitting with changes asks "Save?" and saves the editor's
+    // text: the whole text is put back first (E109).
+    Boolean valid(ushort command) override;
 
     // The file name, or "Untitled"; " [RO]" added while read only, " [WS]"
     // while the whitespace view is on (" [WS2]": second color), " [P]" while
@@ -157,6 +183,15 @@ private:
     std::string titleBuf;
     // The line numbers' column (E108), null while they are hidden.
     TView *gutter {nullptr};
+    // The view without comments (E109): the whole text and, for each line
+    // of the view, its line in the whole text (-1: an added blank line).
+    struct HiddenView
+    {
+        bool on {false};
+        std::string full;
+        std::vector<long> lines;
+        long originalLines {1};
+    } hidden;
     // The file whose backups this window made (or that it wrote first by
     // Save As): no more backups for it from this window.
     std::string backedUpFile;
@@ -173,6 +208,11 @@ private:
     void toggleLineNumbers();
     std::string lineNumbersItemText() const;
     int lineNumbersWidth() const;
+    // E109: the view on / off with the message; the F9 item's text; the
+    // message when something would change the view's text.
+    void toggleHiddenComments();
+    std::string hiddenItemText() const;
+    void refuseInHiddenView();
     // The "modified" question before Open: false = do not go on.
     bool saveChangesOrDrop();
     // Loads 'path' into the editor (openFile's last step).

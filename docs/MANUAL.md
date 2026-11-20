@@ -665,8 +665,9 @@ line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selec
 **Alt-I / Alt-U** indent / unindent the line or the selected lines by one space ([Indent and unindent](#indent-and-unindent)).
 **Ctrl-Space** shows / hides the spaces, tabs and line ends ([Whitespace](#whitespace)).
 **Alt-L** shows / hides the line numbers ([Line numbers](#line-numbers)).
+**Alt-H** shows the text without comments and blank lines, read only ([Hide comments](#hide-comments)).
 **F9** opens the editor's menu: Read only, Pin ([Pin](#pin)), Save, Save as (**F12**), Open (**Ctrl-F12**), Reload,
-Find, Replace, Go to line, Whitespace, Line numbers ([Read only](#read-only), [Open and Reload](#open-and-reload)).
+Find, Replace, Go to line, Whitespace, Line numbers, Hide comments ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
 
 ### Open and Reload
@@ -917,6 +918,29 @@ editor's background) or `<color> on <color>`, as `whitespace-color`. The key is 
 (`none`: no key, F9 still works). Save Profile As writes `line-numbers = yes` for an editor window with them on
 (`line-numbers = no` when they are off and `line-numbers = yes` is in `tvterm.ini`).
 
+### Hide comments
+
+**Alt-H** (or **F9 > Hide comments**, `c`) shows the window's text **without comments and blank lines**, e.g. to see
+which keys of `tvterm.ini` are really set; Alt-H again shows the whole text. The title gets `[#-]`, the status line
+says how many lines are not shown. The view is made from the whole text at each switch (unsaved changes included):
+
+- removed: blank lines (only spaces and tabs) and comment lines, whose first character after the spaces is `#` or `;`;
+- kept as they are: all other lines, also a line with a comment after its text (`x = 1  # note`);
+- kept: the `##` lines at the start of the file (the header, `## format 11, …`); a `##` line further down is a comment;
+- added: one blank line before each `[section]` line (not at the very start).
+
+It works for any file. The **line numbers** ([Line numbers](#line-numbers)) and the line:column at the bottom of the
+frame are those of the whole file, so `214` in the view is line 214 of the file; the added blank lines have no number.
+**Alt-F8** (Go to line) takes a line of the whole file too; a hidden line goes to the next shown one (`Line 45 is
+hidden (comments hidden): line 51.`). The cursor stays on its line both ways (from a hidden line: the next shown one).
+
+The view is **read only**: typing, Paste, Undo, Replace, F2, F12, Ctrl-F12 and Reload do nothing and say `Comments
+hidden: Alt-H to edit.`; Log View lines are not added to it. Find, the selection and Copy work on the text shown, so a
+configuration can be copied without its comments. The unsaved-changes mark (`☼`) and the undo steps stay as they were.
+Closing the window (or quitting) with unsaved changes puts the whole text back first, so **Save** writes the whole
+file, never the view. In the Settings editor a file changed on disk is reloaded and shown again without comments. The
+view is not kept in profiles. Key: `key-editor-hide-comments` in `[keys]` (`none`: no key, F9 still works).
+
 ### Opening and viewing files
 
 - **Ctrl-B O** (Open File in Editor) opens a file in a tvterm editor. This dialog and View file's start with the
@@ -969,7 +993,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`; format 11: `line-numbers`, `line-numbers-width`, `line-numbers-color`, `line-numbers-current-color`, `key-editor-line-numbers`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`; format 11: `line-numbers`, `line-numbers-width`, `line-numbers-color`, `line-numbers-current-color`, `key-editor-line-numbers`, `key-editor-hide-comments`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -1053,6 +1077,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `key-logview-pin` | `F6` | in a Log View: Pin / Unpin ([Pin](#pin)); `none`: no key (F9 > Pin still works) |
 | | `key-editor-pin` | `F6` | in an editor: Pin / Unpin (E107, [Pin](#pin)); `none`: no key (F9 > Pin still works) |
 | | `key-editor-line-numbers` | `Alt-L` | in an editor: shows / hides the line numbers (E108, [Line numbers](#line-numbers)); `none`: no key |
+| | `key-editor-hide-comments` | `Alt-H` | in an editor: the text without comments and blank lines, read only, and back (E109, [Hide comments](#hide-comments)); `none`: no key |
 | | `key-eventviewer-mute` | `Ctrl-M` | in the Event Viewer: Mute alerts above level... (E106, [Mute](#mute)); Ctrl-M differs from Enter only through far2l's extensions; `none`: no key (F9 still works) |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |

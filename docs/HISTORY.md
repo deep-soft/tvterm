@@ -239,6 +239,9 @@ E107. Editor Pin key (item 58): `[keys] key-editor-pin = F6` (`none` = no key), 
 E108. Editor line numbers (item 53): Alt-L / F9 > Line numbers, a column at the left (`line-numbers-width` digits + a
       space, wider for more lines), the cursor line's number in its own color, a click goes to the line; `[editor]
       line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11
+E109. Editor Hide comments (item 63): Alt-H / F9 > Hide comments, a read-only view without comment and blank lines
+      (the `##` header kept, a blank line before each `[section]`), `[#-]`; line numbers, indicator and Alt-F8 use the
+      lines of the whole file; `[keys] key-editor-hide-comments`
 
 ---
 
@@ -1522,6 +1525,23 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `line-numbers-current-color` (`bright-white`), `[keys] key-editor-line-numbers` (Alt-L); `tvterm.ini` format 11.
   Profiles: `line-numbers = yes` / `no` when the window differs from `[editor] line-numbers`. F9 item `Line numbers`
   (`n`), F1 line. Too narrow (the text would keep less than one column): refused with a message.
+- **E109** (item 63, agreed in chat 78, details in chat 82): Hide comments. `nocomments.cc/.h` (no tvision; unit test)
+  builds the view from the whole text: the text and, per view line, the line of the whole text (`-1` for an added
+  blank line, also for the empty last line after a final line end, so the list has as many entries as tvision counts
+  lines: line ends LF / CRLF / lone CR as `countLines`). The window swaps the editor's text (`editwnd::replaceText`:
+  the text at the end of the buffer + `setBufLen`, as `loadFile`; the buffer never shrinks, so putting the whole text
+  back cannot fail for memory) and keeps the whole text in `TVTermEditWindow::hidden`; `modified` and
+  `lineEndingType` are saved and set back (setBufLen clears / detects them). Undo: `track` is off while the view is on
+  and `after()` is skipped when the event turned it on, so `EditUndo`'s copy stays the whole text and nothing becomes
+  a step. Read only: refused before the read-only check (`cmSave` / `cmSaveAs` from anywhere, `isEditingEvent` while
+  focused), `openFile`, `reloadFromMenu`; Log View's Add to editor refuses as for read only. `valid()` (window and
+  Settings editor) puts the whole text back before tvision's "Save?" when the editor is modified; `reloadFile` and
+  `loadIntoWindow` leave the view; the Settings editor's `reloadFromDisk` leaves it, reloads and makes it again;
+  `SettingsEditWindow::text()` = `fullText()`. Numbers: `numberOfLine` (E108) and `editwnd::LineIndicator` (replaces
+  tvision's indicator in the constructor; draws `location.y` mapped) use the map; `lineNumbersWidth` uses the whole
+  text's line count. Alt-F8: `goToLine(e, map, lines)` (`viewLineOf`: the line or the next shown). Title ` [#-]`
+  (after `[WS]`, before `[P]`), F9 item `Hide comments` (`c`), F1 line, `[keys] key-editor-hide-comments` (Alt-H;
+  format 11 with E108).
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2656,6 +2676,18 @@ examples/profiles/example.ini
   colors. F9 → `Line numbers  on, Alt-L`; F1 → `Alt-L … key-editor-line-numbers`; read only + Alt-L ×2 → on / off;
   Save Profile As → `line-numbers = yes` in the file. `line-numbers-width = 9` on a 40-column screen: 9 digits, the
   text still shown (the refusal itself needs a window narrower than tvision allows here; not reached).
+- E109: `t_nocom.cc` (linked only with `nocomments.cc`): 11 cases (an `.ini` with header, comments, trailing comment;
+  blank lines inside the `##` block; a `##` line further down; a text starting with a section; only comments; empty;
+  CRLF; lone CR; tabs; `##` not in column 1; last line without a line end), and for each the number of map entries =
+  the view's line count. tmux (`t109.py`), the 93-line `.ini` with Alt-L: Alt-H → `[#-]`, `1 2 · 4 7 14 21 28 · 34 37 …`
+  (blank lines without a number), `Comments hidden: 77 line(s) not shown`, indicator `7:15` (the line of the file, the
+  column kept). Typing, F2, F12, Ctrl-Z, Ctrl-F12 → `Comments hidden: Alt-H to edit.`; Alt-F8 `44` → `44:1`, `45` →
+  `51:1` + `Line 45 is hidden …`; Down, Alt-H → whole text, `58:1`, `All lines shown.`; the earlier change still marked
+  (`☼`) and undone by Ctrl-Z. A change, Alt-H, Ctrl-W → `… has been modified. Save?`, Yes → the file = the whole text
+  with the change (md5), and its backup. A CRLF file with Ctrl-Space: the view shows `¤`; Find `z` → `7:2`; back, a
+  change, F2 → CRLF kept (`od -c`). Settings editor (More... > Edit settings), Alt-H, `tvterm.ini` appended from
+  outside → reloaded, still `[#-]`, the new line shown. Log View's Add to editor: by reading only (same branch as read
+  only).
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2791,6 +2823,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Editor Hide comments (`far2l-extended`) | E109 | editor Alt-H (`[keys] key-editor-hide-comments`) / F9 > Hide comments: a read-only view without comment (`#`, `;`) and blank lines, `##` header kept, a blank line before each `[section]`, `[#-]`; numbers, indicator and Go to line of the whole file; saving always writes the whole text |
 | Editor line numbers (`far2l-extended`) | E108 | editor Alt-L (`[keys] key-editor-line-numbers`) / F9 > Line numbers: a column with the line numbers (`line-numbers-width` digits + a space, wider for more lines; `line-numbers-color`, `line-numbers-current-color`); a click goes to the line; `[editor] line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11 |
 | Editor Pin key (`far2l-extended`) | E107 | editor F6 (`[keys] key-editor-pin`, `none` = no key): Pin / Unpin as F9 > Pin, also in read only; the key in the F9 item and F1; `tvterm.ini` format 10 |
 | Event Viewer Mute key (`far2l-extended`) | E106 | Event Viewer Ctrl-M (`[keys] key-eventviewer-mute`, through far2l's extensions; Enter never mutes) and F9 > Mute alerts above level...: the Mute dialog of More...; `tvterm.ini` format 10 |
