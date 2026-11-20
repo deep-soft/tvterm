@@ -58,7 +58,8 @@ struct WindowProfile
     std::string file;
     bool readOnly {false};      // [editor] read-only (E63).
     // [editor] whitespace (E83): the whitespace view, 1 yes, 0 no, -1 not
-    // in the profile ([editor] show-whitespace of tvterm.ini).
+    // in the profile ([editor] show-whitespace of tvterm.ini); 2 (E103):
+    // on, in [editor] whitespace-color-2.
     int whitespace {-1};
     // Event Viewer.
     EventFilter filter;

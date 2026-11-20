@@ -1742,8 +1742,11 @@ void TVTermApp::openProfile(const Profile &profile)
                 auto *edit = new TVTermEditWindow(r, win.file);
                 if (win.readOnly)
                     edit->setReadOnly(true);
+                if (win.whitespace == 2 && settings().whitespaceColor2 < 0)
+                    note("profile " + profile.path + ": whitespace = 2 needs [editor] whitespace-color-2 "
+                         "in tvterm.ini; the first color is used");
                 if (win.whitespace >= 0)
-                    edit->setWhitespace(win.whitespace == 1);
+                    edit->setWhitespaceLevel(win.whitespace);
                 edit->setPinned(win.pinned);
                 window = edit;
                 break;
@@ -2254,7 +2257,7 @@ void TVTermApp::saveProfile()
                     // Written when it differs from show-whitespace's default
                     // state: yes when on; no when off and the default is on.
                     if (rw->showsWhitespace())
-                        win.whitespace = 1;
+                        win.whitespace = rw->whitespaceLevel();
                     else if (TVTermApp::settings().showWhitespace)
                         win.whitespace = 0;
                 }

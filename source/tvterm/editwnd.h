@@ -60,11 +60,18 @@ public:
     // [editor] whitespace-symbols in whitespace-color; only the drawing
     // changes. Starts as [editor] show-whitespace; profiles keep it
     // ('whitespace = yes'). Allowed in read only.
-    bool showsWhitespace() const noexcept { return whitespace; }
-    void setWhitespace(bool on);
+    // E103 (item 44): with [editor] whitespace-color-2 the key cycles off ->
+    // whitespace-color -> whitespace-color-2 -> off; the level is 0 (off),
+    // 1 or 2 (the second color; [WS2], 'whitespace = 2' in profiles).
+    bool showsWhitespace() const noexcept { return whitespace > 0; }
+    int whitespaceLevel() const noexcept { return whitespace; }
+    void setWhitespace(bool on) { setWhitespaceLevel(on ? 1 : 0); }
+    // Level 2 without whitespace-color-2: level 1.
+    void setWhitespaceLevel(int level);
 
     // The file name, or "Untitled"; " [RO]" added while read only, " [WS]"
-    // while the whitespace view is on, " [P]" while pinned.
+    // while the whitespace view is on (" [WS2]": second color), " [P]" while
+    // pinned.
     const char *getTitle(short maxSize) override;
 
     // Pin (E86, item 54 b; pin.h): F9 > Pin / Unpin, Ctrl-B Z P. A pinned
@@ -129,7 +136,7 @@ private:
     bool pinned {false};
     // The whitespace view (kept here too: during the window's shutDown the
     // editor is already gone while broadcasts still reach the window).
-    bool whitespace {false};
+    int whitespace {0};
     std::string titleBuf;
     // The file whose backups this window made (or that it wrote first by
     // Save As): no more backups for it from this window.
@@ -137,8 +144,9 @@ private:
 
     // F9: the window's menu.
     void openMenu();
-    // The whitespace view on / off, with its message in the status line;
-    // the text of its F9 item ("off, Ctrl-Space").
+    // The whitespace view on / off (or the next level, E103), with its
+    // message in the status line; the text of its F9 item ("off,
+    // Ctrl-Space").
     void toggleWhitespace();
     std::string whitespaceItemText() const;
     // The "modified" question before Open: false = do not go on.

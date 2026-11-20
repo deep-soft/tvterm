@@ -148,7 +148,7 @@ static std::vector<Entry> entries(help::Section s)
                 {keyOf(st.keyEditorComment), "comment line with the date and time (key-editor-comment)"},
                 {keyOf(st.keyEditorIndent) + " / " + keyOf(st.keyEditorUnindent),
                  "one space more / less at the start of the line(s)"},
-                {keyOf(st.keyEditorWhitespace), "show / hide spaces, tabs and line ends ([WS] in the title)"},
+                {keyOf(st.keyEditorWhitespace), "show / hide spaces, tabs and line ends ([WS]; [WS2]: whitespace-color-2)"},
                 {"Ctrl-Ins / Shift-Del", "copy / cut (the clipboard)"},
                 {"Shift-Ins", "paste"},
                 {"Shift + arrows, Ctrl-K B / K", "select; Ctrl-K H hides the selection"},

@@ -226,6 +226,8 @@ E101. Window List header (item 55): a click on P / Alert filters (only pinned / 
       sorts (ascending, descending, off); Alt-1…Alt-4; marks `P*`, `Alert*`, `Name▲` / `▼`; kept while tvterm runs
 E102. Help window bounds (item 71, replaces item 43): F1 / More... > Keys open Help over the Event Viewer, with its
       bounds (before zoom when maximized); without one, where Ctrl-B V would open it
+E103. Whitespace second color (item 44): `[editor] whitespace-color-2`; the key cycles off → color 1 → color 2 → off,
+      `[WS2]`, profile `whitespace = 2`; `tvterm.ini` format 10
 
 ---
 
@@ -1381,6 +1383,14 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   `whitespace-color` with `parseColorName`), `[keys] key-editor-whitespace`; `settingsFormat` = 8. Profiles:
   `WindowProfile::whitespace` (-1 / 0 / 1); Save Profile As writes `yes` when on, `no` when off and
   `show-whitespace = yes`. Settings reload: the open editors are already drawn again (E79 code).
+- **E103** (item 44, agreed in chat 75): `[editor] whitespace-color-2` (`Settings::whitespaceColor2`, -1 = not set,
+  parsed like `whitespace-color`; an empty value = not set). The window's state is a level (`whitespace`: 0 off, 1, 2);
+  `WsEditor::secondColor` picks the color in `markLine`. `toggleWhitespace` goes 0 → 1 → 2 → 0 with the second color
+  set, else 0 ↔ 1; `setWhitespaceLevel` turns 2 into 1 when the color is not set (`setWhitespace(bool)` = level 1 / 0).
+  Title `[WS2]`, F9 item `on, color 2`, status `Whitespace shown (second color).`. Profiles: `whitespace = 2` (read in
+  `profile.cc`, written by Save Profile As); opened without the color: level 1 and a note
+  (`profile …: whitespace = 2 needs [editor] whitespace-color-2 …`). `tvterm.ini` format 10. Help line of the key:
+  `([WS]; [WS2]: whitespace-color-2)`.
 - **Diagnostics** (E92–E95, items 60, 61, 62, 59, agreed in chats 77–78; one patch, separate commits, chat 78):
   E92 (item 60) Window List: `setAllRows` filled the filter field with `filter->setData(text.c_str())`;
   `TInputLine::setData` copies `dataSize()` bytes (the field's `maxLen` + 1 = 129), so it read past the end of a shorter
@@ -2564,6 +2574,11 @@ examples/profiles/example.ini
   Event Viewer opened next with Ctrl-B V; a profile with the Event Viewer at `pos = 10 20 50 50` and a small editor:
   F1 in the editor → Help frame = the viewer's (14,8)–(83,23); a profile with only that viewer, Ctrl-B Z Z (maximized),
   F1 → Help at (14,8)–(83,23) again.
+- E103 (`t103.py`), tmux 140x35, `/tmp/ws.txt` = `a b\tc` LF `xyz` LF: without `whitespace-color-2` Ctrl-Space → `[WS]`,
+  again → off; with `whitespace-color-2 = yellow` → `[WS]`, `[WS2]` (the `·` in `33m`, not the first color), off; F9 →
+  `on, color 2`; Save Profile As → `whitespace = 2`; a profile with `whitespace = 2` → `[WS2]`; the same profile without
+  the color → `[WS]` and the note; `whitespace-color-2 = pinky` → `invalid whitespace-color-2 'pinky'`; F1, `/WS2` → the
+  editor line.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2699,6 +2714,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Whitespace second color (`far2l-extended`) | E103 | `[editor] whitespace-color-2`: the whitespace key cycles off → `whitespace-color` → `whitespace-color-2` → off, `[WS2]` in the title, F9 `on, color 2`; profile `whitespace = 2`; `tvterm.ini` format 10 |
 | Help window bounds (`far2l-extended`) | E102 | F1 / More... > Keys: Help opens over the Event Viewer with its bounds (before zoom when maximized); without one, where Ctrl-B V would open it (was: the whole desktop) |
 | Window List header (`far2l-extended`) | E101 | Window List: a click on the column names or Alt-1…Alt-4: P / Alert = only the pinned / alerted windows (on / off, with the text filter), Name / Command = sort ascending, descending, off; header `P*`, `Alert*`, `Name▲`, `Command▼`; kept while tvterm runs; P two columns wide; Close reopens on the next row shown |
 | Help: dialog keys (`far2l-extended`) | E100 | F1 Help, Global keys: the text fields of dialogs (Down, Ctrl-Del in an open list, also from the history file, Shift-Ins / Ctrl-V, Ctrl-Ins / Ctrl-C) |

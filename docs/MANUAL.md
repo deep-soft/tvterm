@@ -868,11 +868,19 @@ selected text they take the selection's color.
 
 `tvterm.ini`, section `[editor]`: `show-whitespace` (`no`; `yes`: every new editor window starts with it on),
 `whitespace-symbols` (five one-column characters, separated by spaces: Space, Tab, LF, CRLF, lone CR; default
-`· → ¶ ¤ ←`), `whitespace-color` (`<color>` on the editor's background, or `<color> on <color>`). The key is
+`· → ¶ ¤ ←`), `whitespace-color` (`<color>` on the editor's background, or `<color> on <color>`),
+`whitespace-color-2` (E103; optional, the same form, e.g. `white`). The key is
 `key-editor-whitespace` in `[keys]` (`none`: no key). Some fonts have no `↵`, `␊` or `␍`; to see which symbols a font
 shows: `printf '· → ↵ ¤ ← ¶ ␊ ␍ ° »\n'`. Ctrl-Space works through putty4far2l / far2l and in other terminals
 (where it arrives as Ctrl-@). Save Profile As writes `whitespace = yes` for an editor window with it on (`whitespace = no` when it
 is off and `show-whitespace = yes`).
+
+**Second color** (E103): a dark color is fine most of the time, but sometimes a brighter one is needed for a while.
+With `whitespace-color-2` set, the key (and F9 > Whitespace) cycles **off → `whitespace-color` → `whitespace-color-2`
+→ off**; the title shows `[WS]`, then `[WS2]`, and the F9 item `on`, `on, color 2`, `off`. Without it the key only
+turns the view on and off, as before. Save Profile As writes `whitespace = 2` for an editor in the second color; a
+profile with `whitespace = 2` while `whitespace-color-2` is not set opens the view in the first color, with a note in
+the Event Viewer.
 
 ### Opening and viewing files
 
@@ -921,12 +929,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 9, created by tvterm v0.3.0 (b440528, built 2026-11-17 10:00 EET)`: the format of the file, then the
+  `## format 10, created by tvterm v0.3.0 (2b5e5d2, built 2026-11-20 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -989,6 +997,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | `[editor]` | `show-whitespace` | `no` | `yes`: new editor windows start with the whitespace view on ([Whitespace](#whitespace)) |
 | | `whitespace-symbols` | `· → ¶ ¤ ←` | the symbols of Space, Tab, LF, CRLF and a lone CR: five one-column characters separated by spaces; invalid: the previous value |
 | | `whitespace-color` | `bright-black` | color of the symbols: `<color>` (on the editor's background) or `<color> on <color>`; selected text keeps the selection color |
+| | `whitespace-color-2` | (none) | a second color for the symbols, the same form (E103): the key then cycles off → `whitespace-color` → `whitespace-color-2` → off (`[WS2]`); empty: on / off only ([Whitespace](#whitespace)) |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
 | | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
@@ -1122,7 +1131,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `no` (the whitespace view; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `2` / `no` (the whitespace view, `2`: in `whitespace-color-2`; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

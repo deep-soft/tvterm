@@ -34,8 +34,9 @@ const int minFileDialogHeight = 19;
 // [keys] key-logviews-end (E78), key-editor-indent, key-editor-unindent (E79),
 // [logview] cursor-color, selection-color (E80); 8: [editor]
 // show-whitespace, whitespace-symbols, whitespace-color, [keys]
-// key-editor-whitespace (E83); 9: [keys] key-logview-pin (E84).
-const int settingsFormat = 9;
+// key-editor-whitespace (E83); 9: [keys] key-logview-pin (E84); 10:
+// [editor] whitespace-color-2 (E103).
+const int settingsFormat = 10;
 
 struct Settings
 {
@@ -110,6 +111,10 @@ struct Settings
     // foreground is used (the editor's background stays).
     int whitespaceColor {0x08};
     bool whitespaceColorFore {true};
+    // whitespace-color-2 (E103): the second color of the symbols (as
+    // whitespace-color); -1: not set (the key turns the view on / off).
+    int whitespaceColor2 {-1};
+    bool whitespaceColor2Fore {true};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

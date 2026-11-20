@@ -1168,6 +1168,8 @@ public:
     using TFileEditor::TFileEditor;
 
     bool showWs {false};
+    // E103: true = [editor] whitespace-color-2.
+    bool secondColor {false};
 
     void draw() override
     {
@@ -1202,11 +1204,13 @@ private:
     {
         const Settings &st = TVTermApp::settings();
         TColorAttr normal = TColorAttr(colors);
-        TColorAttr wsColor = TColorAttr(st.whitespaceColor);
-        if (st.whitespaceColorFore)
+        bool second = secondColor && st.whitespaceColor2 >= 0;
+        int color = second ? st.whitespaceColor2 : st.whitespaceColor;
+        TColorAttr wsColor = TColorAttr(color);
+        if (second ? st.whitespaceColor2Fore : st.whitespaceColorFore)
         {
             wsColor = normal;
-            wsColor.setForeground(TColorBIOS(st.whitespaceColor & 0x0F));
+            wsColor.setForeground(TColorBIOS(color & 0x0F));
         }
         int hScroll = std::max(delta.x, 0);
         auto put = [&] (int pos, int sym, uint p) {
@@ -1256,7 +1260,8 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
         editor = nullptr;
         destroy(old);
         auto *e = new editwnd::WsEditor(r, h, v, ind, fileName);
-        whitespace = e->showWs = TVTermApp::settings().showWhitespace;
+        e->showWs = TVTermApp::settings().showWhitespace;
+        whitespace = e->showWs ? 1 : 0;
         editor = e;
         insert(editor);
     }
@@ -1304,32 +1309,41 @@ const char *TVTermEditWindow::getTitle(short maxSize)
     bool ws = showsWhitespace();
     if (!readOnly && !ws && !pinned)
         return t;
-    titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") + (ws ? " [WS]" : "") +
+    titleBuf = std::string(t ? t : "") + (readOnly ? " [RO]" : "") +
+               (whitespace == 2 ? " [WS2]" : ws ? " [WS]" : "") +
                (pinned ? " [P]" : "");
     return titleBuf.c_str();
 }
 
 void TVTermEditWindow::toggleWhitespace()
 {
-    setWhitespace(!showsWhitespace());
-    editwnd::showStatus(showsWhitespace() ? "Whitespace shown." : "Whitespace hidden.");
+    // E103: off -> 1 -> 2 (only with whitespace-color-2) -> off.
+    bool two = TVTermApp::settings().whitespaceColor2 >= 0;
+    setWhitespaceLevel(whitespace == 0 ? 1 : whitespace == 1 && two ? 2 : 0);
+    editwnd::showStatus(whitespace == 2 ? "Whitespace shown (second color)." :
+                        whitespace == 1 ? "Whitespace shown." : "Whitespace hidden.");
 }
 
 std::string TVTermEditWindow::whitespaceItemText() const
 {
-    std::string text = showsWhitespace() ? "on" : "off";
+    std::string text = whitespace == 2 ? "on, color 2" : whitespace == 1 ? "on" : "off";
     TKey key = TVTermApp::settings().keyEditorWhitespace;
     if (key.code != 0)
         text += ", " + keyName(key);
     return text;
 }
 
-void TVTermEditWindow::setWhitespace(bool on)
+void TVTermEditWindow::setWhitespaceLevel(int level)
 {
     auto *e = dynamic_cast<editwnd::WsEditor *>(editor);
-    if (!e || whitespace == on)
+    if (level == 2 && TVTermApp::settings().whitespaceColor2 < 0)
+        level = 1;
+    level = std::max(0, std::min(level, 2));
+    if (!e || whitespace == level)
         return;
-    whitespace = e->showWs = on;
+    whitespace = level;
+    e->showWs = level > 0;
+    e->secondColor = level == 2;
     e->drawView();
     if (frame)
         frame->drawView();

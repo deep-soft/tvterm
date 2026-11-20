@@ -630,6 +630,23 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                             "separated by spaces, e.g. \u00B7 \u2192 \u00B6 \u00A4 \u2190"),
                     settings.whitespaceSymbols = previous.whitespaceSymbols;
             }
+            else if (key == "whitespace-color-2")
+            {
+                // E103: optional; empty: none.
+                std::string error;
+                int attr = 0;
+                if (value.empty())
+                    settings.whitespaceColor2 = -1;
+                else if (parseColorName(value, attr, error))
+                {
+                    settings.whitespaceColor2 = attr;
+                    settings.whitespaceColor2Fore = lower(value).find(" on ") == std::string::npos;
+                }
+                else
+                    invalid(error + "; e.g. white, or yellow on blue"),
+                    settings.whitespaceColor2 = previous.whitespaceColor2,
+                    settings.whitespaceColor2Fore = previous.whitespaceColor2Fore;
+            }
             else if (key == "whitespace-color")
             {
                 std::string error;
@@ -940,6 +957,10 @@ std::string settingsTemplate()
         "  # on <color> (the highlight colors below); selected text keeps the\n"
         "  # selection color.\n"
         " #whitespace-color = bright-black\n"
+        "  # A second color for the symbols (optional), e.g. white: the key then\n"
+        "  # cycles off -> whitespace-color -> whitespace-color-2 -> off ([WS2] in the\n"
+        "  # title; a profile keeps it as whitespace = 2). Empty: on / off only.\n"
+        " #whitespace-color-2 =\n"
         "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"
