@@ -84,7 +84,11 @@ struct TVTermApp : public TApplication
     // the Event Viewer when 'n' was lowered or windows overlap.
     void tileGrid(int n, bool columns);
     enum { maxTileCount = 20 };
-    void saveProfile();
+    // Save Profile As... ('as') or Save Profile (E105, item 49): the
+    // current profile's file (the last one loaded or saved as), after a
+    // confirmation; without one, as Save Profile As. Both end with a note in
+    // the Event Viewer and the status line (no final dialog since E105).
+    void saveProfile(bool as = true);
     void windowList();
     void renameTerm();
     void editSettings();
@@ -138,7 +142,8 @@ private:
     // Message to show once the application is running (e.g. profile errors
     // found at startup).
     std::string pendingMessage;
-    // Last profile loaded (path), shown in the About dialog.
+    // Last profile loaded (path), shown in the About dialog; also the
+    // last one saved by Save Profile As (E105): the file of Save Profile.
     std::string loadedProfile;
     // Last N of Tile in N Columns / Rows (kept while tvterm runs).
     int tileCount {2};

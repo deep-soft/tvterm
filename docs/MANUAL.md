@@ -210,6 +210,7 @@ writes Ctrl-B.
 | `P` | Load Profile... | opens a profile ([chapter 7](#7-profiles)) |
 | `I` | Load Profile in Editor... | opens a profile file in a tvterm editor, to read or change it (nothing is loaded) |
 | `C` | Save Profile As... | saves the open windows as a profile |
+| | Save Profile | saves them to the current profile's file, after a question (E105; no letter) |
 | `V` | Event Viewer | opens it; if already open, pauses / resumes it |
 | `M` | More... ► | submenu, see below |
 | `T` | Text ► | submenu: Select Text, Paste (see below) |
@@ -1160,7 +1161,7 @@ pos = 50 0 50 60
 pos = 50 60 50 40
 ```
 
-### Saving (Ctrl-B C)
+### Saving (Ctrl-B C, Save Profile)
 
 Saves every window of every desktop with its position (inside the desktop, one decimal), its desktop (when not 1),
 the stacking order, the focused window and the current desktop; the desktop names and the size of the Window List
@@ -1169,6 +1170,15 @@ For a terminal: the fixed title, the current directory of the program running in
 else the command running in the foreground (e.g. `tail -f ...`, saved with `keep-open = yes`), the alerts, `pinned =
 yes` when pinned. For a Log View: all its settings (`pinned = yes` when pinned). The text of untitled editors is not saved, and editors with unsaved changes keep only
 their file name; tvterm says so after saving. The dialog proposes the profiles directory; `.ini` is added if missing.
+
+**Save Profile** (E105; under Save Profile As..., no letter, so that it is not chosen by a stray key) writes the same
+to the file of the current profile: the last one loaded (also with `-p` or `[general] profile` at start) or saved with
+Save Profile As. It first asks `Save N window(s) to the profile <path>?` (Yes / No). With no current profile (e.g.
+`-p none`) it works as Save Profile As.
+
+Since E105 both end without a dialog: the status line shows `Saved N window(s) to <path>.` and the Event Viewer gets
+the note `profile saved: N window(s) to <path>`, with the remarks about untitled or modified editors (the status line
+then adds `See the notes in the Event Viewer (Ctrl-B V).`).
 
 ---
 

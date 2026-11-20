@@ -897,6 +897,7 @@ void TVTermApp::handleEvent(TEvent &event)
                 case cmLoadProfileInEditor: loadProfileInEditor(); break;
                 case cmEditorSaveAs: editorSaveAs(); break;
                 case cmSaveProfile: saveProfile(); break;
+                case cmSaveProfileCurrent: saveProfile(false); break;
                 case cmWindowList: windowList(); break;
                 case cmRenameTerm: renameTerm(); break;
                 case cmEditSettings: editSettings(); break;
@@ -1095,6 +1096,8 @@ void TVTermApp::openMenu()
         *new TMenuItem("Load Profile...", cmLoadProfile, 'P', hcNoContext, "~P~") +
         *new TMenuItem("Load Profile in Editor...", cmLoadProfileInEditor, 'I', hcNoContext, "~I~") +
         *new TMenuItem("Save Profile As...", cmSaveProfile, 'C', hcNoContext, "~C~") +
+        // E105 (item 49): no key; it asks before writing.
+        *new TMenuItem("Save Profile", cmSaveProfileCurrent, kbNoKey) +
         newLine() +
         *new TMenuItem("Event Viewer", cmEventViewer, 'V', hcNoContext, "~V~") +
         ( *new TSubMenu("~M~ore...", kbNoKey, hcMenu) +
@@ -2206,7 +2209,7 @@ static void setProfilePos(WindowProfile &win, TWindow &w, const TRect &ext)
     }
 }
 
-void TVTermApp::saveProfile()
+void TVTermApp::saveProfile(bool as)
 {
     // Windows, from back to front, so that the stacking order is the
     // same when the profile is loaded again.
@@ -2325,31 +2328,43 @@ void TVTermApp::saveProfile()
         return;
     }
 
-    std::string dir = profileDir();
-    makeDirs(dir);
-    char fileName[MAXPATH];
-    TFileDialog *d = profiledlg::newDialog(dir, "Save profile as", fdOKButton,
-                                              fileopen::hiSaveProfile);
-    TView *p = validView(d);
-    if (!p)
-        return;
-    ushort result = deskTop->execView(p);
-    if (result != cmCancel)
-        p->getData(fileName);
-    TObject::destroy(p);
-    if (result == cmCancel)
-        return;
+    std::string path;
+    if (!as && !loadedProfile.empty())
+    {
+        // Save Profile (E105): the current profile's file, after a question.
+        path = loadedProfile;
+        if ( messageBox(mfConfirmation | mfYesButton | mfNoButton,
+                        "Save %zu window(s) to the profile\n%s?", profile.windows.size(), path.c_str()) != cmYes )
+            return;
+    }
+    else
+    {
+        std::string dir = profileDir();
+        makeDirs(dir);
+        char fileName[MAXPATH];
+        TFileDialog *d = profiledlg::newDialog(dir, "Save profile as", fdOKButton,
+                                                  fileopen::hiSaveProfile);
+        TView *p = validView(d);
+        if (!p)
+            return;
+        ushort result = deskTop->execView(p);
+        if (result != cmCancel)
+            p->getData(fileName);
+        TObject::destroy(p);
+        if (result == cmCancel)
+            return;
 
-    std::string path = fileName;
-    if (path.empty() || path.back() == '/' || path.find('*') != std::string::npos)
-        return;
-    size_t slash = path.rfind('/');
-    if (path.find('.', slash == std::string::npos ? 0 : slash) == std::string::npos)
-        path += ".ini";
-    if ( access(path.c_str(), F_OK) == 0 &&
-         messageBox(mfConfirmation | mfYesButton | mfNoButton,
-                    "%s already exists. Overwrite?", path.c_str()) != cmYes )
-        return;
+        path = fileName;
+        if (path.empty() || path.back() == '/' || path.find('*') != std::string::npos)
+            return;
+        size_t slash = path.rfind('/');
+        if (path.find('.', slash == std::string::npos ? 0 : slash) == std::string::npos)
+            path += ".ini";
+        if ( access(path.c_str(), F_OK) == 0 &&
+             messageBox(mfConfirmation | mfYesButton | mfNoButton,
+                        "%s already exists. Overwrite?", path.c_str()) != cmYes )
+            return;
+    }
 
     std::string error;
     if (!::saveProfile(path, profile, error))
@@ -2357,13 +2372,17 @@ void TVTermApp::saveProfile()
         messageBox(mfError | mfOKButton, "Cannot save %s: %s", path.c_str(), error.c_str());
         return;
     }
+    // The file of the next Save Profile (E105).
+    loadedProfile = path;
+    // No final dialog since E105 (chat 78): a note and the status line.
     std::string notes;
     if (untitledWithText)
-        notes += "\nThe text of untitled editors is not saved\n(save it to a file with F2 first).";
+        notes += "; the text of untitled editors is not saved (save it to a file with F2 first)";
     if (modifiedFiles)
-        notes += "\nSome editors have unsaved changes:\nthe profile only keeps their file names.";
-    messageBox( mfInformation | mfOKButton, "Saved %zu window(s) to\n%s%s",
-                profile.windows.size(), path.c_str(), notes.c_str() );
+        notes += "; some editors have unsaved changes: the profile only keeps their file names";
+    std::string saved = "Saved " + std::to_string(profile.windows.size()) + " window(s) to " + path;
+    note("profile saved: " + std::to_string(profile.windows.size()) + " window(s) to " + path + notes);
+    appsettings::showStatus(saved + (notes.empty() ? "." : ". See the notes in the Event Viewer (Ctrl-B V)."));
 }
 
 void TVTermApp::about()

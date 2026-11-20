@@ -230,6 +230,8 @@ E103. Whitespace second color (item 44): `[editor] whitespace-color-2`; the key 
       `[WS2]`, profile `whitespace = 2`; `tvterm.ini` format 10
 E104. Rename Desk (item 48): F2 in the Desk list (Ctrl-B D, DeskList), at most 12 columns (was 8), empty = no name; the
       top bar at once; Save Profile writes `desktop-name-N`
+E105. Save Profile (item 49): MainMenu item under Save Profile As... (no letter): the current profile's file after a
+      question; no profile → Save As. Both without the final `Saved N window(s)` dialog: status line + Event Viewer note
 
 ---
 
@@ -240,7 +242,7 @@ Order and letters since **E70** (item 30, P1, agreed in chat 69; groups between 
 `Y` Move Window to Desktop · `W` Window List · `Z` Windows ► | `L` Log View · `A` Alerts · `G` Go to Next Alert | `N`
 New Term · Close Term (no key) · Rename Term (no key) · `Tab`/`Shift-Tab` Next/Prev · `H` History | `F` View file · `E`
 New Editor · `O` Open File in Editor · `S` Editor Save As | `P` Load Profile · `I` Load Profile in Editor · `C` Save
-Profile As | `V` Event Viewer · `M` More... ► · `T` Text ► · `Q` Exit. **Windows ►**: `Z` Zoom (Maximize/Restore) ·
+Profile As · Save Profile (no key, E105) | `V` Event Viewer · `M` More... ► · `T` Text ► · `Q` Exit. **Windows ►**: `Z` Zoom (Maximize/Restore) ·
 `C` Tile (Columns First) · `R` Tile (Rows First) · `L` Tile in N Columns... · `S` Tile in N Rows... · `A` Cascade |
 `G` Grab Input · `M` Resize/Move. **Text ►**: `T` Select Text · `P` Paste. **More... ►**: `w` Change working dir |
 `l` Log Views as table · `s` as list · `n` Clear non-urgent alerts | `e` Edit settings · `r` Reload settings | `u`
@@ -1074,6 +1076,13 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   none: the desktop shown as it is. `TVTermApp::keptDesktopMain`: set by each profile that has the key (like
   `window-list-size`), written by `saveProfile` when > 0; invalid values → the usual warning.
 
+- **E105** (item 49, agreed in chats 75 and 78): `TVTermApp::saveProfile(bool as)`; `cmSaveProfileCurrent` = MainMenu
+  `Save Profile` (no key, after Save Profile As...). The file is `loadedProfile` (the last profile loaded, at start or by
+  Load Profile; since E105 also set by Save Profile As); `messageBox` `Save N window(s) to the profile\n<path>?` Yes /
+  No, no overwrite question; empty `loadedProfile` (`-p none`, nothing loaded) → the Save As dialog. The final
+  `Saved %zu window(s) to …` dialog is gone (chat 78): `note("profile saved: N window(s) to <path>[; remarks]")` (an
+  ordinary note: Shift-N empties it) and the status line `Saved N window(s) to <path>.` (+ `See the notes in the Event
+  Viewer (Ctrl-B V).` with remarks about untitled / modified editors). About shows the same `loadedProfile`.
 ### Help (F1) — `far2l-extended`
 - **E77** (item 31, P2, agreed in chat 69): `help.cc` / `help.h`. `help::text` builds the text from the tables of
   `entries()` (one per section: Global keys, Terminal, Log View, Viewer, Editor, Event Viewer) and from the keys of
@@ -2592,6 +2601,12 @@ examples/profiles/example.ini
   `mail-servers1` → the menu again with `:mail-servers`, status `cut to 12 columns`; Save Profile As →
   `desktop-name-2 = mail-servers`; F2, empty → `Desk 2: no name.`; Desk 1 renamed `web` → `1:web` in the top bar at
   once; Ctrl-B Y → no hint, F2 does nothing; a profile with `desktop-name-3 = abcdefghijkl` → `3:abcdefghijkl`.
+- E105 (`t105.py`), tmux 140x35, `-p none` + an editor: the menu lines `Save Profile As... C` and `Save Profile` (End,
+  Up ×4 selects it); Save Profile → `Save profile as` dialog; the file written, no dialog after it, status `Saved 2
+  window(s) to …`; one more editor, Save Profile → `Save 3 window(s) to the profile` + the path; No → the file keeps one
+  `[editor]`; Yes → two; Event Viewer `t: … profile saved: 3 window(s) to …`; `-p <that file>` → Save Profile asks for
+  it; an untitled editor with text, Save Profile As (overwrite: Yes) → status `See the notes in the Event Viewer`. At
+  80x24 the main menu is taller than the screen (as before E105, by one line more).
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2727,6 +2742,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Save Profile (`far2l-extended`) | E105 | MainMenu Save Profile (no letter): the current profile's file (last loaded or saved as) after a question, else Save As; Save Profile (As) end with the status line + an Event Viewer note instead of the `Saved N window(s)` dialog |
 | Rename Desk (`far2l-extended`) | E104 | Desk list F2: Rename Desk (at most 12 columns, was 8; empty = no name), the top bar at once, the list again; Save Profile writes `desktop-name-N` |
 | Whitespace second color (`far2l-extended`) | E103 | `[editor] whitespace-color-2`: the whitespace key cycles off → `whitespace-color` → `whitespace-color-2` → off, `[WS2]` in the title, F9 `on, color 2`; profile `whitespace = 2`; `tvterm.ini` format 10 |
 | Help window bounds (`far2l-extended`) | E102 | F1 / More... > Keys: Help opens over the Event Viewer with its bounds (before zoom when maximized); without one, where Ctrl-B V would open it (was: the whole desktop) |
