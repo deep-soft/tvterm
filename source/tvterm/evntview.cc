@@ -394,7 +394,9 @@ static bool shown(const EventFilter &filter, const TEvent &ev)
 // Ctrl-A (Go to Next Alert), F8 (Clear non-urgent alerts, E69),
 // key-logviews-end (Ctrl-L, E78) and F9 (the window's menu, E78), as
 // returned by ownKey.
-enum : char { keyNextAlert = 1, keyClearLowAlerts = 2, keyLogViewsEnd = 3, keyMenu = 4, keyClearNotes = 5 };
+// key-eventviewer-mute (Ctrl-M, E106): Mute alerts above level...
+enum : char { keyNextAlert = 1, keyClearLowAlerts = 2, keyLogViewsEnd = 3, keyMenu = 4, keyClearNotes = 5,
+              keyMute = 6 };
 
 static char ownKey(const TEvent &ev)
 // The letter of a filter key (lowercase), ' ' (Space: pause / resume),
@@ -411,6 +413,11 @@ static char ownKey(const TEvent &ev)
     TKey toEnd = TVTermApp::settings().keyLogViewsEnd;
     if (toEnd.code != 0 && TKey(ev.keyDown) == toEnd)
         return keyLogViewsEnd;
+    // E106: Ctrl-M is 0x000d (far2l's extensions); Enter (0x1c0d) is
+    // another TKey, so Enter never mutes.
+    TKey mute = TVTermApp::settings().keyEventViewerMute;
+    if (mute.code != 0 && TKey(ev.keyDown) == mute)
+        return keyMute;
     if (ev.keyDown.controlKeyState & (kbCtrlShift | kbAltShift))
         return 0;
     char c = ev.keyDown.charScan.charCode;
@@ -475,9 +482,13 @@ void TEventViewer::printText(const std::string &text)
 void TEventViewer::openMenu(TPoint where)
 {
     std::string toEnd = keyName(TVTermApp::settings().keyLogViewsEnd);
+    std::string mute = keyName(TVTermApp::settings().keyEventViewerMute);
     TMenuItem &items =
         *new TMenuItem("Scroll Log Views to las~t~", cmLogViewsToEnd, kbNoKey, hcNoContext,
                        TVTermApp::settings().keyLogViewsEnd.code ? toEnd.c_str() : nullptr) +
+        // E106 (item 50): as More... > Mute alerts above level...
+        *new TMenuItem("~M~ute alerts above level...", cmMuteAlerts, kbNoKey, hcNoContext,
+                       TVTermApp::settings().keyEventViewerMute.code ? mute.c_str() : nullptr) +
         newLine() +
         *new TMenuItem("~N~ext Desk", cmNextDesk, kbNoKey, hcNoContext, "Ctrl-Right") +
         *new TMenuItem("~P~revious Desk", cmPrevDesk, kbNoKey, hcNoContext, "Ctrl-Left") +
@@ -557,6 +568,11 @@ void TEventViewer::handleEvent(TEvent &ev)
                 break;
             case evntview::keyClearNotes:
                 message(TProgram::application, evCommand, cmClearNotes, this);
+                break;
+            case evntview::keyMute:
+                // Like More... > Mute alerts above level... (a dialog: the
+                // title is updated after it).
+                message(TProgram::application, evCommand, cmMuteAlerts, this);
                 break;
             case evntview::keyMenu:
                 openMenu(interior ? interior->makeGlobal(TPoint {0, 0}) : origin);

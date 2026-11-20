@@ -717,7 +717,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                            key == "key-editor-indent" ? &settings.keyEditorIndent :
                            key == "key-editor-unindent" ? &settings.keyEditorUnindent :
                            key == "key-editor-whitespace" ? &settings.keyEditorWhitespace :
-                           key == "key-logview-pin" ? &settings.keyLogViewPin : nullptr;
+                           key == "key-logview-pin" ? &settings.keyLogViewPin :
+                           key == "key-eventviewer-mute" ? &settings.keyEventViewerMute : nullptr;
             const TKey *prev = key == "history-page-up" ? &previous.keyPageUp :
                                key == "history-page-down" ? &previous.keyPageDown :
                                key == "history-top" ? &previous.keyTop :
@@ -727,7 +728,8 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                                key == "key-editor-indent" ? &previous.keyEditorIndent :
                                key == "key-editor-unindent" ? &previous.keyEditorUnindent :
                                key == "key-editor-whitespace" ? &previous.keyEditorWhitespace :
-                               key == "key-logview-pin" ? &previous.keyLogViewPin : nullptr;
+                               key == "key-logview-pin" ? &previous.keyLogViewPin :
+                               key == "key-eventviewer-mute" ? &previous.keyEventViewerMute : nullptr;
             if (!target)
                 warn("unknown key '" + key + "' in [keys]");
             else if (!parseKey(value, *target))
@@ -1053,6 +1055,10 @@ std::string settingsTemplate()
         "  # Key that pins / unpins a Log View: a pinned one is not closed by Ctrl-W or\n"
         "  # Close (also F9 > Pin, and Windows > Pin for terminals), e.g. F6 or none.\n"
         " #key-logview-pin = " + keyName(d.keyLogViewPin) + "\n"
+        "  # Key that, in the Event Viewer, opens Mute alerts above level... (also\n"
+        "  # F9). Ctrl-M differs from Enter only through far2l's extensions\n"
+        "  # (putty4far2l); in other terminals it is Enter. E.g. Ctrl-M or none.\n"
+        " #key-eventviewer-mute = " + keyName(d.keyEventViewerMute) + "\n"
         "  # Global keys: they work in every window (not in dialogs, menus or Grab\n"
         "  # Input). A comma separates several keys; modifiers Ctrl-, Alt-, Shift-;\n"
         "  # keys F1-F12, Left Right Up Down Home End PgUp PgDn Ins Del, and, with Ctrl\n"

@@ -940,7 +940,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -1019,6 +1019,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `key-editor-whitespace` | `Ctrl-Space` | shows / hides the spaces, tabs and line ends of an editor ([Whitespace](#whitespace)); `none`: no key |
 | | `key-logviews-end` | `Ctrl-L` | in the Event Viewer: every Log View to its last line ([Scroll Log Views to last](#scroll-log-views-to-last)); `none`: no key |
 | | `key-logview-pin` | `F6` | in a Log View: Pin / Unpin ([Pin](#pin)); `none`: no key (F9 > Pin still works) |
+| | `key-eventviewer-mute` | `Ctrl-M` | in the Event Viewer: Mute alerts above level... (E106, [Mute](#mute)); Ctrl-M differs from Enter only through far2l's extensions; `none`: no key (F9 still works) |
 | | `menu-key` | `Ctrl-B` | keys that open the menu ([Global keys](#global-keys)) |
 | | `key-zoom` | (none) | Zoom key |
 | | `key-window-left`, `-right`, `-up`, `-down` | (none) | keys that go to the neighbouring window |
@@ -1235,7 +1236,8 @@ Keys, while it is focused (each one is also a status line item):
 | Ctrl-C or Ctrl-Ins | copies the selection, or else the cursor line, exactly as shown (with `t: hh:mm:ss`), without the last line break: `Copied N line(s) to the clipboard.` |
 | Esc | clears the selection; the window goes back to the end and follows the new lines |
 | Ctrl-L | every Log View to its last line (`key-logviews-end`; [Scroll Log Views to last](#scroll-log-views-to-last)) |
-| F9 or right click | the window's menu: Scroll Log Views to last, Next Desk, Previous Desk, Log View commands, Log source history, Empty kept messages |
+| Ctrl-M | Mute alerts above level... (E106, `key-eventviewer-mute`; [Mute](#mute)). Only through far2l's extensions (putty4far2l → far2l → tvterm), where Ctrl-M arrives as its own key; in other terminals Ctrl-M is Enter, so use F9 there |
+| F9 or right click | the window's menu: Scroll Log Views to last, Mute alerts above level..., Next Desk, Previous Desk, Log View commands, Log source history, Empty kept messages |
 | F1 | the Help window ([Help](#help-f1)) |
 | Ctrl-W | closes the window |
 
@@ -1352,7 +1354,8 @@ Without a level, an alert is level 5 (as before levels existed).
 
 ### Mute
 
-**More... > Mute alerts above level...** (`m`), or the **Mute levels** field of **Ctrl-B A** (Alerts...), mutes the
+**More... > Mute alerts above level...** (`m`), in the Event Viewer **Ctrl-M** (`key-eventviewer-mute`, through far2l's
+extensions) or **F9 > Mute alerts above level...** (E106), or the **Mute levels** field of **Ctrl-B A** (Alerts...), mutes the
 less urgent alerts for a while, in every window: `Off`, `2-5`, `3-5`, `4-5` or `5` (the level chosen and the less urgent
 ones; level 1 is never muted). A muted alert still exists: the title has its mark and color, the Window List shows
 `A<n>`, `[alerts] log` gets it and the Event Viewer list (key A) shows it with `(muted)`. But it is not counted in the

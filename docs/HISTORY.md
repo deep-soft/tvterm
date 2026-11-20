@@ -232,6 +232,8 @@ E104. Rename Desk (item 48): F2 in the Desk list (Ctrl-B D, DeskList), at most 1
       top bar at once; Save Profile writes `desktop-name-N`
 E105. Save Profile (item 49): MainMenu item under Save Profile As... (no letter): the current profile's file after a
       question; no profile → Save As. Both without the final `Saved N window(s)` dialog: status line + Event Viewer note
+E106. Event Viewer Mute key (item 50): `[keys] key-eventviewer-mute = Ctrl-M` (through far2l's extensions; Enter is
+      another key) and F9 > Mute alerts above level...
 
 ---
 
@@ -632,6 +634,13 @@ the top menu down), e.g. Ctrl-B Z E = New Editor. The submenus show their letter
   tvterm; an invalid value keeps the previous one), Load Profile (back to `mute-above`), More... > Mute alerts above
   level... (`m`, dialog with radio buttons Off 2-5 3-5 4-5 5), the Mute field of Ctrl-B A (dialog 2 rows taller;
   label `~M~ute levels, all windows …`). Not saved in profiles.
+- **E106** (item 50, agreed in chat 75): `[keys] key-eventviewer-mute` (`Settings::keyEventViewerMute`, default
+  `TKey('M', kbCtrlShift)` = Ctrl-M; `tvterm.ini` format 10). `evntview::ownKey` returns `keyMute` before the modifier
+  check; the viewer sends `cmMuteAlerts` (the dialog of More...). Through putty4far2l → far2l the key arrives as
+  `keyCode 0x000d`, scan 0, `kbLeftCtrl` (chat 75): tvision's `TKey` makes it `Ctrl-M` (`ctrlKeyLookup`), also with
+  scan code 50 (`isRawCtrlKey`), while Enter (`0x1c0d`) stays `kbEnter`, so Enter never mutes. A plain terminal sends
+  CR for both (Enter): only the F9 item works there. F9 menu: `Mute alerts above level...` (with the key) after Scroll
+  Log Views to last. F1: two lines in the Event Viewer section.
 - **Going through the alerts (E69**, item 29, agreed in chat 67): `goToNextAlert` (Ctrl-B G, Ctrl-A in Log Views and
   the Event Viewer, the top bar's `Alerts:` item) returns a status line text instead of a bool; `TVTermApp::nextAlert`
   shows it (`appsettings::showStatus`), no box any more. `alertchain::origin` = the window focused at the first jump,
@@ -2607,6 +2616,10 @@ examples/profiles/example.ini
   `[editor]`; Yes → two; Event Viewer `t: … profile saved: 3 window(s) to …`; `-p <that file>` → Save Profile asks for
   it; an untitled editor with text, Save Profile As (overwrite: Yes) → status `See the notes in the Event Viewer`. At
   80x24 the main menu is taller than the screen (as before E105, by one line more).
+- E106 (`t106.py` + `tkey106.cc`, a C++ test linked with `libtvision.a`): `TKey` of `0x000d` + `kbLeftCtrl` and of
+  `0x320d` = `Ctrl-M`, `kbEnter` ≠ `Ctrl-M`; tmux: Event Viewer F9 → `Mute alerts above level...  Ctrl-M`, `m` → the
+  Mute dialog; Enter (tmux `C-m` = CR) → no dialog; `key-eventviewer-mute = Ctrl-K` → Ctrl-K opens it; `none` → the F9
+  item without a key; F1 → the line with `key-eventviewer-mute`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2742,6 +2755,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Event Viewer Mute key (`far2l-extended`) | E106 | Event Viewer Ctrl-M (`[keys] key-eventviewer-mute`, through far2l's extensions; Enter never mutes) and F9 > Mute alerts above level...: the Mute dialog of More...; `tvterm.ini` format 10 |
 | Save Profile (`far2l-extended`) | E105 | MainMenu Save Profile (no letter): the current profile's file (last loaded or saved as) after a question, else Save As; Save Profile (As) end with the status line + an Event Viewer note instead of the `Saved N window(s)` dialog |
 | Rename Desk (`far2l-extended`) | E104 | Desk list F2: Rename Desk (at most 12 columns, was 8; empty = no name), the top bar at once, the list again; Save Profile writes `desktop-name-N` |
 | Whitespace second color (`far2l-extended`) | E103 | `[editor] whitespace-color-2`: the whitespace key cycles off → `whitespace-color` → `whitespace-color-2` → off, `[WS2]` in the title, F9 `on, color 2`; profile `whitespace = 2`; `tvterm.ini` format 10 |

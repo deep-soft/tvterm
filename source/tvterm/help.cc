@@ -176,6 +176,8 @@ static std::vector<Entry> entries(help::Section s)
                 {"F8", "clear the alerts of levels 2-5"},
                 {"Ctrl-Right / Ctrl-Left", "show the next / previous Desk with windows"},
                 {keyOf(st.keyLogViewsEnd), "every Log View to its last line (key-logviews-end)"},
+                {keyOf(st.keyEventViewerMute), "mute alerts above level... (key-eventviewer-mute; through"},
+                {"", "far2l's extensions only: elsewhere Ctrl-M is Enter; also F9)"},
                 {"F9, right click", "the window's menu"},
                 {"Up Down PgUp PgDn Home End", "move the cursor line (End: follow new lines)"},
                 {"Shift + those, click, drag", "select lines (no scrolling until Esc)"},

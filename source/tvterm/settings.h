@@ -35,7 +35,7 @@ const int minFileDialogHeight = 19;
 // [logview] cursor-color, selection-color (E80); 8: [editor]
 // show-whitespace, whitespace-symbols, whitespace-color, [keys]
 // key-editor-whitespace (E83); 9: [keys] key-logview-pin (E84); 10:
-// [editor] whitespace-color-2 (E103).
+// [editor] whitespace-color-2 (E103), [keys] key-eventviewer-mute (E106).
 const int settingsFormat = 10;
 
 struct Settings
@@ -167,6 +167,10 @@ struct Settings
     TKey keyEditorWhitespace {' ', kbCtrlShift};
     // key-logview-pin (E84): Pin / Unpin of a Log View (see pin.h).
     TKey keyLogViewPin {kbF6};
+    // key-eventviewer-mute (E106): in the Event Viewer, More... > Mute alerts
+    // above level... (Ctrl-M: through far2l's extensions it differs from
+    // Enter; in a plain terminal it is Enter, so only the F9 item works).
+    TKey keyEventViewerMute {'M', kbCtrlShift};
     // Global keys (menu-key, key-zoom, key-window-*), see globalkeys.h.
     std::vector<GlobalKey> globalKeys[gaCount] {{globalkeys::defaultMenuKey()}};
 };
