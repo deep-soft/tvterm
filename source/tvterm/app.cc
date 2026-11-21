@@ -1754,6 +1754,8 @@ void TVTermApp::openProfile(const Profile &profile)
                     edit->setWhitespaceLevel(win.whitespace);
                 if (win.lineNumbers >= 0)
                     edit->setLineNumbers(win.lineNumbers > 0);
+                if (win.lineNumbersModified >= 0)
+                    edit->setModifiedLines(win.lineNumbersModified > 0);
                 edit->setPinned(win.pinned);
                 window = edit;
                 break;
@@ -2270,6 +2272,9 @@ void TVTermApp::saveProfile(bool as)
                     // E108: the same for the line numbers.
                     if (rw->showsLineNumbers() != TVTermApp::settings().lineNumbers)
                         win.lineNumbers = rw->showsLineNumbers() ? 1 : 0;
+                    // E111: the same for the modified lines.
+                    if (rw->showsModifiedLines() != TVTermApp::settings().lineNumbersModified)
+                        win.lineNumbersModified = rw->showsModifiedLines() ? 1 : 0;
                 }
                 if (win.file.empty() && edit->editor->bufLen > 0)
                     ++untitledWithText;

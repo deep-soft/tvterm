@@ -188,6 +188,8 @@ bool EditUndo::before(TEditor &e)
         Step s;
         s.at = at;
         s.cursorBefore = std::min(shadowCursor, shadow.size());
+        if (onChange)
+            onChange(shadow, at, removed.size(), inserted);
         shadow.replace(at, removed.size(), inserted);
         s.removed = std::move(removed);
         s.inserted = std::move(inserted);
@@ -223,6 +225,8 @@ bool EditUndo::after(TEditor &e, Kind kind, bool hadSelection, int replaceCount)
         syncSaved(e);
         return false;
     }
+    if (onChange)
+        onChange(shadow, at, removed.size(), inserted);
     shadow.replace(at, removed.size(), inserted);
 
     Step *last = pos > 0 && pos == steps.size() && steps[pos - 1].open ? &steps[pos - 1] : nullptr;
@@ -326,6 +330,8 @@ void EditUndo::apply(TEditor &e, size_t at, size_t length, const std::string &te
     e.setCurPtr((uint) std::min<size_t>(cursor, e.bufLen), 0);
     e.trackCursor(False);
     e.unlock();
+    if (onChange)
+        onChange(shadow, at, length, text);
     shadow.replace(at, length, text);
     shadowCursor = e.curPtr;
 }

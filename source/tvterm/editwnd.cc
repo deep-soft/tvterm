@@ -30,6 +30,7 @@
 #include "app.h"
 #include "settings.h"
 #include "pin.h"
+#include "linemarks.h"
 #include "nocomments.h"
 
 #include <stdarg.h>
@@ -1130,7 +1131,7 @@ enum : ushort
 {
     cmEditReadOnly = 3460, cmEditSave, cmEditSaveAs, cmEditFind, cmEditReplace, cmEditGoToLine,
     cmEditOpen, cmEditReload, cmEditWhitespace, cmEditPin, cmEditLineNumbers,
-    cmEditHideComments,
+    cmEditHideComments, cmEditModifiedLines,
 };
 
 // The directory of 'path' (as the editor expanded it), "" without one.
@@ -1391,6 +1392,10 @@ public:
         };
         TColorAttr numColor = colorOf(st.lineNumbersColor, st.lineNumbersColorFore);
         TColorAttr curColor = colorOf(st.lineNumbersCurrentColor, st.lineNumbersCurrentColorFore);
+        // E111: the inserted / changed lines (not the current line).
+        TColorAttr insColor = colorOf(st.lineNumbersInsertedColor, st.lineNumbersInsertedColorFore);
+        TColorAttr modColor = colorOf(st.lineNumbersModifiedColor, st.lineNumbersModifiedColorFore);
+        bool marks = window.showsModifiedLines();
         int digits = size.x - 1;
         for (int y = 0; y < size.y; ++y)
         {
@@ -1400,7 +1405,15 @@ public:
             if (n > 0)
             {
                 // The whole cell of the row in the number's color.
-                TColorAttr color = line == e->curPos.y ? curColor : numColor;
+                TColorAttr color = numColor;
+                if (line == e->curPos.y)
+                    color = curColor;
+                else if (marks)
+                    switch (window.markOfLine(n - 1))
+                    {
+                        case linemarks::mInserted: color = insColor; break;
+                        case linemarks::mChanged: color = modColor; break;
+                    }
                 b.moveChar(0, ' ', color, size.x);
                 std::string text = std::to_string(n);
                 int x = std::max(0, digits - (int) text.size());
@@ -1505,6 +1518,11 @@ TVTermEditWindow::TVTermEditWindow(const TRect &bounds, TStringView fileName) no
     helpCtx = hcEditor;
     if (editor)
         undoList.reset(*editor);
+    // E111: every change of the text moves / sets the marks of its lines.
+    modifiedLines = TVTermApp::settings().lineNumbersModified;
+    undoList.onChange = [this] (const std::string &before, size_t at, size_t length, const std::string &text) {
+        linemarks::update(lineMarks, before, at, length, text);
+    };
     applyUndoLimits();
     updateWidthLimit();
     // [editor] line-numbers (E108).
@@ -1788,6 +1806,36 @@ std::string TVTermEditWindow::lineNumbersItemText() const
     return text;
 }
 
+void TVTermEditWindow::setModifiedLines(bool on)
+{
+    if (modifiedLines == on)
+        return;
+    modifiedLines = on;
+    if (gutter)
+        gutter->drawView();
+}
+
+int TVTermEditWindow::markOfLine(long line) const
+{
+    return linemarks::markOf(lineMarks, line);
+}
+
+void TVTermEditWindow::toggleModifiedLines()
+{
+    bool on = !modifiedLines;
+    setModifiedLines(on);
+    if (!on)
+        editwnd::showStatus("Modified lines hidden.");
+    else if (showsLineNumbers())
+        editwnd::showStatus("Modified lines shown.");
+    else
+    {
+        TKey key = TVTermApp::settings().keyEditorLineNumbers;
+        std::string how = key.code != 0 ? keyName(key) : std::string("F9 > Line numbers");
+        editwnd::showStatus("Modified lines on; the line numbers are off (" + how + ").");
+    }
+}
+
 void TVTermEditWindow::setPinned(bool on)
 {
     if (pinned == on)
@@ -1862,6 +1910,8 @@ void TVTermEditWindow::openMenu()
         newLine() +
         *new TMenuItem("~W~hitespace", cmEditWhitespace, kbNoKey, hcNoContext, whitespaceItemText()) +
         *new TMenuItem("Line ~n~umbers", cmEditLineNumbers, kbNoKey, hcNoContext, lineNumbersItemText()) +
+        // E111: under Line numbers (shown with them).
+        *new TMenuItem("~M~odified lines", cmEditModifiedLines, kbNoKey, hcNoContext, modifiedLines ? "on" : "off") +
         *new TMenuItem("Hide ~c~omments", cmEditHideComments, kbNoKey, hcNoContext, hiddenItemText());
     // Reload: nothing for Untitled (shown disabled; commands above 255
     // cannot be disabled through the command set, so the item is marked).
@@ -1898,6 +1948,9 @@ void TVTermEditWindow::openMenu()
         case cmEditHideComments:
             toggleHiddenComments();
             break;
+        case cmEditModifiedLines:
+            toggleModifiedLines();
+            break;
     }
 }
 
@@ -1932,6 +1985,7 @@ void TVTermEditWindow::loadIntoWindow(const std::string &path)
         // The box was shown; the buffer may hold parts of both texts.
         e.setBufLen(0);
     undoList.reset(e);
+    lineMarks.clear();
     updateWidthLimit();
     // The new file: its first save from this window makes a backup.
     backedUpFile.clear();
@@ -2006,6 +2060,7 @@ bool TVTermEditWindow::reloadFile()
     if (!ok)
         e.setBufLen(0);
     undoList.reset(e);
+    lineMarks.clear();
     updateWidthLimit();
     // Back to the same line (or the last one) and column, at the same row
     // of the window when it can be.

@@ -6,6 +6,7 @@
 
 #include <string>
 #include <deque>
+#include <functional>
 #include <stddef.h>
 
 // Multi-level undo and redo for a tvision TEditor, without changing
@@ -62,6 +63,12 @@ public:
 
     // Drops the oldest steps over the limits.
     void setLimits(const Limits &limits);
+
+    // Called before each change found or made here (also undo / redo and
+    // changes from outside) with the text before it (this copy), the
+    // position, the length removed and the text put there (E111: the
+    // window's modified lines).
+    std::function<void(const std::string &, size_t, size_t, const std::string &)> onChange;
 
     // For tests and messages.
     size_t undoCount() const { return pos; }

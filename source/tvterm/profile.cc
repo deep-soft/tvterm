@@ -465,6 +465,14 @@ bool loadProfile(const std::string &nameOrPath, Profile &profile, std::string &w
                 else
                     warn("invalid line-numbers '" + value + "' (use yes or no)");
             }
+            else if (isEditor && key == "line-numbers-modified")
+            {
+                bool on;
+                if (parseBool(value, on))
+                    win.lineNumbersModified = on ? 1 : 0;
+                else
+                    warn("invalid line-numbers-modified '" + value + "' (use yes or no)");
+            }
             else if (win.kind == WindowProfile::EventViewer && isFilterKey(key))
             {
                 if (!parseBool(value, filterField(win.filter, key)))
@@ -581,6 +589,8 @@ bool saveProfile(const std::string &path, const Profile &profile, std::string &e
                     file << "whitespace = " << (win.whitespace == 2 ? "2" : win.whitespace ? "yes" : "no") << "\n";
                 if (win.lineNumbers >= 0)
                     file << "line-numbers = " << (win.lineNumbers ? "yes" : "no") << "\n";
+                if (win.lineNumbersModified >= 0)
+                    file << "line-numbers-modified = " << (win.lineNumbersModified ? "yes" : "no") << "\n";
                 if (win.pinned)
                     file << "pinned = yes\n";
                 break;

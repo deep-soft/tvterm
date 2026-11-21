@@ -245,6 +245,10 @@ E109. Editor Hide comments (item 63): Alt-H / F9 > Hide comments, a read-only vi
 E110. Editor line numbers, column background (item 52, chat 83): the background of `line-numbers-color` (`<color> on
       <color>`) fills the whole column, below the last line too; a color without a background is on it (before: on the
       editor's background, only the digits had the column's color)
+E111. Editor Modified lines (item 52): with the line numbers, the numbers of the lines inserted since the file was
+      loaded in `line-numbers-inserted-color` (bright-green), of the changed ones in `line-numbers-modified-color`
+      (yellow); kept by Save, cleared by Reload / Open; F9 > Modified lines, `[editor] line-numbers-modified`, profile
+      `line-numbers-modified = no`; `tvterm.ini` format 12
 
 ---
 
@@ -1551,6 +1555,24 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   is filled with the number's color (the whole cell, so `<color> on <color>` of the current line covers it), a row
   without one (below the last line, a blank line added by Hide comments) with the column's color. Nothing changes with
   the defaults (`cyan`, `bright-white`: no background).
+- **E111** (item 52, agreed in chat 75, details in chat 83: what counts (b) a line touched by a change, undo / Save keep
+  the marks, Reload clears them, green / yellow, the F9 item after Line numbers, no key; an HTML mock-up compared the
+  colors on the srvr column): `linemarks.cc/.h` (no tvision; unit test) keeps one mark per line of the whole text
+  (`mNone`, `mChanged`, `mInserted`; the vector stops at the last marked line). `EditUndo::onChange` (new) is called
+  with the text before each change it finds or makes (an event's change in `after()`, a change from outside in
+  `before()`, undo / redo in `apply()`), so every change goes through `linemarks::update`: the lines from the line of
+  the change's start to the line of its end, plus one line on each side (so a CR meeting an LF, or no longer, is
+  counted as in the whole text), are split before and after; equal lines at the start and at the end keep their marks;
+  the middle is compared line by line when the count is the same (typing, Replace all), else by the longest common
+  subsequence (at most 1000000 line pairs, else as one block); in each block without common lines the first lines
+  become changed (inserted stays inserted) and the rest inserted. EditUndo's steps join typing, but each event still
+  reports its change, so nothing is missed. The Hide comments view (E109) is no change (`track` off): the marks stay on
+  the lines of the whole text and `LineNumbers::draw` reads them through `numberOfLine`. `reloadFile` and
+  `loadIntoWindow` clear the marks after `undoList.reset`. Colors: the cursor's line keeps the current color; then
+  inserted, changed, normal; colors without a background on the column's background (E110). `[editor]
+  line-numbers-modified` (yes), `line-numbers-inserted-color`, `line-numbers-modified-color`; `tvterm.ini` format 12;
+  F9 item `Modified lines` (`m`), the window's state (`setModifiedLines`, profile `line-numbers-modified` when it
+  differs from `tvterm.ini`). With the line numbers off, the item still switches and says so in the status line.
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2702,6 +2724,18 @@ examples/profiles/example.ini
   digits `37m`; the current line `97m` on `40m`; `line-numbers-current-color = black on cyan` → the whole cell of the
   current row `30m 46m`; a 5-line text: the rows below the last line `40m` too; the defaults → the column on the
   editor's background, digits `36m`, as E108.
+- E111: `t_marks.cc` (linked only with `linemarks.cc`, ASan + UBSan): 23 cases (typing; Enter at the end, at the
+  start, in the middle; joining, also of an inserted line; Ctrl-Y; a paste of several lines in the middle and at the
+  start of a line; a block delete; Replace all of lines 1 and 5; a common line in the middle; undo of typing and of
+  Enter; CRLF and lone CR; an empty text; lines appended from outside; marks moving up / down; Alt-D); `t_rand.cc`:
+  200000 random changes of a text with LF, CR and CRLF, the marks never longer than tvision's line count. tmux
+  (`t111.py`, 21 checks), a 10-line file with Alt-L on: a character in line 3 → `93m`; Enter at the end of line 5 →
+  line 6 `92m`, the current line `97m`, the others `36m`; F9 → `Modified lines  on` right under Line numbers; `m` →
+  all `36m`, `Modified lines hidden.`; again → back; Ctrl-Z (the Enter) → line 6 normal, line 3 still `93m`; F2 → still
+  `93m`; F9 > Reload → all normal; Alt-L off, F9 > Modified lines → `… the line numbers are off (Alt-L).`; a file with
+  comments: line 5 changed, Alt-H → numbers `1 2 5 7`, line 5 `93m`; `line-numbers-color = white on black`, inserted
+  `black on green`, changed `black on yellow` → the whole cells `30m 42m` / `30m 43m`, the others on `40m`; profile
+  `line-numbers-modified = no` and `tvterm.ini` `line-numbers-modified = no` → no colors, F9 `off`.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2837,6 +2871,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Editor Modified lines (`far2l-extended`) | E111 | with the line numbers: the numbers of the inserted lines in `line-numbers-inserted-color` (bright-green), of the changed lines in `line-numbers-modified-color` (yellow); kept by Save, cleared by Reload / Open; F9 > Modified lines, `[editor] line-numbers-modified`, profile `line-numbers-modified`; `tvterm.ini` format 12 |
 | Editor line numbers, column background (`far2l-extended`) | E110 | the background of `line-numbers-color` fills the whole line-number column; colors without a background are on it |
 | Editor Hide comments (`far2l-extended`) | E109 | editor Alt-H (`[keys] key-editor-hide-comments`) / F9 > Hide comments: a read-only view without comment (`#`, `;`) and blank lines, `##` header kept, a blank line before each `[section]`, `[#-]`; numbers, indicator and Go to line of the whole file; saving always writes the whole text |
 | Editor line numbers (`far2l-extended`) | E108 | editor Alt-L (`[keys] key-editor-line-numbers`) / F9 > Line numbers: a column with the line numbers (`line-numbers-width` digits + a space, wider for more lines; `line-numbers-color`, `line-numbers-current-color`); a click goes to the line; `[editor] line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11 |

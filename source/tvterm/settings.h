@@ -38,8 +38,10 @@ const int minFileDialogHeight = 19;
 // [editor] whitespace-color-2 (E103), [keys] key-eventviewer-mute (E106),
 // key-editor-pin (E107); 11: [editor] line-numbers, line-numbers-width,
 // line-numbers-color, line-numbers-current-color, [keys]
-// key-editor-line-numbers (E108), key-editor-hide-comments (E109).
-const int settingsFormat = 11;
+// key-editor-line-numbers (E108), key-editor-hide-comments (E109); 12:
+// [editor] line-numbers-modified, line-numbers-inserted-color,
+// line-numbers-modified-color (E111).
+const int settingsFormat = 12;
 
 struct Settings
 {
@@ -131,6 +133,15 @@ struct Settings
     bool lineNumbersColorFore {true};
     int lineNumbersCurrentColor {0x0F};
     bool lineNumbersCurrentColorFore {true};
+    // Modified lines (E111, item 52): line-numbers-modified: the state in a
+    // new editor window; the numbers of the lines inserted / changed since
+    // the file was loaded in line-numbers-inserted-color /
+    // line-numbers-modified-color (as line-numbers-color).
+    bool lineNumbersModified {true};
+    int lineNumbersInsertedColor {0x0A};
+    bool lineNumbersInsertedColorFore {true};
+    int lineNumbersModifiedColor {0x0E};
+    bool lineNumbersModifiedColorFore {true};
     // [scrollback]
     int lines {10000};
     int wheelLines {3};

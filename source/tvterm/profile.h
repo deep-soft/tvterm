@@ -64,6 +64,9 @@ struct WindowProfile
     // [editor] line-numbers (E108): 1 yes, 0 no, -1 not in the profile
     // ([editor] line-numbers of tvterm.ini).
     int lineNumbers {-1};
+    // [editor] line-numbers-modified (E111): the same for the modified
+    // lines ([editor] line-numbers-modified of tvterm.ini).
+    int lineNumbersModified {-1};
     // Event Viewer.
     EventFilter filter;
     // All windows: position and size in percent of the desktop, if 'hasPos'.

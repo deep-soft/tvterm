@@ -658,6 +658,29 @@ bool loadSettings(const std::string &path, Settings &settings, std::string &warn
                 if (!parseInt(value, 1, 9, settings.lineNumbersWidth))
                     invalid("1 to 9"), settings.lineNumbersWidth = previous.lineNumbersWidth;
             }
+            else if (key == "line-numbers-modified")
+            {
+                // E111.
+                if (!parseBool(value, settings.lineNumbersModified))
+                    invalid("use yes or no"), settings.lineNumbersModified = previous.lineNumbersModified;
+            }
+            else if (key == "line-numbers-inserted-color" || key == "line-numbers-modified-color")
+            {
+                bool inserted = key == "line-numbers-inserted-color";
+                int &color = inserted ? settings.lineNumbersInsertedColor : settings.lineNumbersModifiedColor;
+                bool &fore = inserted ? settings.lineNumbersInsertedColorFore : settings.lineNumbersModifiedColorFore;
+                std::string error;
+                int attr = 0;
+                if (parseColorName(value, attr, error))
+                {
+                    color = attr;
+                    fore = lower(value).find(" on ") == std::string::npos;
+                }
+                else
+                    invalid(error + (inserted ? "; e.g. bright-green, or black on green" : "; e.g. yellow, or black on yellow")),
+                    color = inserted ? previous.lineNumbersInsertedColor : previous.lineNumbersModifiedColor,
+                    fore = inserted ? previous.lineNumbersInsertedColorFore : previous.lineNumbersModifiedColorFore;
+            }
             else if (key == "line-numbers-color" || key == "line-numbers-current-color")
             {
                 bool current = key == "line-numbers-current-color";
@@ -1010,6 +1033,15 @@ std::string settingsTemplate()
         "  # line-numbers-color has none).\n"
         " #line-numbers-color = cyan\n"
         " #line-numbers-current-color = bright-white\n"
+        "  # Modified lines (F9 > Modified lines): the numbers of the lines inserted\n"
+        "  # or changed since the file was loaded (Reload clears them) in their own\n"
+        "  # colors, while the line numbers are shown; the state in a new editor\n"
+        "  # window, yes or no; a profile keeps it per window.\n"
+        " #line-numbers-modified = " + std::string(d.lineNumbersModified ? "yes" : "no") + "\n"
+        "  # Colors of the inserted and of the changed lines' numbers, as\n"
+        "  # line-numbers-color.\n"
+        " #line-numbers-inserted-color = bright-green\n"
+        " #line-numbers-modified-color = yellow\n"
         "\n"
         "[logview]\n"
         "  # Lines kept by each Log View source (Ctrl-B L), 100 to 1000000; a window\n"

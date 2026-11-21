@@ -667,7 +667,7 @@ line), **Alt-D** (Duplicate line) and **Alt-W** (Select word): [Moving and selec
 **Alt-L** shows / hides the line numbers ([Line numbers](#line-numbers)).
 **Alt-H** shows the text without comments and blank lines, read only ([Hide comments](#hide-comments)).
 **F9** opens the editor's menu: Read only, Pin ([Pin](#pin)), Save, Save as (**F12**), Open (**Ctrl-F12**), Reload,
-Find, Replace, Go to line, Whitespace, Line numbers, Hide comments ([Read only](#read-only), [Open and Reload](#open-and-reload)).
+Find, Replace, Go to line, Whitespace, Line numbers, Modified lines ([Modified lines](#modified-lines)), Hide comments ([Read only](#read-only), [Open and Reload](#open-and-reload)).
 Saving keeps backups of the file, `name-YYYY-MM-DD-hhmmss` ([Backups](#backups)).
 
 ### Open and Reload
@@ -920,6 +920,35 @@ editor's when `line-numbers-color` has none), and a `<color> on <color>` fills t
 (`none`: no key, F9 still works). Save Profile As writes `line-numbers = yes` for an editor window with them on
 (`line-numbers = no` when they are off and `line-numbers = yes` is in `tvterm.ini`).
 
+### Modified lines
+
+While the line numbers are shown, the numbers of the lines **inserted** since the file was loaded are in
+`line-numbers-inserted-color` (default `bright-green`) and those of the lines **changed** in
+`line-numbers-modified-color` (default `yellow`); the cursor's line keeps `line-numbers-current-color`. A line is
+marked when a change touches it (typing, paste, cut, Ctrl-Y, Alt-D, Replace, Replace all, undo / redo, lines added
+from a Log View), even if its text is later the same again:
+
+- typing in a line, or joining it with the next one: changed (an inserted line stays inserted);
+- **Enter** at the end or at the start of a line: only the new line is inserted; in the middle: the first part is
+  changed, the second inserted; a paste of several lines works the same way;
+- deleted lines leave no mark; the marks move with their lines when lines are added or removed above them;
+- **Save** keeps the marks; **Reload** and **Open** clear them. They live as long as the window.
+
+```
+   7 [editor]                 <- line-numbers-color
+   8  line-numbers = yes      <- changed: yellow
+   9  line-numbers-width = 5  <- inserted: bright-green
+```
+
+**F9 > Modified lines** (`m`, under Line numbers) turns the colors off / on in the window (`Modified lines shown.` /
+`Modified lines hidden.`; with the line numbers off: `Modified lines on; the line numbers are off (Alt-L).`); the marks
+are kept meanwhile. In the Hide comments view the numbers keep the marks of their lines.
+
+`tvterm.ini` `[editor]`: `line-numbers-modified = no` starts new editor windows with them off;
+`line-numbers-inserted-color` and `line-numbers-modified-color` take `<color>` (on the column's background) or
+`<color> on <color>` (the whole row of the column, e.g. `black on yellow`), as `line-numbers-color`. Save Profile As
+writes `line-numbers-modified = no` for an editor window with them off (`yes` when on and `tvterm.ini` has `no`).
+
 ### Hide comments
 
 **Alt-H** (or **F9 > Hide comments**, `c`) shows the window's text **without comments and blank lines**, e.g. to see
@@ -990,12 +1019,12 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 (see `examples/tvterm.ini`, or `tvterm --print-settings`: [Command line](#command-line)).
 
 - **Format line**: the first line of the file made by Edit settings (and of `--print-settings`) is
-  `## format 11, created by tvterm v0.3.0 (2b5e5d2, built 2026-11-20 10:00 EET)`: the format of the file, then the
+  `## format 12, created by tvterm v0.3.0 (2b5e5d2, built 2026-11-21 10:00 EET)`: the format of the file, then the
   version, commit and build date of the tvterm that made it. The format number goes up when a version adds, renames or
   changes the meaning of keys (format 1: tvterm 0.2.0; format 2: `file-backups`, `file-backups-number`; format 3:
   `comment-template`, `comment-width`, `key-editor-comment`; format 4: `[alerts]` `action`, `action-interval`, `log`,
   `notify`, `notify-repeat`; format 5: `[capture] folder`, `[alerts] mute-above`; format 6: `auto-reload-check`,
-  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`; format 11: `line-numbers`, `line-numbers-width`, `line-numbers-color`, `line-numbers-current-color`, `key-editor-line-numbers`, `key-editor-hide-comments`). tvterm reads it only from the header (the `##` lines before the first section). A file
+  `desktop-pattern`, `desktop-pattern-on-capture`; format 7: `help-current-first`, `key-logviews-end`, `key-editor-indent`, `key-editor-unindent`, `cursor-color`, `selection-color`; format 8: `[editor]` `show-whitespace`, `whitespace-symbols`, `whitespace-color`, `key-editor-whitespace`; format 9: `key-logview-pin`; format 10: `whitespace-color-2`, `key-eventviewer-mute`, `key-editor-pin`; format 11: `line-numbers`, `line-numbers-width`, `line-numbers-color`, `line-numbers-current-color`, `key-editor-line-numbers`, `key-editor-hide-comments`; format 12: `line-numbers-modified`, `line-numbers-inserted-color`, `line-numbers-modified-color`). tvterm reads it only from the header (the `##` lines before the first section). A file
   without it (made before 0.2.0) or of an older format gets one note in the Event Viewer (`… has no format line …` /
   `… is format N, this tvterm uses format M: keys added since may be missing, see tvt-ini-merge or tvterm
   --print-settings`); a newer format gets `… from a newer tvterm …`. The note is printed in an open Event Viewer once
@@ -1062,6 +1091,8 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `line-numbers` | `no` | `yes`: new editor windows start with the line numbers on ([Line numbers](#line-numbers)) |
 | | `line-numbers-width` | `4` | digits of the line numbers, 1–9 (more when the text has more lines); a space always follows |
 | | `line-numbers-color` / `line-numbers-current-color` | `cyan` / `bright-white` | the numbers / the cursor line's number: `<color>` (on the column's background) or `<color> on <color>`; the background of `line-numbers-color` fills the whole column |
+| | `line-numbers-modified` | `yes` | `no`: new editor windows start without the colors of the modified lines ([Modified lines](#modified-lines)) |
+| | `line-numbers-inserted-color` / `line-numbers-modified-color` | `bright-green` / `yellow` | the numbers of the inserted / changed lines, as `line-numbers-color` |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
 | | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
@@ -1199,7 +1230,7 @@ applied to each desktop separately. Profiles without `desktop` open everything o
 
 Put `include` / `exclude` in double quotes to keep spaces at the start or end: `include = "dstport=(993|465) "`.
 
-`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `2` / `no` (the whitespace view, `2`: in `whitespace-color-2`; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `line-numbers = yes` / `no` (without it, `line-numbers` of `tvterm.ini`, [Line numbers](#line-numbers)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
+`[editor]`: `file` (without it, an empty editor), `read-only = yes` (with `file`: the editor opens read only, [Read only](#read-only)), `whitespace = yes` / `2` / `no` (the whitespace view, `2`: in `whitespace-color-2`; without it, `show-whitespace` of `tvterm.ini`, [Whitespace](#whitespace)), `line-numbers = yes` / `no` (without it, `line-numbers` of `tvterm.ini`, [Line numbers](#line-numbers)), `line-numbers-modified = yes` / `no` (without it, `line-numbers-modified` of `tvterm.ini`, [Modified lines](#modified-lines)), `pinned = yes` (the editor opens pinned, [Pin](#pin)). `[eventviewer]`: the filters `mouse-move` (default `no`),
 `mouse-clicks`, `keys`, `other`, `tvterm-messages` (default `yes`) ([chapter 8](#8-event-viewer)).
 
 ```ini

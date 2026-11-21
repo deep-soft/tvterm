@@ -88,6 +88,20 @@ public:
     // line in the whole text (0 for an added blank line).
     long numberOfLine(int line) const;
 
+    // Modified lines (E111, item 52; F9 > Modified lines): the numbers of the
+    // lines inserted / changed since the file was loaded (typing, paste,
+    // undo / redo, Replace, lines from Log View...) in
+    // [editor] line-numbers-inserted-color / line-numbers-modified-color
+    // (linemarks.h); saving keeps the marks, Reload and Open clear them.
+    // Shown only with the line numbers. Starts as [editor]
+    // line-numbers-modified; profiles keep it ('line-numbers-modified =
+    // no'). Allowed in read only.
+    bool showsModifiedLines() const noexcept { return modifiedLines; }
+    void setModifiedLines(bool on);
+    // The mark of the line 'line' of the whole text (0-based):
+    // linemarks::Mark.
+    int markOfLine(long line) const;
+
     // Hide comments (E109, item 63; key-editor-hide-comments Alt-H, F9 >
     // Hide comments): the editor shows the text without comment lines ('#'
     // or ';' after spaces) and blank lines, keeping the '##' block at the
@@ -183,6 +197,10 @@ private:
     std::string titleBuf;
     // The line numbers' column (E108), null while they are hidden.
     TView *gutter {nullptr};
+    // E111: the modified lines shown; the marks, one per line of the whole
+    // text (linemarks.h; shorter: the lines after it have none).
+    bool modifiedLines {true};
+    std::vector<unsigned char> lineMarks;
     // The view without comments (E109): the whole text and, for each line
     // of the view, its line in the whole text (-1: an added blank line).
     struct HiddenView
@@ -207,6 +225,8 @@ private:
     // item; the column's width (digits and the space).
     void toggleLineNumbers();
     std::string lineNumbersItemText() const;
+    // E111: the modified lines on / off with the message.
+    void toggleModifiedLines();
     int lineNumbersWidth() const;
     // E109: the view on / off with the message; the F9 item's text; the
     // message when something would change the view's text.
