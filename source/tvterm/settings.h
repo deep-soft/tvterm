@@ -122,7 +122,9 @@ struct Settings
     // new editor window; line-numbers-width: the digits of the column (1-9,
     // more when the text has more lines; a space always follows);
     // line-numbers-color / line-numbers-current-color: as whitespace-color
-    // (Fore: only the foreground, on the editor's background).
+    // (Fore: only the foreground). E110: the background of
+    // line-numbers-color (when it has one) fills the whole column; a Fore
+    // color is on the column's background (the editor's without one).
     bool lineNumbers {false};
     int lineNumbersWidth {4};
     int lineNumbersColor {0x03};

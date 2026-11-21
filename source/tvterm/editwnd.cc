@@ -1376,11 +1376,15 @@ public:
             return;
         const Settings &st = TVTermApp::settings();
         TColorAttr normal = TColorAttr(e->getColor(0x0201));
+        // E110: the column's background is line-numbers-color's when it has
+        // one ('<color> on <color>'), else the editor's; a color without a
+        // background ('<color>') is on the column's background.
+        TColorAttr column = st.lineNumbersColorFore ? normal : TColorAttr(st.lineNumbersColor);
         auto colorOf = [&] (int attr, bool fore) {
             TColorAttr c = TColorAttr(attr);
             if (fore)
             {
-                c = normal;
+                c = column;
                 c.setForeground(TColorBIOS(attr & 0x0F));
             }
             return c;
@@ -1391,15 +1395,19 @@ public:
         for (int y = 0; y < size.y; ++y)
         {
             TDrawBuffer b;
-            b.moveChar(0, ' ', normal, size.x);
             int line = e->delta.y + y;
             long n = line < e->limit.y ? window.numberOfLine(line) : 0;
             if (n > 0)
             {
+                // The whole cell of the row in the number's color.
+                TColorAttr color = line == e->curPos.y ? curColor : numColor;
+                b.moveChar(0, ' ', color, size.x);
                 std::string text = std::to_string(n);
                 int x = std::max(0, digits - (int) text.size());
-                b.moveStr(x, text, line == e->curPos.y ? curColor : numColor);
+                b.moveStr(x, text, color);
             }
+            else
+                b.moveChar(0, ' ', column, size.x);
             writeLine(0, y, size.x, 1, b);
         }
     }

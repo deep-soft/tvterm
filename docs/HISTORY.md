@@ -242,6 +242,9 @@ E108. Editor line numbers (item 53): Alt-L / F9 > Line numbers, a column at the 
 E109. Editor Hide comments (item 63): Alt-H / F9 > Hide comments, a read-only view without comment and blank lines
       (the `##` header kept, a blank line before each `[section]`), `[#-]`; line numbers, indicator and Alt-F8 use the
       lines of the whole file; `[keys] key-editor-hide-comments`
+E110. Editor line numbers, column background (item 52, chat 83): the background of `line-numbers-color` (`<color> on
+      <color>`) fills the whole column, below the last line too; a color without a background is on it (before: on the
+      editor's background, only the digits had the column's color)
 
 ---
 
@@ -1542,6 +1545,12 @@ them, one row shorter (profiles keep their positions in percent of the desktop).
   text's line count. Alt-F8: `goToLine(e, map, lines)` (`viewLineOf`: the line or the next shown). Title ` [#-]`
   (after `[WS]`, before `[P]`), F9 item `Hide comments` (`c`), F1 line, `[keys] key-editor-hide-comments` (Alt-H;
   format 11 with E108).
+- **E110** (item 52, chat 83, from the srvr capture of E108 with `line-numbers-color = white on black`: black only under
+  the digits): `editwnd::LineNumbers::draw` takes the column's color as `line-numbers-color` when it has a background
+  (not Fore), else the editor's normal color; Fore colors (`<color>` alone) get that background. A row with a number
+  is filled with the number's color (the whole cell, so `<color> on <color>` of the current line covers it), a row
+  without one (below the last line, a blank line added by Hide comments) with the column's color. Nothing changes with
+  the defaults (`cyan`, `bright-white`: no background).
 - **Pin** (E84, item 33, agreed in chat 70, details in chat 75: Term too, through Ctrl-B Z P): `pin.cc/.h`
   (`canPin`: a Log View that is not the Help window, or a `TerminalWindow`; `isPinned`, `set`, `toggle` with a status
   message, `refuseClose`, `titleOf`). The state is a field of each window (`LogViewWindow::pinned`,
@@ -2688,6 +2697,11 @@ examples/profiles/example.ini
   change, F2 → CRLF kept (`od -c`). Settings editor (More... > Edit settings), Alt-H, `tvterm.ini` appended from
   outside → reloaded, still `[#-]`, the new line shown. Log View's Add to editor: by reading only (same branch as read
   only).
+- E110 (`t110.py`), tmux 100x30, a 40-line text in a full-size editor with Alt-L: `line-numbers-color = white on
+  black` → every cell of the column (rows of lines and rows below the last line) has `40m` (`capture-pane -e`), the
+  digits `37m`; the current line `97m` on `40m`; `line-numbers-current-color = black on cyan` → the whole cell of the
+  current row `30m 46m`; a 5-line text: the rows below the last line `40m` too; the defaults → the column on the
+  editor's background, digits `36m`, as E108.
 - E97 (`t97.sh`): `executable: /home/claude/bld/tvterm (pid N)` with N = `pgrep` of the process; after `kill -SEGV`
   the report has the same line and `pid:     N`.
 - E80, tmux, a Log View with Words (`line`) and a Shift-Up selection: cursor `30m 46m`, selection `30m 47m`
@@ -2823,6 +2837,7 @@ examples/profiles/example.ini
 | pid in the startup notes (`far2l-extended`) | E97 | `executable: <path> (pid N)` in the Event Viewer startup notes and in the crash report header |
 | Message prefix `t:` (`far2l-extended`) | E98 | Event Viewer messages `t: hh:mm:ss text` (was `tvterm:`), the letter of the T filter; MANUAL examples |
 | Log source history (`far2l-extended`) | E99 | sources started / stopped only in a history (not Event Viewer messages): Event Viewer `S` / F9 > Log source history, the last 200 starts, stops, restarts, ends (time, pid, command); not emptied by Shift-N; status item `S Sources` |
+| Editor line numbers, column background (`far2l-extended`) | E110 | the background of `line-numbers-color` fills the whole line-number column; colors without a background are on it |
 | Editor Hide comments (`far2l-extended`) | E109 | editor Alt-H (`[keys] key-editor-hide-comments`) / F9 > Hide comments: a read-only view without comment (`#`, `;`) and blank lines, `##` header kept, a blank line before each `[section]`, `[#-]`; numbers, indicator and Go to line of the whole file; saving always writes the whole text |
 | Editor line numbers (`far2l-extended`) | E108 | editor Alt-L (`[keys] key-editor-line-numbers`) / F9 > Line numbers: a column with the line numbers (`line-numbers-width` digits + a space, wider for more lines; `line-numbers-color`, `line-numbers-current-color`); a click goes to the line; `[editor] line-numbers`, profile `line-numbers = yes`; `tvterm.ini` format 11 |
 | Editor Pin key (`far2l-extended`) | E107 | editor F6 (`[keys] key-editor-pin`, `none` = no key): Pin / Unpin as F9 > Pin, also in read only; the key in the F9 item and F1; `tvterm.ini` format 10 |

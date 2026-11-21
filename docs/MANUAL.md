@@ -913,8 +913,10 @@ and the F9 item `on, Alt-L` / `off, Alt-L`; there is no mark in the title. A win
 it (`The window is too narrow for line numbers.`).
 
 `tvterm.ini` `[editor]`: `line-numbers = yes` turns them on in every new editor window; `line-numbers-width` (1 to 9);
-`line-numbers-color` (default `cyan`) and `line-numbers-current-color` (default `bright-white`) take `<color>` (on the
-editor's background) or `<color> on <color>`, as `whitespace-color`. The key is `key-editor-line-numbers` in `[keys]`
+`line-numbers-color` (default `cyan`) and `line-numbers-current-color` (default `bright-white`) take `<color>` or
+`<color> on <color>`, as `whitespace-color`. The background of `line-numbers-color` fills the **whole column** (also
+below the last line), e.g. `white on black` gives a black column; a `<color>` alone is on the column's background (the
+editor's when `line-numbers-color` has none), and a `<color> on <color>` fills the whole row of the column. The key is `key-editor-line-numbers` in `[keys]`
 (`none`: no key, F9 still works). Save Profile As writes `line-numbers = yes` for an editor window with them on
 (`line-numbers = no` when they are off and `line-numbers = yes` is in `tvterm.ini`).
 
@@ -1059,7 +1061,7 @@ if missing, with every key commented out, and opens it. Keys added in newer vers
 | | `whitespace-color-2` | (none) | a second color for the symbols, the same form (E103): the key then cycles off → `whitespace-color` → `whitespace-color-2` → off (`[WS2]`); empty: on / off only ([Whitespace](#whitespace)) |
 | | `line-numbers` | `no` | `yes`: new editor windows start with the line numbers on ([Line numbers](#line-numbers)) |
 | | `line-numbers-width` | `4` | digits of the line numbers, 1–9 (more when the text has more lines); a space always follows |
-| | `line-numbers-color` / `line-numbers-current-color` | `cyan` / `bright-white` | the numbers / the cursor line's number: `<color>` (on the editor's background) or `<color> on <color>` |
+| | `line-numbers-color` / `line-numbers-current-color` | `cyan` / `bright-white` | the numbers / the cursor line's number: `<color>` (on the column's background) or `<color> on <color>`; the background of `line-numbers-color` fills the whole column |
 | `[logview]` | `max-lines` | `50000` | lines kept by each Log View source, 100–1000000 |
 | | `cursor-color` | `black on cyan` | the cursor line of the focused Log View (and Event Viewer): `<color> on <color>` with the highlight colors (`black red green yellow blue magenta cyan white`, `bright-<color>`), e.g. `black on bright-white` (a `bright-` background needs a terminal that shows it); applies at once; an invalid value keeps the previous one |
 | | `selection-color` | `black on white` | the selected lines, the same way; choose a color unlike `cursor-color` |
